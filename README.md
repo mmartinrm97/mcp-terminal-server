@@ -323,6 +323,14 @@ npm test
 - [ ] npm publishing
 - [ ] SSE transport for remote connections
 
+## Contributing
+
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for development setup, coding guidelines, and pull request流程.
+
+## Changelog
+
+See [CHANGELOG.md](./CHANGELOG.md) for version history and release notes.
+
 ## License
 
-MIT
+Distributed under the MIT License. See [LICENSE](./LICENSE) for more information.
