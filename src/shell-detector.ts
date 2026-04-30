@@ -17,11 +17,11 @@ export interface ShellInfo {
  *
  * Cross-platform detection:
  *
- * | SO      | Shell preferido | Fallback |
- * |---------|-----------------|----------|
- * | Linux   | $SHELL → bash   | sh       |
- * | macOS   | $SHELL → zsh    | bash     |
- * | Windows | pwsh.exe        | cmd.exe  |
+ * | Platform | Preferred Shell | Fallback |
+ * |----------|-----------------|----------|
+ * | Linux    | $SHELL → bash   | sh       |
+ * | macOS    | $SHELL → zsh    | bash     |
+ * | Windows  | pwsh.exe        | cmd.exe  |
  *
  * When a specific shell is requested, it is used directly with platform-appropriate
  * executable name resolution (e.g., `pwsh` → `pwsh.exe` on Windows).

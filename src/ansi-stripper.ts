@@ -16,6 +16,12 @@ const ANSI_PATTERN =
   // CSI sequences: ESC [ ... final byte (0x40-0x7E)
   /(?:\x1b\[[\d;]*[A-Za-z])|(?:\x1b\][^\x07\x1b]*(?:\x07|\x1b\\))/g;
 
+/**
+ * Strip ANSI escape codes from a string of terminal output.
+ *
+ * @param data - Raw terminal output potentially containing ANSI codes
+ * @returns Clean text with all ANSI escape sequences removed
+ */
 export function stripAnsi(data: string): string {
   return data.replace(ANSI_PATTERN, '');
 }

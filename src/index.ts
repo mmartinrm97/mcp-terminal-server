@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * MCP Terminal Server — Interactive Terminal para Agentes AI
+ * MCP Terminal Server — Interactive Terminal for AI Agents
  *
  * Exposes 7 MCP tools for managing interactive terminal sessions via PTY.
  * See docs/MCP-TERMINAL-SERVER.md for the full design.

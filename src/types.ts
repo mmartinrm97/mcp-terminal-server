@@ -1,4 +1,6 @@
-// Session configuration
+/**
+ * Configuration for creating a new terminal session.
+ */
 export interface SessionConfig {
   id?: string;
   shell?: 'auto' | 'bash' | 'zsh' | 'pwsh' | 'cmd';
@@ -8,7 +10,9 @@ export interface SessionConfig {
   env?: Record<string, string>;
 }
 
-// Session info returned to clients
+/**
+ * Information about a terminal session returned to clients.
+ */
 export interface SessionInfo {
   id: string;
   shell: string;
@@ -20,20 +24,26 @@ export interface SessionInfo {
   alive: boolean;
 }
 
-// Result of terminal_write
+/**
+ * Result returned by terminal_write.
+ */
 export interface WriteResult {
   ok: boolean;
   bytes_written: number;
 }
 
-// Result of terminal_read
+/**
+ * Result returned by terminal_read.
+ */
 export interface ReadResult {
   data: string;
   ended: boolean;
   exit_code: number | null;
 }
 
-// Result of terminal_read_until (the star tool)
+/**
+ * Result returned by terminal_read_until (the key tool for interactive flows).
+ */
 export interface ReadUntilResult {
   data: string;
   full_output: string;
@@ -43,7 +53,9 @@ export interface ReadUntilResult {
   timed_out: boolean;
 }
 
-// Create session input
+/**
+ * Input parameters for terminal_create_session.
+ */
 export interface CreateSessionInput {
   id?: string;
   shell?: 'auto' | 'bash' | 'zsh' | 'pwsh' | 'cmd';
@@ -53,19 +65,25 @@ export interface CreateSessionInput {
   env?: Record<string, string>;
 }
 
-// Write input
+/**
+ * Input parameters for terminal_write.
+ */
 export interface WriteInput {
   id: string;
   data: string;
 }
 
-// Read input
+/**
+ * Input parameters for terminal_read.
+ */
 export interface ReadInput {
   id: string;
   flush?: boolean;
 }
 
-// ReadUntil input
+/**
+ * Input parameters for terminal_read_until.
+ */
 export interface ReadUntilInput {
   id: string;
   pattern: string;
@@ -73,26 +91,34 @@ export interface ReadUntilInput {
   strip_ansi?: boolean;
 }
 
-// Resize input
+/**
+ * Input parameters for terminal_resize.
+ */
 export interface ResizeInput {
   id: string;
   cols: number;
   rows: number;
 }
 
-// Close session input
+/**
+ * Input parameters for terminal_close_session.
+ */
 export interface CloseSessionInput {
   id: string;
   force?: boolean;
 }
 
-// Session Manager config
+/**
+ * Configuration for the SessionManager.
+ */
 export interface SessionManagerConfig {
   max_sessions: number;
   session_ttl_ms: number;
 }
 
-// Error types
+/**
+ * Error thrown when attempting to access a session that does not exist.
+ */
 export class SessionNotFoundError extends Error {
   constructor(sessionId: string) {
     super(`Session not found: ${sessionId}`);
@@ -100,6 +126,9 @@ export class SessionNotFoundError extends Error {
   }
 }
 
+/**
+ * Error thrown when the maximum number of sessions has been reached.
+ */
 export class SessionLimitError extends Error {
   constructor(max: number) {
     super(`Maximum session limit reached (${max})`);
@@ -107,6 +136,9 @@ export class SessionLimitError extends Error {
   }
 }
 
+/**
+ * Error thrown when terminal_read_until times out before a pattern matches.
+ */
 export class ReadTimeoutError extends Error {
   public timedOut: boolean;
   public partialData: string;
