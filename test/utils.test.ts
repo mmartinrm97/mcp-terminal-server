@@ -5,6 +5,7 @@ import {
   sleep,
   createTimeout,
   timestamp,
+  normalizeEscapeSequences,
 } from '../src/utils.js';
 
 describe('generateSessionId', () => {
@@ -123,5 +124,68 @@ describe('timestamp', () => {
     const d1 = new Date(ts1).getTime();
     const d2 = new Date(ts2).getTime();
     expect(d2).toBeGreaterThanOrEqual(d1);
+  });
+});
+
+describe('normalizeEscapeSequences', () => {
+  it('should convert literal \\n to newline', () => {
+    const result = normalizeEscapeSequences('line1\\nline2');
+    expect(result).toBe('line1\nline2');
+    expect(result.includes('\n')).toBe(true);
+    expect(result.includes('\\n')).toBe(false);
+  });
+
+  it('should convert literal \\r to CR', () => {
+    expect(normalizeEscapeSequences('text\\rmore')).toBe('text\rmore');
+  });
+
+  it('should convert literal \\t to tab', () => {
+    expect(normalizeEscapeSequences('a\\tb')).toBe('a\tb');
+  });
+
+  it('should convert literal \\x03 to Ctrl+C', () => {
+    const result = normalizeEscapeSequences('\\x03');
+    expect(result).toBe('\x03');
+    expect(result.charCodeAt(0)).toBe(3);
+  });
+
+  it('should convert literal \\x1b to Escape', () => {
+    const result = normalizeEscapeSequences('\\x1b');
+    expect(result).toBe('\x1b');
+    expect(result.charCodeAt(0)).toBe(27);
+  });
+
+  it('should handle mixed escape sequences', () => {
+    const result = normalizeEscapeSequences('echo hello\\n');
+    expect(result).toBe('echo hello\n');
+  });
+
+  it('should preserve real newlines (already correct)', () => {
+    const result = normalizeEscapeSequences('line1\nline2');
+    expect(result).toBe('line1\nline2');
+  });
+
+  it('should handle empty string', () => {
+    expect(normalizeEscapeSequences('')).toBe('');
+  });
+
+  it('should handle string with no escapes', () => {
+    expect(normalizeEscapeSequences('plain text')).toBe('plain text');
+  });
+
+  it('should handle npm init command pattern', () => {
+    // This is the exact pattern from the bug report
+    const result = normalizeEscapeSequences('npm init\\n');
+    expect(result).toBe('npm init\n');
+    expect(result.endsWith('\n')).toBe(true);
+  });
+
+  it('should convert literal \\\\ to single backslash', () => {
+    expect(normalizeEscapeSequences('a\\\\b')).toBe('a\\b');
+  });
+
+  it('should handle \\x1b[ (CSI escape)', () => {
+    const result = normalizeEscapeSequences('\\x1b[31mred\\x1b[0m');
+    expect(result).toBe('\x1b[31mred\x1b[0m');
   });
 });

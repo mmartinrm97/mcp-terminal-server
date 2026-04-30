@@ -96,6 +96,17 @@ describe('PTYSession', () => {
       session.write('data');
       expect(session.lastActivity.getTime()).toBeGreaterThanOrEqual(before);
     });
+
+    it('should normalize escape sequences before sending to pty', () => {
+      session.write('echo hello\\n');
+      // The mock should receive the normalized version (real newline)
+      expect(mockPtyInstance.write).toHaveBeenCalledWith('echo hello\n');
+    });
+
+    it('should normalize Ctrl+C escape before sending to pty', () => {
+      session.write('\\x03');
+      expect(mockPtyInstance.write).toHaveBeenCalledWith('\x03');
+    });
   });
 
   describe('read', () => {

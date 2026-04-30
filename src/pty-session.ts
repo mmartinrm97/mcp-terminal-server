@@ -1,6 +1,7 @@
 import { spawn } from 'node-pty';
 import type { IPty } from 'node-pty';
 import { OutputBuffer } from './output-buffer.js';
+import { normalizeEscapeSequences } from './utils.js';
 import type { SessionInfo } from './types.js';
 
 /**
@@ -64,17 +65,22 @@ export class PTYSession {
   /**
    * Write data to the PTY. Supports control sequences:
    * - \n → Enter
+   * - \r → Carriage return
    * - \x03 → Ctrl+C / SIGINT
    * - \x1b → Escape
    * - \t → Tab
-   * All other characters are written as-is.
+   *
+   * Escape sequences are normalized: literal `\n` (two characters) is converted
+   * to an actual newline (0x0A). This handles cases where the AI agent sends
+   * unescaped escape sequences in the JSON-RPC payload.
    *
    * @returns Number of bytes written
    */
   write(data: string): number {
-    this.pty.write(data);
+    const processed = normalizeEscapeSequences(data);
+    this.pty.write(processed);
     this.lastActivity = new Date();
-    return Buffer.byteLength(data);
+    return Buffer.byteLength(processed);
   }
 
   /**
