@@ -12,6 +12,7 @@
 // Comprehensive ANSI escape sequence pattern
 // CSI: ESC [ + optional parameter bytes + optional intermediate bytes + final byte
 // OSC: ESC ] + text + ST (ESC \ or BEL \x07)
+// eslint-disable-next-line no-control-regex — intentional, matching ANSI escape codes
 const ANSI_PATTERN =
   // CSI sequences: ESC [ ... final byte (0x40-0x7E)
   /(?:\x1b\[[\d;]*[A-Za-z])|(?:\x1b\][^\x07\x1b]*(?:\x07|\x1b\\))/g;

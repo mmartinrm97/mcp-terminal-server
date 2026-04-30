@@ -18,7 +18,11 @@
     "test:unit": "vitest run test/*.test.ts",
     "test:int": "vitest run test/integration/**/*.test.ts",
     "test:watch": "vitest",
-    "prepublishOnly": "npm run build"
+    "lint": "oxlint",
+    "lint:fix": "oxlint --fix",
+    "fmt": "oxfmt",
+    "fmt:check": "oxfmt --check",
+    "prepublishOnly": "pnpm build"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.9.0",
@@ -26,12 +30,26 @@
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
+    "oxfmt": "^0.47.0",
+    "oxlint": "^1.62.0",
     "typescript": "^5.8.0",
     "vitest": "^3.1.0"
   },
   "engines": {
     "node": ">=22"
   },
+  "pnpm": {
+    "onlyBuiltDependencies": ["node-pty", "esbuild"]
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/YOUR_USER/mcp-terminal-server.git"
+  },
+  "bugs": {
+    "url": "https://github.com/YOUR_USER/mcp-terminal-server/issues"
+  },
+  "homepage": "https://github.com/YOUR_USER/mcp-terminal-server#readme",
+  "author": "",
   "keywords": [
     "mcp",
     "terminal",

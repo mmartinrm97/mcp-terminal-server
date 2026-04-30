@@ -1,5 +1,5 @@
 // @integration — requires real shell
-import { describe, it, expect, afterAll, beforeAll } from 'vitest';
+import { describe, it, expect, afterAll } from 'vitest';
 import { SessionManager } from '../../src/session-manager.js';
 import { SessionLimitError } from '../../src/types.js';
 import type { SessionConfig, SessionInfo } from '../../src/types.js';

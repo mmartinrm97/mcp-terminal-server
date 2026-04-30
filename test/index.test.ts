@@ -1,7 +1,5 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
-
+import { describe, it, expect, afterEach } from 'vitest';
 import { parseEnvConfig } from '../src/index.js';
-import type { SessionManagerConfig } from '../src/types.js';
 
 describe('index — parseEnvConfig', () => {
   const OLD_ENV = { ...process.env };

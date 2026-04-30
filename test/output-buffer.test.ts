@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { OutputBuffer } from '../src/output-buffer.js';
 import { ReadTimeoutError } from '../src/types.js';
 

@@ -146,7 +146,7 @@ export class SessionManager {
   dispose(): void {
     clearInterval(this.cleanupTimer);
 
-    for (const [id, session] of this.sessions) {
+    for (const [, session] of this.sessions) {
       session.close(true);
     }
     this.sessions.clear();

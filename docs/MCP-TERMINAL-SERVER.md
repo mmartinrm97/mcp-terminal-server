@@ -1,73 +1,68 @@
-# MCP Terminal Server — Interactive Terminal para Agentes AI
+# MCP Terminal Server — Interactive Terminal for AI Agents
 
-## Problema
+## Problem
 
-El `bash` tool de OpenCode (y de la mayoría de plataformas AI) ejecuta comandos en modo **one-shot no interactivo**:
-- Envía un comando, captura stdout/stderr, devuelve el resultado.
-- No hay un TTY real, no hay sesión persistente, no hay stdin abierto.
-- Cuando un comando como `npm init`, `gh pr create`, `shadcn-vue add button`, `git rebase -i`, `psql`, etc. espera input del usuario, el agente **no puede responder** — el comando termina en timeout o el agente ve output truncado.
+The `bash` tool in OpenCode (and most AI platforms) executes commands in a **one-shot non-interactive** mode:
+- Sends a command, captures stdout/stderr, returns the result.
+- No real TTY, no persistent session, no open stdin.
+- When a command like `npm init`, `gh pr create`, `shadcn-vue add button`, `git rebase -i`, `psql`, etc. waits for user input, the agent **cannot respond** — the command times out or the agent sees truncated output.
 
-Los **sub-agentes** (como `sdd-apply`) tienen aún menos herramientas que el orchestrator y sufren el mismo problema.
+**Sub-agents** (such as `sdd-apply`) have even fewer tools than the orchestrator and suffer from the same problem.
 
-## Visión
+## Vision
 
-Un **MCP Server** que expone un terminal interactivo real (PTY) como herramientas que los agentes pueden llamar múltiples veces para:
+An **MCP Server** that exposes a real interactive terminal (PTY) as tools that agents can call multiple times to:
 
-1. **Crear** una sesión de terminal persistente
-2. **Escribir** comandos y keystrokes
-3. **Leer** el contenido actual del terminal (buffer de pantalla)
-4. **Esperar** a que aparezca un patrón específico (como un prompt)
-5. **Redimensionar** el terminal si es necesario
-6. **Cerrar** la sesión cuando termina
+1. **Create** a persistent terminal session
+2. **Write** commands and keystrokes
+3. **Read** the current terminal content (screen buffer)
+4. **Wait** for a specific pattern to appear (such as a prompt)
+5. **Resize** the terminal if necessary
+6. **Close** the session when done
 
-El agente usa su modelo de IA para **interpretar el output**, decidir qué responder, y si tiene dudas, preguntarle al usuario con opciones sugeridas — exactamente como VS Code Copilot hace con "focus terminal".
+The agent uses its AI model to **interpret the output**, decide what to respond, and if uncertain, ask the user with suggested options — exactly like VS Code Copilot does with "focus terminal."
 
-## Arquitectura
+## Architecture
 
-```
-┌─────────────────────────────────────────────────┐
-│                  OpenCode Agent                   │
-│  (orchestrator / sdd-apply / cualquier sub-agent) │
-└──────────────┬──────────────────────────────────┘
-               │ MCP Protocol (stdio transport)
-               ▼
-┌─────────────────────────────────────────────────┐
-│              MCP Terminal Server                  │
-│  ┌─────────────────────────────────────────────┐  │
-│  │          Session Manager                     │  │
-│  │  ┌──────────┐  ┌──────────┐  ┌──────────┐  │  │
-│  │  │ Session 1 │  │ Session 2 │  │ Session N │  │  │
-│  │  │  (PTY)    │  │  (PTY)    │  │  (PTY)    │  │  │
-│  │  └──────────┘  └──────────┘  └──────────┘  │  │
-│  └─────────────────────────────────────────────┘  │
-│  ┌─────────────────────────────────────────────┐  │
-│  │         Output Buffer                        │  │
-│  │  (acumula data events del PTY,               │  │
-│  │   disponible para lectura + pattern matching)│  │
-│  └─────────────────────────────────────────────┘  │
-│  ┌─────────────────────────────────────────────┐  │
-│  │         Cleanup Worker                       │  │
-│  │  (TTL timeout, kill child process,           │  │
-│  │   liberar recursos)                          │  │
-│  └─────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────┘
+```mermaid
+graph TD
+    AGENT["OpenCode Agent<br/>(orchestrator / sub-agent)"]
+    MCP["MCP Protocol<br/>(stdio transport)"]
+    TERM["MCP Terminal Server"]
+    SM["Session Manager"]
+    S1["Session 1 (PTY)"]
+    S2["Session 2 (PTY)"]
+    SN["Session N (PTY)"]
+    OB["Output Buffer<br/>PTY data events → pattern matching"]
+    CW["Cleanup Worker<br/>TTL timeout → kill process → free resources"]
+
+    AGENT --> MCP
+    MCP --> TERM
+    TERM --> SM
+    SM --> S1
+    SM --> S2
+    SM --> SN
+    S1 --> OB
+    S2 --> OB
+    SN --> OB
+    SM --> CW
 ```
 
 ## MCP Tools
 
 ### 1. `terminal_create_session`
 
-Crea una nueva sesión de terminal interactiva.
+Creates a new interactive terminal session.
 
 **Input:**
 ```json
 {
-  "id": "optional-custom-id",      // si no se provee, se genera UUID
+  "id": "optional-custom-id",      // auto-generated UUID if omitted
   "shell": "auto",                  // "auto" | "bash" | "zsh" | "pwsh" | "cmd"
-  "cwd": "/path/to/workspace",      // working directory (default: proyecto activo)
-  "cols": 80,                       // columnas del terminal (default: 80)
-  "rows": 24,                       // filas del terminal (default: 24)
-  "env": {                          // variables de entorno adicionales
+  "cwd": "/path/to/workspace",      // working directory (default: active project)
+  "cols": 80,                       // terminal columns (default: 80)
+  "rows": 24,                       // terminal rows (default: 24)
+  "env": {                          // additional environment variables
     "TERM": "xterm-256color"
   }
 }
@@ -85,9 +80,9 @@ Crea una nueva sesión de terminal interactiva.
 }
 ```
 
-**Cross-platform shell detection (modo `auto`):**
-| SO | Shell preferido | Fallback |
-|----|----------------|----------|
+**Cross-platform shell detection (`auto` mode):**
+| Platform | Preferred Shell | Fallback |
+|----------|----------------|----------|
 | Linux | `$SHELL` → `bash` | `sh` |
 | macOS | `$SHELL` → `zsh` | `bash` |
 | Windows | `pwsh.exe` | `cmd.exe` |
@@ -96,13 +91,13 @@ Crea una nueva sesión de terminal interactiva.
 
 ### 2. `terminal_write`
 
-Escribe texto/keystrokes en el terminal.
+Writes text/keystrokes to the terminal.
 
 **Input:**
 ```json
 {
   "id": "session-uuid-1234",
-  "data": "npm init\n"              // \n para Enter, \x03 para Ctrl+C, etc.
+  "data": "npm init\n"              // \n for Enter, \x03 for Ctrl+C, etc.
 }
 ```
 
@@ -114,21 +109,21 @@ Escribe texto/keystrokes en el terminal.
 }
 ```
 
-**Notas:**
-- Soporta secuencias de control: `\n` (Enter), `\x03` (Ctrl+C/SIGINT), `\x1b` (Escape), `\t` (Tab)
-- También soporta entrada de a un carácter si es necesario
+**Notes:**
+- Supports control sequences: `\n` (Enter), `\x03` (Ctrl+C/SIGINT), `\x1b` (Escape), `\t` (Tab)
+- Also supports single-character input if needed
 
 ---
 
 ### 3. `terminal_read`
 
-Lee el contenido actual del buffer de salida del terminal. No espera — devuelve lo que haya acumulado hasta ahora.
+Reads the current content of the terminal output buffer. Non-blocking — returns whatever has accumulated so far.
 
 **Input:**
 ```json
 {
   "id": "session-uuid-1234",
-  "flush": true                     // si true, limpia el buffer después de leer
+  "flush": true                     // if true, clears the buffer after reading
 }
 ```
 
@@ -136,24 +131,24 @@ Lee el contenido actual del buffer de salida del terminal. No espera — devuelv
 ```json
 {
   "data": "package name: (my-project) ",
-  "ended": false,                   // true si el proceso hijo terminó
-  "exit_code": null                 // null si sigue vivo, número si ended=true
+  "ended": false,                   // true if the child process has terminated
+  "exit_code": null                 // null if still alive, number if ended=true
 }
 ```
 
 ---
 
-### 4. `terminal_read_until` ⭐ (el más importante)
+### 4. `terminal_read_until` ⭐ (the most important)
 
-Lee el buffer del terminal **hasta que aparece un patrón** o se cumple el timeout. Esta es la herramienta clave para flujos interactivos.
+Reads the terminal buffer **until a pattern appears** or the timeout expires. This is the key tool for interactive flows.
 
 **Input:**
 ```json
 {
   "id": "session-uuid-1234",
   "pattern": "package name:|version:|entry point:",  // regex patterns
-  "timeout_ms": 30000,              // timeout máximo de espera (default: 30000)
-  "strip_ansi": true                // si true, limpia códigos ANSI del output
+  "timeout_ms": 30000,              // maximum wait timeout (default: 30000)
+  "strip_ansi": true                // if true, strips ANSI codes from output
 }
 ```
 
@@ -169,19 +164,19 @@ Lee el buffer del terminal **hasta que aparece un patrón** o se cumple el timeo
 }
 ```
 
-**Algoritmo:**
-1. Acumula todo el output del PTY en un buffer interno por sesión
-2. El buffer se va limpiando de lo que ya se ha leído/entregado
-3. Cada llamada a `read_until` espera hasta que el buffer haga match con el pattern regex
-4. Si no hay match antes del timeout, devuelve lo que tenga y `timed_out: true`
-5. El `data` contiene el output desde la última lectura hasta el match inclusive
-6. El `full_output` es todo el output acumulado desde que se creó la sesión (útil para debugging)
+**Algorithm:**
+1. Accumulate all PTY output in an internal buffer per session
+2. The buffer is progressively cleared of what has already been read/delivered
+3. Each `read_until` call waits until the buffer matches the regex pattern
+4. If no match before the timeout, returns whatever it has with `timed_out: true`
+5. `data` contains the output from the last read up to and including the match
+6. `full_output` is all accumulated output since session creation (useful for debugging)
 
 ---
 
 ### 5. `terminal_resize`
 
-Cambia el tamaño del terminal (útil si el agente necesita ver más contenido).
+Changes the terminal dimensions (useful when the agent needs to see more content).
 
 **Input:**
 ```json
@@ -204,12 +199,12 @@ Cambia el tamaño del terminal (útil si el agente necesita ver más contenido).
 
 ### 6. `terminal_list_sessions`
 
-Lista todas las sesiones activas.
+Lists all active sessions.
 
 **Input:**
 ```json
 {
-  "verbose": false                  // si true, incluye últimos N chars del buffer
+  "verbose": false                  // if true, includes last N chars of buffer
 }
 ```
 
@@ -235,13 +230,13 @@ Lista todas las sesiones activas.
 
 ### 7. `terminal_close_session`
 
-Cierra una sesión de terminal.
+Closes a terminal session.
 
 **Input:**
 ```json
 {
   "id": "session-uuid-1234",
-  "force": false                    // si true, SIGKILL en vez de SIGHUP/SIGTERM
+  "force": false                    // if true, SIGKILL instead of SIGHUP/SIGTERM
 }
 ```
 
@@ -253,217 +248,216 @@ Cierra una sesión de terminal.
 }
 ```
 
-**Comportamiento:**
-1. Envía `SIGHUP` (seguido de `SIGTERM` si no termina en 3s)
-2. Si `force: true` o no termina después de SIGTERM, envía `SIGKILL`
-3. Limpia todos los recursos del PTY
-4. Elimina la sesión del Session Manager
+**Behavior:**
+1. Sends `SIGHUP` (followed by `SIGTERM` if it doesn't terminate within 3s)
+2. If `force: true` or it doesn't terminate after SIGTERM, sends `SIGKILL`
+3. Cleans up all PTY resources
+4. Removes the session from the Session Manager
 
 ---
 
-## Recursos MCP (opcionales)
+## MCP Resources (optional)
 
-Además de tools, el servidor puede exponer recursos para que el agente pueda inspeccionar sesiones:
+In addition to tools, the server can expose resources for the agent to inspect sessions:
 
-- `terminal://sessions` → lista de sesiones activas (como JSON)
-- `terminal://sessions/{id}/buffer` → contenido completo del buffer de la sesión
-- `terminal://sessions/{id}/status` → estado actual de la sesión
+- `terminal://sessions` → list of active sessions (as JSON)
+- `terminal://sessions/{id}/buffer` → full buffer contents of the session
+- `terminal://sessions/{id}/status` → current session status
 
 ---
 
-## Ejemplo de Flujo: `npm init`
+## Example Flow: `npm init`
 
-Este es el caso de uso típico que hoy no funciona:
+This is the typical use case that currently does not work:
 
 ```
-Agente: Quiere inicializar un proyecto con npm init
+Agent: Wants to initialize a project with npm init
 
-Paso 1: Crear sesión
-→ terminal_create_session({ cwd: "/proyecto" })
-← { id: "sess-1", cwd: "/proyecto" }
+Step 1: Create session
+→ terminal_create_session({ cwd: "/project" })
+← { id: "sess-1", cwd: "/project" }
 
-Paso 2: Escribir comando
+Step 2: Write command
 → terminal_write({ id: "sess-1", data: "npm init\n" })
 ← { ok: true }
 
-Paso 3: Esperar primer prompt
+Step 3: Wait for first prompt
 → terminal_read_until({ id: "sess-1", pattern: "package name:", timeout_ms: 10000 })
 ← { data: "\r\npackage name: (my-project) ", matched: "package name:" }
 
-Paso 4: IA analiza el prompt, decide respuesta
+Step 4: AI analyzes the prompt, decides response
 → terminal_write({ id: "sess-1", data: "my-awesome-project\n" })
 ← { ok: true }
 
-Paso 5: Esperar siguiente prompt
+Step 5: Wait for next prompt
 → terminal_read_until({ id: "sess-1", pattern: "version:|entry point:", timeout_ms: 10000 })
 ← { data: "\r\nversion: (1.0.0) ", matched: "version:" }
 
-Paso 6: IA decide usar default
-→ terminal_write({ id: "sess-1", data: "\n" })  // Enter para default
+Step 6: AI decides to use default
+→ terminal_write({ id: "sess-1", data: "\n" })  // Enter for default
 
-... repetir hasta que el comando termine ...
+... repeat until done ...
 
-Paso N: Verificar fin
+Step N: Verify completion
 → terminal_read_until({ id: "sess-1", pattern: "\\$ |# ", timeout_ms: 5000 })
 ← { data: "...", matched: "$ " }
-→ La sesión está de vuelta en el prompt del shell → comando completado
+→ Session is back at the shell prompt → command completed
 
-Paso N+1: Cerrar sesión
+Step N+1: Close session
 → terminal_close_session({ id: "sess-1" })
 ```
 
-## Ejemplo de Flujo: `gh pr create` con editor
+## Example Flow: `gh pr create` with editor
 
 ```
-Agente: Quiere crear un PR con gh pr create
+Agent: Wants to create a PR with gh pr create
 
-Paso 1: Crear sesión
-→ terminal_create_session({ cwd: "/repos/mi-app" })
+Step 1: Create session
+→ terminal_create_session({ cwd: "/repos/my-app" })
 
-Paso 2: Escribir comando
+Step 2: Write command
 → terminal_write({ data: "gh pr create --fill\n" })
 
-Paso 3: Esperar (gh puede preguntar cosas)
+Step 3: Wait (gh can ask questions)
 → terminal_read_until({ pattern: "Choose a template|Submit|What", timeout_ms: 15000 })
 ← { data: "...", matched: "Submit" }
 
-Paso 4: IA ve que gh espera confirmación
-→ terminal_write({ data: "\n" })  // Enter para confirmar
+Step 4: AI sees that gh expects confirmation
+→ terminal_write({ data: "\n" })  // Enter to confirm
 
-Paso 5: Esperar resultado
+Step 5: Wait for result
 → terminal_read_until({ pattern: "https://github.com|Error|\\$ ", timeout_ms: 20000 })
 ```
 
-## Ejemplo de Flujo: `npx create-vite` con selección interactiva
+## Example Flow: `npx create-vite` with interactive selection
 
 ```
-Agente: Quiere crear un proyecto Vite con React + TypeScript
+Agent: Wants to create a Vite project with React + TypeScript
 
-Paso 1: terminal_create_session
-Paso 2: terminal_write({ data: "npm create vite@latest\n" })
-Paso 3: terminal_read_until({ pattern: "Project name:" })
-       → IA responde "my-app\n"
-Paso 4: terminal_read_until({ pattern: "Select a framework:" })
-       → IA ve un menú, necesita elegir "React"
+Step 1: terminal_create_session
+Step 2: terminal_write({ data: "npm create vite@latest\n" })
+Step 3: terminal_read_until({ pattern: "Project name:" })
+       → AI responds "my-app\n"
+Step 4: terminal_read_until({ pattern: "Select a framework:" })
+       → AI sees a menu, needs to choose "React"
        → terminal_write({ data: "React\n" })
-Paso 5: terminal_read_until({ pattern: "Select a variant:" })
-       → IA ve opciones, elige "TypeScript"
+Step 5: terminal_read_until({ pattern: "Select a variant:" })
+       → AI sees options, chooses "TypeScript"
        → terminal_write({ data: "TypeScript\n" })
-Paso 6: Esperar a que termine
+Step 6: Wait for completion
        → terminal_read_until({ pattern: "Done|\\$ ", timeout_ms: 30000 })
 ```
 
-## Manejo de "No sé" / Consulta al Usuario
+## "I Don't Know" / User Consultation Handling
 
-Cuando el agente no está seguro de qué responder:
+When the agent is unsure about what to respond:
 
-1. Llama a `terminal_read_until` con timeout corto o `terminal_read`
-2. Analiza el output con su modelo de IA
-3. Si no puede decidir, **presenta las opciones al usuario**:
+1. Calls `terminal_read_until` with a short timeout or `terminal_read`
+2. Analyzes the output with its AI model
+3. If it cannot decide, **presents the options to the user**:
 
 ```
-He ejecutado "npm init" y el terminal muestra:
+I ran "npm init" and the terminal shows:
 
   package name: (my-project)
   version: (1.0.0)
   description:
   entry point: (index.js)
 
-¿Qué valores quieres usar?
-A) Todos defaults (solo Enter)
-B) Personalizar nombre: ________
-C) Ver output completo
+What values would you like to use?
+A) All defaults (just press Enter)
+B) Customize name: ________
+C) See full output
 ```
 
-El usuario responde, y el agente continúa la interacción con el terminal.
+The user responds, and the agent continues interacting with the terminal.
 
-## Implementación Técnica
+## Technical Implementation
 
-### Stack recomendado
+### Recommended Stack
 
-| Componente | Tecnología | Razón |
-|------------|-----------|-------|
-| Runtime | Node.js 22+ | El usuario ya usa Node, compatible con `node-pty` |
-| MCP SDK | `@modelcontextprotocol/sdk` | SDK oficial del protocolo MCP |
-| PTY | `node-pty` | Cross-platform, battle-tested (VS Code lo usa) |
-| Transport | stdio (local) / SSE (remoto) | stdio para setup local zero-config |
-| Build | TypeScript → compilado | Tipado fuerte, mismo stack del proyecto |
+| Component | Technology | Reason |
+|-----------|-----------|--------|
+| Runtime | Node.js 22+ | User already uses Node, compatible with `node-pty` |
+| MCP SDK | `@modelcontextprotocol/sdk` | Official MCP protocol SDK |
+| PTY | `node-pty` | Cross-platform, battle-tested (used by VS Code) |
+| Transport | stdio (local) / SSE (remote) | stdio for zero-config local setup |
+| Build | TypeScript → compiled | Strong typing, same stack as the project |
 
 ### node-pty Cross-Platform
 
-`node-pty` maneja las diferencias de plataforma automáticamente:
+`node-pty` handles platform differences automatically:
 
-| Plataforma | Backend | Notas |
-|-----------|---------|-------|
-| **Windows 10+** | `conpty.exe` (ConPTY API) | Nativo desde Windows 10 v1809 |
-| **Windows (fallback)** | `winpty.dll` | Para Windows 8/7 o entornos restrictivos |
-| **macOS** | `forkpty()` via `util.forkpty()` | Nativo del sistema |
-| **Linux** | `forkpty()` via `util.forkpty()` | Nativo del sistema |
+| Platform | Backend | Notes |
+|----------|---------|-------|
+| **Windows 10+** | `conpty.exe` (ConPTY API) | Native since Windows 10 v1809 |
+| **Windows (fallback)** | `winpty.dll` | For Windows 8/7 or restrictive environments |
+| **macOS** | `forkpty()` via `util.forkpty()` | System native |
+| **Linux** | `forkpty()` via `util.forkpty()` | System native |
 
-### Instalación
+### Installation
 
 ```bash
-# En Node 22+
+# Node 22+
 npm install node-pty @modelcontextprotocol/sdk
 pnpm add node-pty @modelcontextprotocol/sdk
 
-# node-pty requiere compilación nativa:
-# - Windows: necesita Visual Studio Build Tools o MSVC
-# - Linux: necesita make, gcc, python3
-# - macOS: necesita Xcode Command Line Tools
+# node-pty requires native compilation:
+# - Windows: Visual Studio Build Tools or MSVC
+# - Linux: make, gcc, python3
+# - macOS: Xcode Command Line Tools
 ```
 
-### Estructura del proyecto sugerida
+### Project Structure
 
 ```
 packages/mcp-terminal-server/
 ├── package.json
 ├── tsconfig.json
 ├── src/
-│   ├── index.ts              # Entry point: inicia el MCP server
-│   ├── server.ts             # Configuración del MCP server (tools, resources)
-│   ├── session-manager.ts    # Gestión de sesiones PTY (crear, listar, cerrar, cleanup)
-│   ├── pty-session.ts        # Wrapper alrededor de node-pty (eventos, buffer, pattern matching)
-│   ├── output-buffer.ts      # Buffer circular con soporte de regex matching
-│   ├── shell-detector.ts     # Detecta shell según plataforma (auto mode)
-│   ├── ansi-stripper.ts      # Limpia códigos ANSI del output
-│   ├── types.ts              # Tipos compartidos
-│   └── utils.ts              # Utilidades (timeouts, IDs, etc.)
+│   ├── index.ts              # Entry point: starts the MCP server
+│   ├── server.ts             # MCP server configuration (tools, resources)
+│   ├── session-manager.ts    # PTY session management (create, list, close, cleanup)
+│   ├── pty-session.ts        # Wrapper around node-pty (events, buffer, pattern matching)
+│   ├── output-buffer.ts      # Circular buffer with regex matching support
+│   ├── shell-detector.ts     # Platform-aware shell detection (auto mode)
+│   ├── ansi-stripper.ts      # Strips ANSI codes from output
+│   ├── types.ts              # Shared types
+│   └── utils.ts              # Utilities (timeouts, IDs, etc.)
 ├── test/
 │   └── ...
 └── README.md
 ```
 
-### Diagrama de flujo interno (pty-session.ts)
+### Internal Flow Diagram (pty-session.ts)
 
+```mermaid
+graph LR
+    subgraph PTYSession
+        NP[node-pty<br/>child process]
+        OB[OutputBuffer<br/>accumulate + FIFO]
+    end
+
+    NP -- ".on('data')" --> OB
+    NP -- ".write(data)" --> PTYSession
+    NP -- ".resize()" --> PTYSession
+    NP -- ".kill()" --> PTYSession
+
+    OB -- ".append(chunk)" --> OB
+    OB -- ".readUntil(pattern)" --> PTYSession
+    OB -- ".readAll()" --> PTYSession
+    OB -- ".clear()" --> PTYSession
 ```
-┌─────────────────────────────────────────────────────┐
-│                    PTYSession                        │
-│                                                      │
-│  ┌──────────────┐    ┌──────────────────────────┐   │
-│  │  node-pty     │───▶│   OutputBuffer            │   │
-│  │  child process│    │   (acumula + FIFO)        │   │
-│  │               │    │                           │   │
-│  │  .on('data')  │───▶│  .append(chunk)           │   │
-│  │               │    │  .readUntil(pattern)      │   │
-│  │  .write(data) │◀───│  .readAll()               │   │
-│  │               │    │  .clear()                 │   │
-│  │  .resize()    │    └──────────────────────────┘   │
-│  │               │                                   │
-│  │  .kill()      │                                   │
-│  └──────────────┘                                    │
-└─────────────────────────────────────────────────────┘
-```
 
-### Consideraciones de seguridad
+### Security Considerations
 
-1. **Sanitización de input**: El `data` que escribe el agente debe escaparse apropiadamente. El agente podría escribir `rm -rf /` — pero eso es intencional, porque el agente actúa como el usuario.
-2. **Timeout global**: Cada sesión tiene un TTL máximo (ej: 30 minutos). Después se mata automáticamente.
-3. **Límite de sesiones**: Máximo N sesiones simultáneas (configurable, default 10).
-4. **Kill orphans**: Si el proceso padre del MCP server muere, los PTY hijos deben limpiarse.
-5. **No input secreto**: El servidor NO debe usarse para inputs sensibles (passwords, tokens) porque el agente intermediario ve todo. Si se necesita, el usuario debe escribir directamente.
+1. **Input sanitization**: The `data` the agent writes should be escaped appropriately. The agent could write `rm -rf /` — but that is intentional, because the agent acts on behalf of the user.
+2. **Global timeout**: Each session has a maximum TTL (e.g., 30 minutes). It is automatically killed after that.
+3. **Session limit**: Maximum N simultaneous sessions (configurable, default 10).
+4. **Kill orphans**: If the MCP server parent process dies, child PTY processes must be cleaned up.
+5. **No secret input**: The server MUST NOT be used for sensitive input (passwords, tokens) because the intermediary agent sees everything. If needed, the user should type directly.
 
-### Configuración en opencode.json
+### opencode.json Configuration
 
 ```json
 {
@@ -480,34 +474,34 @@ packages/mcp-terminal-server/
 }
 ```
 
-## Hacia OpenCode Core (PR futuro)
+## Toward OpenCode Core (Future PR)
 
-Si después queremos que esto sea nativo en OpenCode (sin MCP), el PR debería:
+If we later want this to be native in OpenCode (without MCP), the PR should:
 
-1. Agregar un nuevo tipo de tool `"terminal"` en el protocolo del runtime
-2. El runtime mantendría un pool de PTYs reutilizables
-3. Los agentes tendrían acceso a `terminal_read` / `terminal_write` / `terminal_read_until` como tools nativas
-4. El runtime manejaría la limpieza de sesiones huérfanas automáticamente
-5. Los sub-agentes también tendrían acceso a estas tools
+1. Add a new `"terminal"` tool type in the runtime protocol
+2. The runtime would maintain a pool of reusable PTYs
+3. Agents would have access to `terminal_read` / `terminal_write` / `terminal_read_until` as native tools
+4. The runtime would handle orphan session cleanup automatically
+5. Sub-agents would also have access to these tools
 
-## Próximos Pasos para Implementar
+## Implementation Status
 
-1. ✅ **Decisión tomada**: Arquitectura MCP Server con node-pty
-2. ⏳ **Crear repo/package**: `packages/mcp-terminal-server/` o repo separado
-3. ⏳ **Implementar core**:
-   - `output-buffer.ts` con pattern matching
-   - `pty-session.ts` wrapper node-pty
-   - `session-manager.ts` con TTL cleanup
-   - `server.ts` tools MCP
+1. ✅ **Decision made**: MCP Server architecture with node-pty
+2. ✅ **Repo/package created**: `packages/mcp-terminal-server/`
+3. ✅ **Core implemented**:
+   - `output-buffer.ts` with pattern matching
+   - `pty-session.ts` node-pty wrapper
+   - `session-manager.ts` with TTL cleanup
+   - `server.ts` MCP tools
    - `index.ts` entry point
-4. ⏳ **Probar en los 3 SO**: Windows, macOS, Linux
-5. ⏳ **Crear skill para agentes**: `interactive-terminal` skill que enseña a los agentes a usar estas tools correctamente
-6. ⏳ **Publicar**: npm package + opencode.json instructions
+4. ⏳ **Test on 3 OS**: Windows, macOS, Linux
+5. ⏳ **Create agent skill**: `interactive-terminal` skill teaching agents to use these tools correctly
+6. ⏳ **Publish**: npm package + opencode.json instructions
 
-## Referencias
+## References
 
 - [MCP Specification](https://spec.modelcontextprotocol.io)
 - [node-pty](https://github.com/microsoft/node-pty) — Microsoft's pseudo-terminal for Node.js
 - [@modelcontextprotocol/sdk](https://github.com/modelcontextprotocol/typescript-sdk)
-- [VS Code Terminal API](https://code.visualstudio.com/api/extension-guides/terminal) — inspiración para PTY management
+- [VS Code Terminal API](https://code.visualstudio.com/api/extension-guides/terminal) — inspiration for PTY management
 - [ConPTY (Windows)](https://devblogs.microsoft.com/commandline/windows-command-line-introducing-the-windows-pseudo-console-conpty/) — Windows Pseudo Console API

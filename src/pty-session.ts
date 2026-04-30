@@ -2,7 +2,6 @@ import { spawn } from 'node-pty';
 import type { IPty } from 'node-pty';
 import { OutputBuffer } from './output-buffer.js';
 import type { SessionInfo } from './types.js';
-import { timestamp } from './utils.js';
 
 /**
  * Options for creating a PTYSession.

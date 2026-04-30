@@ -47,13 +47,17 @@ function cmd(data: string): string {
 describe('PTYSession Integration', () => {
   const sessions: PTYSession[] = [];
 
-  afterEach(() => {
+  afterEach(async () => {
     while (sessions.length > 0) {
       const s = sessions.pop();
       if (!s) continue;
       try {
         s.close(IS_WINDOWS ? undefined : true);
       } catch { /* process already dead */ }
+    }
+    // On Windows, ConPTY handle release is async — wait for cleanup
+    if (IS_WINDOWS) {
+      await new Promise((r) => setTimeout(r, 200));
     }
   });
 
