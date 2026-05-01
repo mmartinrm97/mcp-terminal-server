@@ -1,7 +1,7 @@
 {
-  "name": "mcp-terminal-server",
+  "name": "terminalize",
   "version": "0.1.6",
-  "description": "MCP Server that exposes interactive terminal (PTY) tools for AI agents",
+  "description": "Interactive terminal (PTY) for AI agents — MCP server that gives agents a real shell",
   "keywords": [
     "ai-agent",
     "claude-code",
@@ -26,7 +26,7 @@
     "url": "git+https://github.com/mmartinrm97/mcp-terminal-server.git"
   },
   "bin": {
-    "mcp-terminal-server": "dist/index.js"
+    "terminalize": "dist/index.js"
   },
   "files": [
     "dist",
@@ -38,7 +38,6 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "dev": "tsc --watch",
-    "setup": "node dist/index.js setup",
     "install-skills": "node dist/index.js install-skills",
     "test": "vitest run",
     "test:unit": "pnpm vitest run test/unit",
@@ -49,7 +48,7 @@
     "fmt": "oxfmt",
     "fmt:check": "oxfmt --check",
     "prepublishOnly": "pnpm build",
-    "postpublish": "node -e \"console.log('Published! Run: npx mcp-terminal-server setup')\"",
+    "postpublish": "node -e \"console.log('Published! Run: npx terminalize')\"",
     "prepare": "husky"
   },
   "dependencies": {

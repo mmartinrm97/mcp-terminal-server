@@ -1,4 +1,4 @@
-# MCP Terminal Server
+# terminalize
 
 ![Node.js](https://img.shields.io/badge/node.js-22%2B-339933?logo=node.js&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/typescript-5.8%2B-3178C6?logo=typescript&logoColor=white)
@@ -7,9 +7,9 @@
 [![node-pty](https://img.shields.io/badge/node--pty-1.0-FF6C37)](https://github.com/microsoft/node-pty)
 ![Tests](https://img.shields.io/badge/tests-203%20passing-brightgreen)
 ![Build](https://img.shields.io/badge/build-passing-brightgreen)
-[![npm](https://img.shields.io/npm/v/mcp-terminal-server?color=red)](https://www.npmjs.com/package/mcp-terminal-server)
+[![npm](https://img.shields.io/npm/v/terminalize?color=red)](https://www.npmjs.com/package/terminalize)
 
-> **An MCP Server that exposes a real interactive terminal (PTY) as tools that AI agents can use to execute interactive commands.**
+> **Give your AI agent a real interactive terminal.** terminalize exposes a real PTY as MCP tools — persistent sessions, keystrokes, output waiting, and signal control.
 
 ---
 
@@ -218,35 +218,120 @@ Closes a terminal session and frees its resources.
 
 ```bash
 # Run directly (no install needed)
-npx mcp-terminal-server
+npx terminalize
 
 # Or install globally
-npm install -g mcp-terminal-server
+npm install -g terminalize
 ```
 
 ### Quick Setup
 
 ```bash
-# 1. Configure MCP in opencode.json (project or global)
-mcp-terminal-server setup
+# 1. Install the interactive-terminal skill for AI agents
+npx terminalize install-skills
 
-# 2. Install the interactive-terminal skill for AI agents
-mcp-terminal-server install-skills
+# 2. Add the MCP config to your agent (see below for examples)
 
-# 3. Start the MCP server (stdio transport)
-mcp-terminal-server
+# 3. Start the MCP server in your project
+npx terminalize
 ```
 
-The `setup` command **always asks** which config to update:
+The `install-skills` command asks whether to install at the project or global level, then lets you select which agents to configure:
 
 ```
-$ npx mcp-terminal-server setup
+$ npx terminalize install-skills
 
-Which opencode.json do you want to configure?
-  [p] Project  — /home/user/project/opencode.json
-  [g] Global   — ~/.config/opencode/opencode.json
+◇  Install skills at project level or globally?
+│  ● Project   → .agents/skills/ — only this project
+│  ○ Global    → ~/.agent/skills/ — all projects
 
-Choose [p/g]:
+◇  Which agents do you want to install the skill for?
+│  ◻ Universal (.agents/skills)
+│  ◻ Claude Code
+│  ◻ Kiro CLI
+```
+
+### Add MCP config to your agent
+
+Delete the setup wizard. Instead, copy the relevant config block below:
+
+**OpenCode** (`~/.config/opencode/opencode.json` or project `opencode.json`):
+
+```json
+{
+  "mcp": {
+    "terminalize": {
+      "command": ["npx", "terminalize"],
+      "type": "local",
+      "enabled": true
+    }
+  }
+}
+```
+
+**Claude Code** (`~/.claude/settings.json`):
+
+```json
+{
+  "mcpServers": {
+    "terminalize": {
+      "command": "npx",
+      "args": ["terminalize"]
+    }
+  }
+}
+```
+
+**Cursor** → Settings → MCP Servers → Add:
+
+```json
+{
+  "mcpServers": {
+    "terminalize": {
+      "command": "npx",
+      "args": ["terminalize"]
+    }
+  }
+}
+```
+
+**Windsurf** (`~/.codeium/windsurf/settings.json`):
+
+```json
+{
+  "mcpServers": {
+    "terminalize": {
+      "command": "npx",
+      "args": ["terminalize"]
+    }
+  }
+}
+```
+
+**Gemini CLI** (`~/.gemini/settings.json`):
+
+```json
+{
+  "mcpServers": {
+    "terminalize": {
+      "command": "npx",
+      "args": ["terminalize"]
+    }
+  }
+}
+```
+
+**Kiro CLI** (`~/.kiro/settings.json`):
+
+```json
+{
+  "mcpServers": {
+    "terminalize": {
+      "command": "npx",
+      "args": ["terminalize"]
+    }
+  }
+}
 ```
 
 ### Prerequisites
@@ -256,22 +341,6 @@ Choose [p/g]:
   - **Windows**: Visual Studio Build Tools or MSVC
   - **Linux**: `make`, `gcc`, `python3`
   - **macOS**: Xcode Command Line Tools
-
-## OpenCode Configuration
-
-If you prefer to configure manually, add this to your `opencode.json`:
-
-```json
-{
-  "mcp": {
-    "terminal": {
-      "command": ["npx", "mcp-terminal-server"],
-      "type": "local",
-      "enabled": true
-    }
-  }
-}
-```
 
 ### Environment Variables
 
@@ -320,6 +389,7 @@ graph TD
 ## Development
 
 ```bash
+# Clone and install
 # Clone and install
 git clone https://github.com/mmartinrm97/mcp-terminal-server
 cd mcp-terminal-server

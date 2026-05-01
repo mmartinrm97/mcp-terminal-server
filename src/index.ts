@@ -1,14 +1,15 @@
 #!/usr/bin/env node
 
 /**
- * MCP Terminal Server — Interactive Terminal for AI Agents
+ * terminalize — Interactive Terminal for AI Agents
  *
  * Usage:
- *   mcp-terminal-server           Start the MCP server (stdio transport)
- *   mcp-terminal-server setup     Configure MCP in opencode.json
- *   mcp-terminal-server install-skills  Install agent skills
+ *   terminalize                  Start the MCP server (stdio transport)
+ *   terminalize install-skills   Install the interactive-terminal agent skill
+ *   terminalize --help           Show help
+ *   terminalize --version        Show version
  *
- * See docs/MCP-TERMINAL-SERVER.md for the full design.
+ * See README.md for setup instructions.
  */
 
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
@@ -79,88 +80,9 @@ function getSkillPath(): string {
 // Commands
 // ---------------------------------------------------------------------------
 
-/** Resolve which opencode.json to use — interactive select */
-async function resolveConfigPath(): Promise<string> {
-  const cwd = process.cwd();
-  const projectPath = join(cwd, "opencode.json");
-  const globalPath = join(homedir(), ".config", "opencode", "opencode.json");
-
-  const projectExists = existsSync(projectPath);
-  const globalExists = existsSync(globalPath);
-
-  // Neither exists
-  if (!projectExists && !globalExists) {
-    p.log.error("No opencode.json found.");
-    p.log.info(`  Project:  ${projectPath}`);
-    p.log.info(`  Global:   ${globalPath}`);
-    p.log.info("Create one first, then run setup again.");
-    process.exit(1);
-  }
-
-  const options: { label: string; value: string; hint?: string }[] = [];
-
-  if (projectExists) {
-    options.push({ label: "Project", value: projectPath, hint: projectPath });
-  } else {
-    options.push({ label: "Project", value: projectPath, hint: `${projectPath} (crear nuevo)` });
-  }
-
-  if (globalExists) {
-    options.push({ label: "Global", value: globalPath, hint: globalPath });
-  } else {
-    options.push({ label: "Global", value: globalPath, hint: `${globalPath} (crear nuevo)` });
-  }
-
-  const selected = await p.select({
-    message: "Which opencode.json do you want to configure?",
-    options,
-  });
-
-  if (p.isCancel(selected)) {
-    p.outro("Cancelled.");
-    process.exit(0);
-  }
-
-  return selected as string;
-}
-
-/** Install the MCP Terminal Server in opencode.json */
-async function cmdSetup(): Promise<void> {
-  p.intro("MCP Terminal Server Setup");
-
-  const configPath = await resolveConfigPath();
-
-  const raw = readFileSync(configPath, "utf-8");
-  const config = JSON.parse(raw);
-
-  // Ensure mcp section exists
-  if (!config.mcp) {
-    config.mcp = {};
-  }
-
-  // Get the server executable path
-  const serverPath = process.argv[1]; // path to dist/index.js
-
-  // Determine the best command based on how the server was invoked
-  const isNpxRun = process.argv[1].includes("_npx");
-  const serverCommand = isNpxRun ? ["npx", "mcp-terminal-server"] : ["node", serverPath];
-
-  // Add terminal server config (don't overwrite if already exists)
-  if (!config.mcp.terminal) {
-    config.mcp.terminal = {
-      command: serverCommand,
-      type: "local",
-      enabled: true,
-    };
-    p.log.success("Added terminal MCP server to opencode.json");
-  } else {
-    p.log.info("Terminal MCP server already configured in opencode.json");
-  }
-
-  // Write back
-  writeFileSync(configPath, JSON.stringify(config, null, 4) + "\n", "utf-8");
-  p.outro(`Updated ${configPath}`);
-}
+// ---------------------------------------------------------------------------
+// Agent definitions and skill installer
+// ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
 // Agent definitions shared between discovery and install
@@ -330,17 +252,10 @@ async function cmdInstallSkills(): Promise<void> {
 // ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
-// Main
-// ---------------------------------------------------------------------------
 
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
   const command = args[0];
-
-  if (command === "setup") {
-    await cmdSetup();
-    return;
-  }
 
   if (command === "install-skills") {
     await cmdInstallSkills();
@@ -349,13 +264,13 @@ async function main(): Promise<void> {
 
   if (command === "--help" || command === "-h") {
     console.log(`
-MCP Terminal Server v${PKG_VERSION}
+terminalize v${PKG_VERSION}
 
 Usage:
-  mcp-terminal-server              Start MCP server (stdio transport)
-  mcp-terminal-server setup        Configure MCP in opencode.json
-  mcp-terminal-server install-skills  Install agent skills
-  mcp-terminal-server --help       Show this help
+  terminalize                   Start MCP server (stdio transport)
+  terminalize install-skills    Install the interactive-terminal skill for AI agents
+  terminalize --help            Show this help
+  terminalize --version         Show version
 `);
     return;
   }
@@ -375,21 +290,21 @@ Usage:
 
   // Log startup to stderr (MCP uses stdout for transport)
   process.stderr.write(
-    `[mcp-terminal-server] Starting with max_sessions=${config.max_sessions}, ` +
+    `[terminalize] Starting with max_sessions=${config.max_sessions}, ` +
       `session_ttl_ms=${config.session_ttl_ms}\n`,
   );
 
   try {
     await server.connect(transport);
-    process.stderr.write("[mcp-terminal-server] Connected via stdio transport\n");
+    process.stderr.write("[terminalize] Connected via stdio transport\n");
   } catch (err) {
-    process.stderr.write(`[mcp-terminal-server] Failed to connect: ${(err as Error).message}\n`);
+    process.stderr.write(`[terminalize] Failed to connect: ${(err as Error).message}\n`);
     process.exit(1);
   }
 
   // Graceful shutdown
   const shutdown = () => {
-    process.stderr.write("[mcp-terminal-server] Shutting down...\n");
+    process.stderr.write("[terminalize] Shutting down...\n");
     sessionManager.dispose();
     process.exit(0);
   };
@@ -401,7 +316,7 @@ Usage:
 // Only start when run directly (not imported in tests)
 if (!process.env.VITEST) {
   main().catch((err) => {
-    process.stderr.write(`[mcp-terminal-server] Fatal error: ${(err as Error).message}\n`);
+    process.stderr.write(`[terminalize] Fatal error: ${(err as Error).message}\n`);
     process.exit(1);
   });
 }
