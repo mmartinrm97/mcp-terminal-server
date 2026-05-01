@@ -33,6 +33,12 @@ coverage/
 tmp/
 temp/
 
+# Test artifacts
+final-tests/
+prisma/
+prisma.config.ts
+.env
+
 
 .agents/*
 vite-project

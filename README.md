@@ -183,10 +183,23 @@ Closes a terminal session and frees its resources.
 ## Installation
 
 ```bash
-npm install mcp-terminal-server
-
-# Or globally:
 npm install -g mcp-terminal-server
+
+# Or run directly:
+npx mcp-terminal-server
+```
+
+### Quick Setup
+
+```bash
+# Install skills for AI agents (Claude Code, OpenCode, Cursor)
+mcp-terminal-server install-skills
+
+# Auto-configure opencode.json
+mcp-terminal-server setup
+
+# Start the MCP server
+mcp-terminal-server
 ```
 
 ### Prerequisites
@@ -330,6 +343,10 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md) for development setup, coding guideline
 ## Changelog
 
 See [CHANGELOG.md](./CHANGELOG.md) for version history and release notes.
+
+## Roadmap
+
+See [ROADMAP.md](./ROADMAP.md) for planned features, platform support, and future milestones.
 
 ## License
 

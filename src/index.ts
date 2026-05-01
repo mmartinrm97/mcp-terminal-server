@@ -3,14 +3,24 @@
 /**
  * MCP Terminal Server — Interactive Terminal for AI Agents
  *
- * Exposes 7 MCP tools for managing interactive terminal sessions via PTY.
+ * Usage:
+ *   mcp-terminal-server           Start the MCP server (stdio transport)
+ *   mcp-terminal-server setup     Configure MCP in opencode.json
+ *   mcp-terminal-server install-skills  Install agent skills
+ *
  * See docs/MCP-TERMINAL-SERVER.md for the full design.
  */
 
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { SessionManager } from './session-manager.js';
 import { createTerminalServer } from './server.js';
 import type { SessionManagerConfig } from './types.js';
+
+const PKG_VERSION = '0.1.0';
 
 // ---------------------------------------------------------------------------
 // Configuration via environment variables
@@ -41,18 +51,162 @@ function parseEnvInt(envKey: string, defaultVal: number): number {
 }
 
 // ---------------------------------------------------------------------------
-// Startup
+// Skill installation path
 // ---------------------------------------------------------------------------
 
-/**
- * Start the MCP Terminal Server.
- *
- * 1. Parse configuration from env vars
- * 2. Create SessionManager
- * 3. Create and configure MCP Server
- * 4. Connect via StdioServerTransport
- */
+/** Get the path of the interactive-terminal SKILL.md */
+function getSkillPath(): string {
+  // When running from dist/, skills are at ../skills/interactive-terminal/SKILL.md
+  const distDir = dirname(fileURLToPath(import.meta.url));
+  const projectRoot = join(distDir, '..');
+  const skillPath = join(projectRoot, 'skills', 'interactive-terminal', 'SKILL.md');
+
+  if (existsSync(skillPath)) {
+    return skillPath;
+  }
+
+  // Fallback: check cwd/skills
+  const cwdSkillPath = join(process.cwd(), 'skills', 'interactive-terminal', 'SKILL.md');
+  if (existsSync(cwdSkillPath)) {
+    return cwdSkillPath;
+  }
+
+  return skillPath; // return the default even if it doesn't exist
+}
+
+// ---------------------------------------------------------------------------
+// Commands
+// ---------------------------------------------------------------------------
+
+/** Install the MCP Terminal Server in opencode.json */
+function cmdSetup(): void {
+  const configDir = join(homedir(), '.config', 'opencode');
+  const configPath = join(configDir, 'opencode.json');
+
+  if (!existsSync(configPath)) {
+    console.error(`[mcp-terminal-server] opencode.json not found at ${configPath}`);
+    console.error('[mcp-terminal-server] Create one first, then run setup again.');
+    process.exit(1);
+  }
+
+  const raw = readFileSync(configPath, 'utf-8');
+  const config = JSON.parse(raw);
+
+  // Ensure mcp section exists
+  if (!config.mcp) {
+    config.mcp = {};
+  }
+
+  // Get the server executable path
+  const serverPath = process.argv[1]; // path to dist/index.js
+
+  // Add terminal server config (don't overwrite if already exists)
+  if (!config.mcp.terminal) {
+    config.mcp.terminal = {
+      command: ['node', serverPath],
+      type: 'local',
+      enabled: true,
+    };
+    console.log('[mcp-terminal-server] ✅ Added terminal MCP server to opencode.json');
+  } else {
+    console.log('[mcp-terminal-server] ⏭️  Terminal MCP server already configured in opencode.json');
+  }
+
+  // Write back
+  writeFileSync(configPath, JSON.stringify(config, null, 4) + '\n', 'utf-8');
+  console.log(`[mcp-terminal-server] ✅ Updated ${configPath}`);
+}
+
+/** Install the interactive-terminal skill for AI agents */
+function cmdInstallSkills(): void {
+  const skillPath = getSkillPath();
+
+  if (!existsSync(skillPath)) {
+    console.error(`[mcp-terminal-server] Skill not found at ${skillPath}`);
+    console.error('[mcp-terminal-server] Make sure skills/interactive-terminal/SKILL.md exists');
+    process.exit(1);
+  }
+
+  // Check for common agent config directories
+  const agents = [
+    { name: 'Claude Code', dir: join(homedir(), '.claude', 'skills') },
+    { name: 'OpenCode', dir: join(homedir(), '.config', 'opencode', 'skills') },
+    { name: 'Cursor', dir: join(homedir(), '.cursor', 'skills') },
+    { name: 'Gemini CLI', dir: join(homedir(), '.gemini', 'skills') },
+  ];
+
+  let installed = 0;
+  for (const agent of agents) {
+    if (existsSync(dirname(agent.dir))) {
+      // Create skills dir if needed
+      if (!existsSync(agent.dir)) {
+        mkdirSync(agent.dir, { recursive: true });
+      }
+
+      // Symlink or copy the skill
+      const targetDir = join(agent.dir, 'interactive-terminal');
+      if (!existsSync(targetDir)) {
+        mkdirSync(targetDir, { recursive: true });
+        const targetFile = join(targetDir, 'SKILL.md');
+        const skillContent = readFileSync(skillPath, 'utf-8');
+        writeFileSync(targetFile, skillContent, 'utf-8');
+        console.log(`[mcp-terminal-server] ✅ Installed skill for ${agent.name}`);
+        installed++;
+      } else {
+        console.log(`[mcp-terminal-server] ⏭️  Skill already installed for ${agent.name}`);
+      }
+    }
+  }
+
+  if (installed === 0) {
+    console.log('[mcp-terminal-server] ⚠️  No supported AI agent config directories found.');
+    console.log('[mcp-terminal-server]    You can manually copy the skill from:');
+    console.log(`[mcp-terminal-server]    ${skillPath}`);
+  }
+
+  // Also note the skills.sh compatibility
+  console.log('');
+  console.log('[mcp-terminal-server] 📌 To add via skills.sh:');
+  console.log(`[mcp-terminal-server]    npx skills add <YOUR_GITHUB_REPO_URL> --skill interactive-terminal`);
+}
+
+// ---------------------------------------------------------------------------
+// Main
+// ---------------------------------------------------------------------------
+
 async function main(): Promise<void> {
+  const args = process.argv.slice(2);
+  const command = args[0];
+
+  if (command === 'setup') {
+    cmdSetup();
+    return;
+  }
+
+  if (command === 'install-skills') {
+    cmdInstallSkills();
+    return;
+  }
+
+  if (command === '--help' || command === '-h') {
+    console.log(`
+MCP Terminal Server v${PKG_VERSION}
+
+Usage:
+  mcp-terminal-server              Start MCP server (stdio transport)
+  mcp-terminal-server setup        Configure MCP in opencode.json
+  mcp-terminal-server install-skills  Install agent skills
+  mcp-terminal-server --help       Show this help
+`);
+    return;
+  }
+
+  if (command === '--version' || command === '-v') {
+    console.log(PKG_VERSION);
+    return;
+  }
+
+  // Default: start the MCP server
   const config = parseEnvConfig();
 
   const sessionManager = new SessionManager(config);
@@ -87,8 +241,7 @@ async function main(): Promise<void> {
   process.on('SIGTERM', shutdown);
 }
 
-// Only start the server when this file is run directly (not imported in tests)
-// Vitest sets VITEST env var when running tests
+// Only start when run directly (not imported in tests)
 if (!process.env.VITEST) {
   main().catch((err) => {
     process.stderr.write(
