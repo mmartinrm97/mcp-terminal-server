@@ -174,15 +174,42 @@ async function cmdInstallSkills(): Promise<void> {
     process.exit(1);
   }
 
-  // Check for common agent config directories
+  // Check for agent directories: project-level .agents + global home dirs
+  const cwd = process.cwd();
   const agents = [
-    { value: "claude", name: "Claude Code", dir: join(homedir(), ".claude", "skills") },
-    { value: "opencode", name: "OpenCode", dir: join(homedir(), ".config", "opencode", "skills") },
-    { value: "cursor", name: "Cursor", dir: join(homedir(), ".cursor", "skills") },
-    { value: "gemini", name: "Gemini CLI", dir: join(homedir(), ".gemini", "skills") },
+    {
+      value: "project",
+      name: "Project (.agents/skills)",
+      dir: join(cwd, ".agents", "skills"),
+      description: "Local to this project (recommended)",
+    },
+    {
+      value: "claude",
+      name: "Claude Code (global)",
+      dir: join(homedir(), ".claude", "skills"),
+      description: "Global — all Claude projects",
+    },
+    {
+      value: "opencode",
+      name: "OpenCode (global)",
+      dir: join(homedir(), ".config", "opencode", "skills"),
+      description: "Global — all OpenCode projects",
+    },
+    {
+      value: "cursor",
+      name: "Cursor (global)",
+      dir: join(homedir(), ".cursor", "skills"),
+      description: "Global — all Cursor projects",
+    },
+    {
+      value: "gemini",
+      name: "Gemini CLI (global)",
+      dir: join(homedir(), ".gemini", "skills"),
+      description: "Global — all Gemini projects",
+    },
   ];
 
-  // Check which agents are available and which already have the skill
+  // Check which agent directories exist
   const availableAgents = agents.filter((a) => existsSync(dirname(a.dir)));
 
   if (availableAgents.length === 0) {
@@ -192,26 +219,25 @@ async function cmdInstallSkills(): Promise<void> {
     process.exit(0);
   }
 
-  // Check which agents already have the skill installed
-  const installedAgents = availableAgents.filter((a) =>
+  // Check which ones already have the skill
+  const agentsWithSkill = availableAgents.filter((a) =>
     existsSync(join(a.dir, "interactive-terminal", "SKILL.md")),
   );
 
-  if (installedAgents.length === availableAgents.length) {
+  const availableToInstall = availableAgents.filter((a) => !agentsWithSkill.includes(a));
+
+  if (availableToInstall.length === 0) {
     p.log.info("Skill already installed for all available agents.");
     p.outro("Nothing to do.");
     return;
   }
 
-  // Only offer agents that don't have the skill yet
-  const candidates = availableAgents.filter((a) => !installedAgents.includes(a));
-
   const selected = await p.multiselect({
     message: "Which agents do you want to install the skill for?",
-    options: candidates.map((a) => ({
+    options: availableToInstall.map((a) => ({
       label: a.name,
       value: a.value,
-      hint: a.dir,
+      hint: a.description,
     })),
     required: false,
   });
