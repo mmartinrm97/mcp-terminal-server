@@ -11,16 +11,16 @@
  * See docs/MCP-TERMINAL-SERVER.md for the full design.
  */
 
-import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
-import { homedir } from 'node:os';
-import { join, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { SessionManager } from './session-manager.js';
-import { createTerminalServer } from './server.js';
-import type { SessionManagerConfig } from './types.js';
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
+import { homedir } from "node:os";
+import { join, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+import { SessionManager } from "./core/session-manager.js";
+import { createTerminalServer } from "./server.js";
+import type { SessionManagerConfig } from "./types.js";
 
-const PKG_VERSION = '0.1.0';
+const PKG_VERSION = "0.1.0";
 
 // ---------------------------------------------------------------------------
 // Configuration via environment variables
@@ -36,8 +36,8 @@ const DEFAULT_CONFIG: SessionManagerConfig = {
  * Exported for testing.
  */
 export function parseEnvConfig(): SessionManagerConfig {
-  const max = parseEnvInt('MCP_TERMINAL_MAX_SESSIONS', DEFAULT_CONFIG.max_sessions);
-  const ttl = parseEnvInt('MCP_TERMINAL_SESSION_TTL_MS', DEFAULT_CONFIG.session_ttl_ms);
+  const max = parseEnvInt("MCP_TERMINAL_MAX_SESSIONS", DEFAULT_CONFIG.max_sessions);
+  const ttl = parseEnvInt("MCP_TERMINAL_SESSION_TTL_MS", DEFAULT_CONFIG.session_ttl_ms);
 
   return { max_sessions: max, session_ttl_ms: ttl };
 }
@@ -45,7 +45,7 @@ export function parseEnvConfig(): SessionManagerConfig {
 /** Parse an environment variable as an integer with a fallback default. */
 function parseEnvInt(envKey: string, defaultVal: number): number {
   const raw = process.env[envKey];
-  if (raw === undefined || raw === '') return defaultVal;
+  if (raw === undefined || raw === "") return defaultVal;
   const parsed = Number.parseInt(raw, 10);
   return Number.isNaN(parsed) ? defaultVal : parsed;
 }
@@ -58,15 +58,15 @@ function parseEnvInt(envKey: string, defaultVal: number): number {
 function getSkillPath(): string {
   // When running from dist/, skills are at ../skills/interactive-terminal/SKILL.md
   const distDir = dirname(fileURLToPath(import.meta.url));
-  const projectRoot = join(distDir, '..');
-  const skillPath = join(projectRoot, 'skills', 'interactive-terminal', 'SKILL.md');
+  const projectRoot = join(distDir, "..");
+  const skillPath = join(projectRoot, "skills", "interactive-terminal", "SKILL.md");
 
   if (existsSync(skillPath)) {
     return skillPath;
   }
 
   // Fallback: check cwd/skills
-  const cwdSkillPath = join(process.cwd(), 'skills', 'interactive-terminal', 'SKILL.md');
+  const cwdSkillPath = join(process.cwd(), "skills", "interactive-terminal", "SKILL.md");
   if (existsSync(cwdSkillPath)) {
     return cwdSkillPath;
   }
@@ -80,16 +80,16 @@ function getSkillPath(): string {
 
 /** Install the MCP Terminal Server in opencode.json */
 function cmdSetup(): void {
-  const configDir = join(homedir(), '.config', 'opencode');
-  const configPath = join(configDir, 'opencode.json');
+  const configDir = join(homedir(), ".config", "opencode");
+  const configPath = join(configDir, "opencode.json");
 
   if (!existsSync(configPath)) {
     console.error(`[mcp-terminal-server] opencode.json not found at ${configPath}`);
-    console.error('[mcp-terminal-server] Create one first, then run setup again.');
+    console.error("[mcp-terminal-server] Create one first, then run setup again.");
     process.exit(1);
   }
 
-  const raw = readFileSync(configPath, 'utf-8');
+  const raw = readFileSync(configPath, "utf-8");
   const config = JSON.parse(raw);
 
   // Ensure mcp section exists
@@ -103,17 +103,19 @@ function cmdSetup(): void {
   // Add terminal server config (don't overwrite if already exists)
   if (!config.mcp.terminal) {
     config.mcp.terminal = {
-      command: ['node', serverPath],
-      type: 'local',
+      command: ["node", serverPath],
+      type: "local",
       enabled: true,
     };
-    console.log('[mcp-terminal-server] ✅ Added terminal MCP server to opencode.json');
+    console.log("[mcp-terminal-server] ✅ Added terminal MCP server to opencode.json");
   } else {
-    console.log('[mcp-terminal-server] ⏭️  Terminal MCP server already configured in opencode.json');
+    console.log(
+      "[mcp-terminal-server] ⏭️  Terminal MCP server already configured in opencode.json",
+    );
   }
 
   // Write back
-  writeFileSync(configPath, JSON.stringify(config, null, 4) + '\n', 'utf-8');
+  writeFileSync(configPath, JSON.stringify(config, null, 4) + "\n", "utf-8");
   console.log(`[mcp-terminal-server] ✅ Updated ${configPath}`);
 }
 
@@ -123,16 +125,16 @@ function cmdInstallSkills(): void {
 
   if (!existsSync(skillPath)) {
     console.error(`[mcp-terminal-server] Skill not found at ${skillPath}`);
-    console.error('[mcp-terminal-server] Make sure skills/interactive-terminal/SKILL.md exists');
+    console.error("[mcp-terminal-server] Make sure skills/interactive-terminal/SKILL.md exists");
     process.exit(1);
   }
 
   // Check for common agent config directories
   const agents = [
-    { name: 'Claude Code', dir: join(homedir(), '.claude', 'skills') },
-    { name: 'OpenCode', dir: join(homedir(), '.config', 'opencode', 'skills') },
-    { name: 'Cursor', dir: join(homedir(), '.cursor', 'skills') },
-    { name: 'Gemini CLI', dir: join(homedir(), '.gemini', 'skills') },
+    { name: "Claude Code", dir: join(homedir(), ".claude", "skills") },
+    { name: "OpenCode", dir: join(homedir(), ".config", "opencode", "skills") },
+    { name: "Cursor", dir: join(homedir(), ".cursor", "skills") },
+    { name: "Gemini CLI", dir: join(homedir(), ".gemini", "skills") },
   ];
 
   let installed = 0;
@@ -144,12 +146,12 @@ function cmdInstallSkills(): void {
       }
 
       // Symlink or copy the skill
-      const targetDir = join(agent.dir, 'interactive-terminal');
+      const targetDir = join(agent.dir, "interactive-terminal");
       if (!existsSync(targetDir)) {
         mkdirSync(targetDir, { recursive: true });
-        const targetFile = join(targetDir, 'SKILL.md');
-        const skillContent = readFileSync(skillPath, 'utf-8');
-        writeFileSync(targetFile, skillContent, 'utf-8');
+        const targetFile = join(targetDir, "SKILL.md");
+        const skillContent = readFileSync(skillPath, "utf-8");
+        writeFileSync(targetFile, skillContent, "utf-8");
         console.log(`[mcp-terminal-server] ✅ Installed skill for ${agent.name}`);
         installed++;
       } else {
@@ -159,15 +161,17 @@ function cmdInstallSkills(): void {
   }
 
   if (installed === 0) {
-    console.log('[mcp-terminal-server] ⚠️  No supported AI agent config directories found.');
-    console.log('[mcp-terminal-server]    You can manually copy the skill from:');
+    console.log("[mcp-terminal-server] ⚠️  No supported AI agent config directories found.");
+    console.log("[mcp-terminal-server]    You can manually copy the skill from:");
     console.log(`[mcp-terminal-server]    ${skillPath}`);
   }
 
   // Also note the skills.sh compatibility
-  console.log('');
-  console.log('[mcp-terminal-server] 📌 To add via skills.sh:');
-  console.log(`[mcp-terminal-server]    npx skills add <YOUR_GITHUB_REPO_URL> --skill interactive-terminal`);
+  console.log("");
+  console.log("[mcp-terminal-server] 📌 To add via skills.sh:");
+  console.log(
+    `[mcp-terminal-server]    npx skills add <YOUR_GITHUB_REPO_URL> --skill interactive-terminal`,
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -178,17 +182,17 @@ async function main(): Promise<void> {
   const args = process.argv.slice(2);
   const command = args[0];
 
-  if (command === 'setup') {
+  if (command === "setup") {
     cmdSetup();
     return;
   }
 
-  if (command === 'install-skills') {
+  if (command === "install-skills") {
     cmdInstallSkills();
     return;
   }
 
-  if (command === '--help' || command === '-h') {
+  if (command === "--help" || command === "-h") {
     console.log(`
 MCP Terminal Server v${PKG_VERSION}
 
@@ -201,7 +205,7 @@ Usage:
     return;
   }
 
-  if (command === '--version' || command === '-v') {
+  if (command === "--version" || command === "-v") {
     console.log(PKG_VERSION);
     return;
   }
@@ -222,31 +226,27 @@ Usage:
 
   try {
     await server.connect(transport);
-    process.stderr.write('[mcp-terminal-server] Connected via stdio transport\n');
+    process.stderr.write("[mcp-terminal-server] Connected via stdio transport\n");
   } catch (err) {
-    process.stderr.write(
-      `[mcp-terminal-server] Failed to connect: ${(err as Error).message}\n`,
-    );
+    process.stderr.write(`[mcp-terminal-server] Failed to connect: ${(err as Error).message}\n`);
     process.exit(1);
   }
 
   // Graceful shutdown
   const shutdown = () => {
-    process.stderr.write('[mcp-terminal-server] Shutting down...\n');
+    process.stderr.write("[mcp-terminal-server] Shutting down...\n");
     sessionManager.dispose();
     process.exit(0);
   };
 
-  process.on('SIGINT', shutdown);
-  process.on('SIGTERM', shutdown);
+  process.on("SIGINT", shutdown);
+  process.on("SIGTERM", shutdown);
 }
 
 // Only start when run directly (not imported in tests)
 if (!process.env.VITEST) {
   main().catch((err) => {
-    process.stderr.write(
-      `[mcp-terminal-server] Fatal error: ${(err as Error).message}\n`,
-    );
+    process.stderr.write(`[mcp-terminal-server] Fatal error: ${(err as Error).message}\n`);
     process.exit(1);
   });
 }

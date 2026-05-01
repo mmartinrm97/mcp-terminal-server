@@ -1,4 +1,4 @@
-import { platform } from 'node:os';
+import { platform } from "node:os";
 
 /**
  * Information about a detected or specified shell.
@@ -26,31 +26,31 @@ export interface ShellInfo {
  * When a specific shell is requested, it is used directly with platform-appropriate
  * executable name resolution (e.g., `pwsh` → `pwsh.exe` on Windows).
  */
-export function detectShell(shell: 'auto' | 'bash' | 'zsh' | 'pwsh' | 'cmd'): ShellInfo {
-  const isWindows = platform() === 'win32';
+export function detectShell(shell: "auto" | "bash" | "zsh" | "pwsh" | "cmd"): ShellInfo {
+  const isWindows = platform() === "win32";
 
   switch (shell) {
-    case 'bash':
-      return { shell: 'bash', shellName: 'bash', args: [] };
+    case "bash":
+      return { shell: "bash", shellName: "bash", args: [] };
 
-    case 'zsh':
-      return { shell: 'zsh', shellName: 'zsh', args: [] };
+    case "zsh":
+      return { shell: "zsh", shellName: "zsh", args: [] };
 
-    case 'pwsh':
+    case "pwsh":
       return {
-        shell: isWindows ? 'pwsh.exe' : 'pwsh',
-        shellName: 'pwsh',
-        args: isWindows ? ['-NoLogo', '-NoExit'] : [],
+        shell: isWindows ? "pwsh.exe" : "pwsh",
+        shellName: "pwsh",
+        args: isWindows ? ["-NoLogo", "-NoExit"] : [],
       };
 
-    case 'cmd':
+    case "cmd":
       return {
-        shell: isWindows ? 'cmd.exe' : 'cmd',
-        shellName: 'cmd',
+        shell: isWindows ? "cmd.exe" : "cmd",
+        shellName: "cmd",
         args: [],
       };
 
-    case 'auto':
+    case "auto":
       return detectAutoShell();
 
     default:
@@ -62,36 +62,36 @@ export function detectShell(shell: 'auto' | 'bash' | 'zsh' | 'pwsh' | 'cmd'): Sh
  * Auto-detect the best available shell for the current platform.
  */
 function detectAutoShell(): ShellInfo {
-  const isWindows = platform() === 'win32';
+  const isWindows = platform() === "win32";
 
   if (isWindows) {
     // Try pwsh first, fallback to cmd
-    const pwshPath = findExecutable('pwsh.exe');
+    const pwshPath = findExecutable("pwsh.exe");
     if (pwshPath) {
-      return { shell: pwshPath, shellName: 'pwsh', args: ['-NoLogo', '-NoExit'] };
+      return { shell: pwshPath, shellName: "pwsh", args: ["-NoLogo", "-NoExit"] };
     }
-    return { shell: 'cmd.exe', shellName: 'cmd', args: [] };
+    return { shell: "cmd.exe", shellName: "cmd", args: [] };
   }
 
   // Unix: check SHELL env var, then try common shells
   const envShell = process.env.SHELL;
   if (envShell) {
-    return { shell: envShell, shellName: envShell.split('/').pop() ?? 'bash', args: [] };
+    return { shell: envShell, shellName: envShell.split("/").pop() ?? "bash", args: [] };
   }
 
   // Try common shells in order
-  for (const candidate of ['/bin/bash', '/bin/zsh', '/bin/sh']) {
+  for (const candidate of ["/bin/bash", "/bin/zsh", "/bin/sh"]) {
     try {
       // Can't really check existence without fs, just fall through
       // Use the first reasonable candidate
-      const name = candidate.split('/').pop() ?? 'bash';
+      const name = candidate.split("/").pop() ?? "bash";
       return { shell: candidate, shellName: name, args: [] };
     } catch {
       // continue
     }
   }
 
-  return { shell: '/bin/sh', shellName: 'sh', args: [] };
+  return { shell: "/bin/sh", shellName: "sh", args: [] };
 }
 
 /**
@@ -99,7 +99,7 @@ function detectAutoShell(): ShellInfo {
  * For Unix, this is a no-op (returns the candidate as-is).
  */
 function findExecutable(name: string): string | null {
-  if (platform() !== 'win32') return name;
+  if (platform() !== "win32") return name;
 
   try {
     // Use which/where to find the executable - but since require('child_process').execSync

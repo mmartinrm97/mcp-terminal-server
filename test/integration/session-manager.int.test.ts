@@ -1,30 +1,41 @@
 // @integration — requires real shell
-import { describe, it, expect, afterAll } from 'vitest';
-import { SessionManager } from '../../src/session-manager.js';
-import { SessionLimitError } from '../../src/types.js';
-import type { SessionConfig, SessionInfo } from '../../src/types.js';
+import { describe, it, expect, afterAll } from "vitest";
+import { SessionManager } from "../../src/core/session-manager.js";
+import { SessionLimitError } from "../../src/types.js";
+import type { SessionConfig, SessionInfo } from "../../src/types.js";
 
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 
-describe('SessionManager Integration', () => {
+describe("SessionManager Integration", () => {
   let managers: SessionManager[] = [];
 
   afterAll(() => {
     for (const m of managers) {
       // Close all sessions gracefully first to avoid async SIGKILL errors on Windows
       for (const s of m.listSessions()) {
-        try { m.closeSession(s.id); } catch { /* already closed */ }
+        try {
+          m.closeSession(s.id);
+        } catch {
+          /* already closed */
+        }
       }
-      try { m.dispose(); } catch { /* Windows — signals unsupported in node-pty */ }
+      try {
+        m.dispose();
+      } catch {
+        /* Windows — signals unsupported in node-pty */
+      }
     }
   });
 
   /**
    * Create a SessionManager and track it for cleanup.
    */
-  function createManager(config?: { max_sessions?: number; session_ttl_ms?: number }): SessionManager {
+  function createManager(config?: {
+    max_sessions?: number;
+    session_ttl_ms?: number;
+  }): SessionManager {
     const sm = new SessionManager({
       max_sessions: config?.max_sessions ?? 10,
       session_ttl_ms: config?.session_ttl_ms ?? 30 * 60 * 1000,
@@ -36,9 +47,12 @@ describe('SessionManager Integration', () => {
   /**
    * Helper: create a session with default shell detection.
    */
-  async function createTestSession(sm: SessionManager, overrides?: Partial<SessionConfig>): Promise<SessionInfo> {
+  async function createTestSession(
+    sm: SessionManager,
+    overrides?: Partial<SessionConfig>,
+  ): Promise<SessionInfo> {
     return sm.createSession({
-      shell: 'auto',
+      shell: "auto",
       cols: 80,
       rows: 24,
       ...overrides,
@@ -48,13 +62,13 @@ describe('SessionManager Integration', () => {
   // ---------------------------------------------------------------------------
   // 1. Create and list sessions
   // ---------------------------------------------------------------------------
-  describe('create and list sessions', () => {
-    it('should create a session and list it', async () => {
+  describe("create and list sessions", () => {
+    it("should create a session and list it", async () => {
       const sm = createManager({ max_sessions: 10 });
       const info = await createTestSession(sm);
 
       expect(info.id).toBeTruthy();
-      expect(typeof info.id).toBe('string');
+      expect(typeof info.id).toBe("string");
       expect(info.alive).toBe(true);
 
       const list = sm.listSessions();
@@ -62,7 +76,7 @@ describe('SessionManager Integration', () => {
       expect(list[0].id).toBe(info.id);
     });
 
-    it('should return 2 sessions when 2 are created', async () => {
+    it("should return 2 sessions when 2 are created", async () => {
       const sm = createManager({ max_sessions: 10 });
       const info1 = await createTestSession(sm);
       const info2 = await createTestSession(sm);
@@ -76,7 +90,7 @@ describe('SessionManager Integration', () => {
       expect(ids).toContain(info2.id);
     });
 
-    it('should report correct activeCount', async () => {
+    it("should report correct activeCount", async () => {
       const sm = createManager({ max_sessions: 10 });
       expect(sm.activeCount).toBe(0);
 
@@ -91,8 +105,8 @@ describe('SessionManager Integration', () => {
   // ---------------------------------------------------------------------------
   // 2. Session close removes from list
   // ---------------------------------------------------------------------------
-  describe('session close', () => {
-    it('should remove session from list after close', async () => {
+  describe("session close", () => {
+    it("should remove session from list after close", async () => {
       const sm = createManager({ max_sessions: 10 });
       const info = await createTestSession(sm);
 
@@ -105,7 +119,7 @@ describe('SessionManager Integration', () => {
       expect(sm.activeCount).toBe(0);
     });
 
-    it('should close only the specified session', async () => {
+    it("should close only the specified session", async () => {
       const sm = createManager({ max_sessions: 10 });
       const info1 = await createTestSession(sm);
       const info2 = await createTestSession(sm);
@@ -124,19 +138,17 @@ describe('SessionManager Integration', () => {
   // ---------------------------------------------------------------------------
   // 3. Session limit enforcement
   // ---------------------------------------------------------------------------
-  describe('session limit', () => {
-    it('should throw SessionLimitError when max_sessions=1 and creating second', async () => {
+  describe("session limit", () => {
+    it("should throw SessionLimitError when max_sessions=1 and creating second", async () => {
       const sm = createManager({ max_sessions: 1 });
       await createTestSession(sm);
 
       expect(sm.activeCount).toBe(1);
 
-      await expect(
-        createTestSession(sm),
-      ).rejects.toThrow(SessionLimitError);
+      await expect(createTestSession(sm)).rejects.toThrow(SessionLimitError);
     });
 
-    it('should allow creation up to the limit', async () => {
+    it("should allow creation up to the limit", async () => {
       const sm = createManager({ max_sessions: 3 });
       await createTestSession(sm);
       await createTestSession(sm);
@@ -149,8 +161,8 @@ describe('SessionManager Integration', () => {
   // ---------------------------------------------------------------------------
   // 4. getSession
   // ---------------------------------------------------------------------------
-  describe('getSession', () => {
-    it('should return the PTYSession for a valid id', async () => {
+  describe("getSession", () => {
+    it("should return the PTYSession for a valid id", async () => {
       const sm = createManager({ max_sessions: 10 });
       const info = await createTestSession(sm);
 

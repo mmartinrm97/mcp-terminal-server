@@ -1,6 +1,6 @@
-import { sleep } from './utils.js';
-import { ReadTimeoutError } from './types.js';
-import { stripAnsi } from './ansi-stripper.js';
+import { sleep } from "../lib/utils.js";
+import { ReadTimeoutError } from "../types.js";
+import { stripAnsi } from "../lib/ansi-stripper.js";
 
 /**
  * Circular buffer that accumulates PTY output and supports regex pattern matching.
@@ -20,7 +20,7 @@ import { stripAnsi } from './ansi-stripper.js';
  * - If buffer exceeds maxSize, oldest data is trimmed (FIFO)
  */
 export class OutputBuffer {
-  private _buffer = '';
+  private _buffer = "";
   private _readOffset = 0;
   private readonly _maxSize: number;
 
@@ -101,12 +101,12 @@ export class OutputBuffer {
     let pos = this._buffer.length - 1;
 
     // Handle trailing newline
-    if (pos >= 0 && (this._buffer[pos] === '\n' || this._buffer[pos] === '\r')) {
+    if (pos >= 0 && (this._buffer[pos] === "\n" || this._buffer[pos] === "\r")) {
       pos--;
     }
 
     while (pos >= 0 && count < lines) {
-      if (this._buffer[pos] === '\n') {
+      if (this._buffer[pos] === "\n") {
         count++;
       }
       pos--;
@@ -131,13 +131,13 @@ export class OutputBuffer {
   async readUntil(
     pattern: string,
     timeoutMs: number = 30000,
-    stripAnsiColors: boolean = false
+    stripAnsiColors: boolean = false,
   ): Promise<{
     data: string;
     fullOutput: string;
     matched: string;
   }> {
-    const regex = new RegExp(pattern, 'g');
+    const regex = new RegExp(pattern, "g");
     const startTime = Date.now();
     const pollInterval = 50;
 
@@ -171,7 +171,7 @@ export class OutputBuffer {
         const partial = searchText;
         throw new ReadTimeoutError(
           `Pattern "${pattern}" not matched within ${timeoutMs}ms`,
-          partial
+          partial,
         );
       }
 
@@ -191,7 +191,7 @@ export class OutputBuffer {
    * Clear the entire buffer and reset the read offset.
    */
   clear(): void {
-    this._buffer = '';
+    this._buffer = "";
     this._readOffset = 0;
   }
 

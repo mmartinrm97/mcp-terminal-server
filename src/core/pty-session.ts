@@ -1,9 +1,9 @@
-import { spawn } from 'node-pty';
-import type { IPty } from 'node-pty';
-import { OutputBuffer } from './output-buffer.js';
-import { normalizeEscapeSequences } from './utils.js';
-import { renderScreen } from './screen.js';
-import type { SessionInfo } from './types.js';
+import { spawn } from "node-pty";
+import type { IPty } from "node-pty";
+import { OutputBuffer } from "./output-buffer.js";
+import { normalizeEscapeSequences } from "../lib/utils.js";
+import { renderScreen } from "./screen.js";
+import type { SessionInfo } from "../types.js";
 
 /**
  * Options for creating a PTYSession.
@@ -47,11 +47,11 @@ export class PTYSession {
 
     // Spawn the PTY process
     this.pty = spawn(options.shell, options.args, {
-      name: 'xterm-256color',
+      name: "xterm-256color",
       cwd: options.cwd,
       cols: options.cols,
       rows: options.rows,
-      env: options.env ?? process.env as Record<string, string>,
+      env: options.env ?? (process.env as Record<string, string>),
     });
 
     // Capture all data events into the buffer
@@ -156,7 +156,7 @@ export class PTYSession {
   async readUntil(
     pattern: string,
     timeoutMs?: number,
-    stripAnsiColors?: boolean
+    stripAnsiColors?: boolean,
   ): Promise<{
     data: string;
     fullOutput: string;
@@ -175,11 +175,11 @@ export class PTYSession {
       };
     } catch (err) {
       // Check if it's a ReadTimeoutError
-      if (err instanceof Error && 'timedOut' in err) {
+      if (err instanceof Error && "timedOut" in err) {
         return {
-          data: (err as any).partialData ?? '',
+          data: (err as any).partialData ?? "",
           fullOutput: this.buffer.getFullBuffer(),
-          matched: '',
+          matched: "",
           ended: this._ended,
           exit_code: this._exitCode,
           timed_out: true,
@@ -200,7 +200,7 @@ export class PTYSession {
    */
   close(force?: boolean): number | null {
     if (force) {
-      this.pty.kill('SIGKILL');
+      this.pty.kill("SIGKILL");
     } else {
       this.pty.kill();
     }
@@ -217,17 +217,17 @@ export class PTYSession {
    */
   sendSignal(signal: string): void {
     switch (signal) {
-      case 'SIGINT':
-        this.pty.write('\x03');
+      case "SIGINT":
+        this.pty.write("\x03");
         break;
-      case 'SIGTSTP':
-        this.pty.write('\x1a');
+      case "SIGTSTP":
+        this.pty.write("\x1a");
         break;
-      case 'SIGQUIT':
-        this.pty.write('\x1c');
+      case "SIGQUIT":
+        this.pty.write("\x1c");
         break;
-      case 'SIGKILL':
-        this.pty.kill('SIGKILL');
+      case "SIGKILL":
+        this.pty.kill("SIGKILL");
         break;
       default:
         throw new Error(`Unknown signal: ${signal}`);

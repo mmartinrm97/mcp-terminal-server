@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { randomUUID } from "node:crypto";
 
 /**
  * Generate a unique session ID.
@@ -68,13 +68,15 @@ export function timestamp(): string {
  * @returns String with escape sequences converted to actual control characters
  */
 export function normalizeEscapeSequences(data: string): string {
-  return data
-    // Replace literal backslash sequences (in order: multi-char first, then single)
-    .replace(/\\x03/g, '\x03')
-    .replace(/\\x1b\[/g, '\x1b[')
-    .replace(/\\x1b/g, '\x1b')
-    .replace(/\\n/g, '\n')
-    .replace(/\\r/g, '\r')
-    .replace(/\\t/g, '\t')
-    .replace(/\\\\/g, '\\');
+  return (
+    data
+      // Replace literal backslash sequences (in order: multi-char first, then single)
+      .replace(/\\x03/g, "\x03")
+      .replace(/\\x1b\[/g, "\x1b[")
+      .replace(/\\x1b/g, "\x1b")
+      .replace(/\\n/g, "\n")
+      .replace(/\\r/g, "\r")
+      .replace(/\\t/g, "\t")
+      .replace(/\\\\/g, "\\")
+  );
 }

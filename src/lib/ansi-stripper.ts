@@ -24,5 +24,5 @@ const ANSI_PATTERN =
  * @returns Clean text with all ANSI escape sequences removed
  */
 export function stripAnsi(data: string): string {
-  return data.replace(ANSI_PATTERN, '');
+  return data.replace(ANSI_PATTERN, "");
 }

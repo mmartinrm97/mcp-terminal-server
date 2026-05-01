@@ -1,11 +1,8 @@
-import { PTYSession } from './pty-session.js';
-import { detectShell } from './shell-detector.js';
-import { generateSessionId } from './utils.js';
-import {
-  SessionNotFoundError,
-  SessionLimitError,
-} from './types.js';
-import type { SessionConfig, SessionInfo, SessionManagerConfig } from './types.js';
+import { PTYSession } from "./pty-session.js";
+import { detectShell } from "../lib/shell-detector.js";
+import { generateSessionId } from "../lib/utils.js";
+import { SessionNotFoundError, SessionLimitError } from "../types.js";
+import type { SessionConfig, SessionInfo, SessionManagerConfig } from "../types.js";
 
 /**
  * Manages multiple PTY sessions with TTL-based cleanup.
@@ -33,10 +30,7 @@ export class SessionManager {
     };
 
     // Start cleanup timer — runs every 60 seconds
-    this.cleanupTimer = setInterval(
-      () => this.cleanupExpiredSessions(),
-      60_000
-    );
+    this.cleanupTimer = setInterval(() => this.cleanupExpiredSessions(), 60_000);
   }
 
   /**
@@ -54,7 +48,7 @@ export class SessionManager {
     }
 
     // Resolve shell
-    const shellInfo = detectShell(config.shell ?? 'auto');
+    const shellInfo = detectShell(config.shell ?? "auto");
 
     // Generate or use provided ID
     const id = config.id ?? generateSessionId();
