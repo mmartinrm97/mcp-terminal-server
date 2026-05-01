@@ -36,3 +36,5 @@ temp/
 
 .agents/*
 vite-project
+
+/src/generated/prisma
