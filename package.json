@@ -15,15 +15,15 @@
     "terminal",
     "tui"
   ],
-  "homepage": "https://github.com/mmartinrm3/mcp-terminal-server#readme",
+  "homepage": "https://github.com/mmartinrm97/mcp-terminal-server#readme",
   "bugs": {
-    "url": "https://github.com/mmartinrm3/mcp-terminal-server/issues"
+    "url": "https://github.com/mmartinrm97/mcp-terminal-server/issues"
   },
   "license": "MIT",
   "author": "",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/mmartinrm3/mcp-terminal-server.git"
+    "url": "git+https://github.com/mmartinrm97/mcp-terminal-server.git"
   },
   "bin": {
     "mcp-terminal-server": "dist/index.js"
