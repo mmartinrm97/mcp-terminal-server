@@ -23,6 +23,7 @@ See `_shared/skill-resolver.md` for the full resolution protocol.
 | Break down change into tasks | sdd-tasks | ~/.config/opencode/skills/sdd-tasks/SKILL.md |
 | Validate implementation matches specs | sdd-verify | ~/.config/opencode/skills/sdd-verify/SKILL.md |
 | Create new AI agent skill | skill-creator | ~/.config/opencode/skills/skill-creator/SKILL.md |
+| Interactive CLI tools, TUI navigation, commands needing user input (npm init, gh pr, npx create-vite, etc.) | interactive-terminal | D:/CURSOS/Proyectos/mcp-terminal-server/skills/interactive-terminal/SKILL.md |
 
 ## Compact Rules
 
@@ -124,6 +125,16 @@ See `_shared/skill-resolver.md` for the full resolution protocol.
 - Structure: `skills/{name}/SKILL.md` + optional `assets/` or `references/`
 - Content: Critical Patterns first, then examples, then Commands section
 - DO NOT add Keywords section — agent searches frontmatter, not body
+
+### interactive-terminal
+- ALWAYS use terminal tools instead of bash for interactive commands (npm init, gh pr, npx create-vite, psql, etc.)
+- Flow: create_session → write command → read_until screenshot → navigate → close_session
+- Use terminal_screenshot FIRST to read the screen (returns clean text rows, no ANSI codes), THEN navigate
+- Arrow keys: up=\x1b[A, down=\x1b[B, left=\x1b[D, right=\x1b[C
+- Enter=\r\n (CRLF), Space=\x20, Ctrl+C=\x03, Escape=\x1b
+- On Windows use cmd shell; SIGKILL not supported — close without force
+- If read_until times out, take a screenshot to understand current state
+- If unsure what to respond, ask the user with options presented
 
 ## Project Conventions
 
