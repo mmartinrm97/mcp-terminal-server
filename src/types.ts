@@ -3,6 +3,7 @@
  */
 export interface SessionConfig {
   id?: string;
+  label?: string;
   shell?: 'auto' | 'bash' | 'zsh' | 'pwsh' | 'cmd';
   cwd?: string;
   cols?: number;
@@ -15,6 +16,7 @@ export interface SessionConfig {
  */
 export interface SessionInfo {
   id: string;
+  label: string | null;
   shell: string;
   cwd: string;
   cols: number;
@@ -135,6 +137,24 @@ export interface TailResult {
   data: string;
   lines: number;
   total_size: number;
+}
+
+/**
+ * Input parameters for terminal_send_signal.
+ */
+export interface SendSignalInput {
+  id: string;
+  signal: 'SIGINT' | 'SIGTSTP' | 'SIGQUIT' | 'SIGKILL';
+}
+
+/**
+ * Result of terminal_ping.
+ */
+export interface PingResult {
+  ok: boolean;
+  sessions: number;
+  uptime_ms: number;
+  version: string;
 }
 
 /**

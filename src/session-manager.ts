@@ -69,6 +69,7 @@ export class SessionManager {
     // Create the PTY session
     const session = new PTYSession({
       id,
+      label: config.label,
       shell: shellInfo.shell,
       args: shellInfo.args,
       cwd,

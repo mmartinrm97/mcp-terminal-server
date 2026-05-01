@@ -26,7 +26,7 @@ waits for input or shows a TUI menu, `bash` will time out or return truncated ou
 - Running `shadcn-vue add`, `prisma init` — CLI tools with questions
 - Any command that shows a menu with `↑↓` arrows or `[y/N]` prompts
 
-## Tools Overview (9 tools)
+## Tools Overview (11 tools)
 
 | Tool | Purpose | When to Use |
 |------|---------|-------------|
@@ -37,8 +37,24 @@ waits for input or shows a TUI menu, `bash` will time out or return truncated ou
 | **`terminal_screenshot`** | **Get clean screen state with cursor position** | **⭐ TUI navigation** |
 | `terminal_tail` | Read last N lines (like `tail -n N`) | ⭐ Logs from long-running processes |
 | `terminal_resize` | Change terminal dimensions | When output is clipped |
+| `terminal_send_signal` | Send SIGINT/SIGTSTP/SIGQUIT to foreground process | Interrupt stuck processes |
+| `terminal_ping` | Health check — server status + uptime | Verify server is alive |
 | `terminal_list_sessions` | List all active sessions | Debugging |
 | `terminal_close_session` | Close and cleanup a session | Always last |
+
+## Labels for Multi-Agent Flows
+
+When running multiple sessions (e.g., backend + frontend), use labels to keep them organized:
+
+```
+terminal_create_session({ cwd: "./backend", label: "backend-api" })
+terminal_create_session({ cwd: "./frontend", label: "frontend-vite" })
+
+terminal_list_sessions()
+→ [{ label: "backend-api", ... }, { label: "frontend-vite", ... }]
+```
+
+Pass the session `id` between sub-agents so any agent can read/write to any session.
 
 ## Interactive Flow Pattern
 
@@ -108,6 +124,8 @@ For menus with arrow-key navigation (like create-vite, autoskills):
 | Down arrow | `\x1b[B` | Navigate down in menus |
 | Space | `\x20` or ` ` | Toggle selection |
 | `y` / `n` | `y\r\n` / `n\r\n` | Yes/No prompts |
+| SIGINT (Ctrl+C) | `terminal_send_signal` tool | Interrupt — use INSTEAD of `\x03` |
+| SIGTSTP (Ctrl+Z) | `terminal_send_signal` tool | Suspend — use INSTEAD of `\x1a` |
 
 ## Screenshot-First Navigation Strategy
 

@@ -10,6 +10,7 @@ import type { SessionInfo } from './types.js';
  */
 export interface PTYSessionOptions {
   id: string;
+  label?: string;
   shell: string;
   args: string[];
   cwd: string;
@@ -26,6 +27,7 @@ export interface PTYSessionOptions {
  */
 export class PTYSession {
   readonly id: string;
+  readonly label: string | null;
   readonly pty: IPty;
   readonly buffer: OutputBuffer;
   readonly createdAt: Date;
@@ -37,6 +39,7 @@ export class PTYSession {
 
   constructor(options: PTYSessionOptions) {
     this.id = options.id;
+    this.label = options.label ?? null;
     this.cwd = options.cwd;
     this.createdAt = new Date();
     this.lastActivity = new Date();
@@ -107,6 +110,23 @@ export class PTYSession {
       ended: this._ended,
       exit_code: this._exitCode,
     };
+  }
+
+  /**
+   * Take a screenshot of the current terminal screen.
+   * Parses all raw PTY output through an ANSI-aware screen renderer
+   * and returns clean, structured text rows with cursor position.
+   */
+  screenshot(): {
+    rows: string[];
+    cursorRow: number;
+    cursorCol: number;
+    cols: number;
+    rowsCount: number;
+    text: string;
+  } {
+    const raw = this.buffer.getFullBuffer();
+    return renderScreen(raw, this.pty.cols, this.pty.rows);
   }
 
   /**
@@ -188,11 +208,40 @@ export class PTYSession {
   }
 
   /**
+   * Send a signal to the foreground process in the terminal.
+   * Translates signal names to control characters:
+   * - SIGINT  → Ctrl+C (\x03)
+   * - SIGTSTP → Ctrl+Z (\x1a)
+   * - SIGQUIT → Ctrl+\ (\x1c)
+   * - SIGKILL → force closes the session
+   */
+  sendSignal(signal: string): void {
+    switch (signal) {
+      case 'SIGINT':
+        this.pty.write('\x03');
+        break;
+      case 'SIGTSTP':
+        this.pty.write('\x1a');
+        break;
+      case 'SIGQUIT':
+        this.pty.write('\x1c');
+        break;
+      case 'SIGKILL':
+        this.pty.kill('SIGKILL');
+        break;
+      default:
+        throw new Error(`Unknown signal: ${signal}`);
+    }
+    this.lastActivity = new Date();
+  }
+
+  /**
    * Get session info for listing.
    */
   getInfo(): SessionInfo {
     return {
       id: this.id,
+      label: this.label,
       shell: this.pty.process,
       cwd: this.cwd,
       cols: this.pty.cols,
@@ -201,26 +250,6 @@ export class PTYSession {
       last_activity: this.lastActivity.toISOString(),
       alive: !this._ended,
     };
-  }
-
-  /**
-   * Take a screenshot of the current terminal screen.
-   *
-   * Parses all raw PTY output through an ANSI-aware screen renderer
-   * and returns clean, structured text rows with cursor position.
-   * This is the HIGH-LEVEL alternative to read() — instead of raw
-   * bytes, you get a rendered view of what's visible on the terminal.
-   */
-  screenshot(): {
-    rows: string[];
-    cursorRow: number;
-    cursorCol: number;
-    cols: number;
-    rowsCount: number;
-    text: string;
-  } {
-    const raw = this.buffer.getFullBuffer();
-    return renderScreen(raw, this.pty.cols, this.pty.rows);
   }
 
   /**

@@ -22,7 +22,11 @@ import type {
   ReadUntilResult,
   ScreenshotResult,
   TailResult,
+  PingResult,
 } from './types.js';
+
+// Server start timestamp (for ping/uptime)
+const SERVER_START_TIME = Date.now();
 
 // ---------------------------------------------------------------------------
 // Tool definitions
@@ -38,6 +42,10 @@ const TOOL_DEFINITIONS = [
       type: 'object' as const,
       properties: {
         id: { type: 'string', description: 'Optional custom session ID. Auto-generated if omitted.' },
+        label: {
+          type: 'string',
+          description: 'Human-readable label (e.g. "backend-dev", "frontend"). Makes multi-agent flows clearer.',
+        },
         shell: {
           type: 'string',
           enum: ['auto', 'bash', 'zsh', 'pwsh', 'cmd'],
@@ -137,6 +145,35 @@ const TOOL_DEFINITIONS = [
         },
       },
       required: ['id'],
+    },
+  },
+  {
+    name: 'terminal_send_signal',
+    description:
+      'Send a signal to the foreground process in the terminal. Use this INSTEAD of ' +
+      'terminal_write with control characters for SIGINT/Ctrl+C, SIGTSTP/Ctrl+Z, etc. ' +
+      'More explicit and reliable than writing raw bytes.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        id: { type: 'string', description: 'Session ID.' },
+        signal: {
+          type: 'string',
+          enum: ['SIGINT', 'SIGTSTP', 'SIGQUIT', 'SIGKILL'],
+          description: 'Signal to send. SIGINT=Ctrl+C, SIGTSTP=Ctrl+Z, SIGQUIT=Ctrl+\\.',
+        },
+      },
+      required: ['id', 'signal'],
+    },
+  },
+  {
+    name: 'terminal_ping',
+    description:
+      'Health check for the terminal server. Returns server status, active session count, ' +
+      'and uptime. Use this to verify the server is alive before starting work.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {},
     },
   },
   {
@@ -262,6 +299,7 @@ export async function handleCallTool(
       try {
         const info = await sm.createSession({
           id: args.id as string | undefined,
+          label: args.label as string | undefined,
           shell: args.shell as SessionConfig['shell'],
           cwd: args.cwd as string | undefined,
           cols: args.cols as number | undefined,
@@ -390,6 +428,42 @@ export async function handleCallTool(
 
       s.session.resize(cols, rows);
       return { content: [textContent({ cols, rows })] };
+    }
+
+    // ---- terminal_send_signal ----
+    case 'terminal_send_signal': {
+      const id = args.id as string | undefined;
+      const signal = args.signal as string | undefined;
+
+      if (!id || typeof id !== 'string') {
+        throw new McpError(ErrorCode.InvalidParams, 'Missing required parameter: id');
+      }
+      if (!signal || typeof signal !== 'string') {
+        throw new McpError(ErrorCode.InvalidParams, 'Missing required parameter: signal');
+      }
+
+      const s = getSessionOrError(sm, id);
+      if (s.error) return toolError(s.error);
+
+      try {
+        s.session.sendSignal(signal);
+        return { content: [textContent({ ok: true, signal })] };
+      } catch (err) {
+        return toolError((err as Error).message);
+      }
+    }
+
+    // ---- terminal_ping ----
+    case 'terminal_ping': {
+      const sessions = sm.activeCount;
+      const uptime = Date.now() - SERVER_START_TIME;
+      const result: PingResult = {
+        ok: true,
+        sessions,
+        uptime_ms: uptime,
+        version: '0.1.0',
+      };
+      return { content: [textContent(result)] };
     }
 
     // ---- terminal_screenshot ----

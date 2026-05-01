@@ -123,9 +123,9 @@ describe('Server Handler Functions', () => {
 
   // ---- handleListTools ----
   describe('handleListTools', () => {
-    it('should return 9 tools', async () => {
+    it('should return 11 tools', async () => {
       const result = await handleListTools();
-      expect(result.tools).toHaveLength(9);
+      expect(result.tools).toHaveLength(11);
     });
 
     it('should include terminal_create_session', async () => {
