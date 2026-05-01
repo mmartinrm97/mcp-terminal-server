@@ -162,6 +162,41 @@ async function cmdSetup(): Promise<void> {
   p.outro(`Updated ${configPath}`);
 }
 
+// ---------------------------------------------------------------------------
+// Agent definitions shared between discovery and install
+// ---------------------------------------------------------------------------
+
+interface AgentDefinition {
+  value: string;
+  name: string;
+  /** Relative path inside home (global) or project root (local). */
+  configSubdir: string;
+}
+
+/** All known agents with their global config subdirectory. */
+const ALL_AGENTS: AgentDefinition[] = [
+  { value: "claude", name: "Claude Code", configSubdir: ".claude" },
+  { value: "opencode", name: "OpenCode", configSubdir: ".config/opencode" },
+  { value: "cursor", name: "Cursor", configSubdir: ".cursor" },
+  { value: "gemini", name: "Gemini CLI", configSubdir: ".gemini" },
+  { value: "kiro", name: "Kiro IDE", configSubdir: ".kiro" },
+  { value: "cline", name: "Cline", configSubdir: ".cline" },
+  { value: "kilocode", name: "Kilo Code", configSubdir: ".config/kilo" },
+  { value: "codex", name: "Codex", configSubdir: ".codex" },
+  { value: "kimi", name: "Kimi Code", configSubdir: ".kimi" },
+  { value: "qwen", name: "Qwen Code", configSubdir: ".qwen" },
+  { value: "windsurf", name: "Windsurf", configSubdir: ".codeium/windsurf" },
+  { value: "copilot", name: "VS Code Copilot", configSubdir: ".copilot" },
+];
+
+/**
+ * Check if an agent is available by looking for its config directory.
+ * `baseDir` is either homedir() for global or cwd for project-level.
+ */
+function detectAvailableAgents(baseDir: string): AgentDefinition[] {
+  return ALL_AGENTS.filter((a) => existsSync(join(baseDir, a.configSubdir)));
+}
+
 /** Install the interactive-terminal skill for AI agents */
 async function cmdInstallSkills(): Promise<void> {
   p.intro("Interactive Terminal Skill Install");
@@ -174,70 +209,65 @@ async function cmdInstallSkills(): Promise<void> {
     process.exit(1);
   }
 
-  // Check for agent directories: project-level .agents + global home dirs
-  const cwd = process.cwd();
-  const agents = [
-    {
-      value: "project",
-      name: "Project (.agents/skills)",
-      dir: join(cwd, ".agents", "skills"),
-      description: "Local to this project (recommended)",
-    },
-    {
-      value: "claude",
-      name: "Claude Code (global)",
-      dir: join(homedir(), ".claude", "skills"),
-      description: "Global — all Claude projects",
-    },
-    {
-      value: "opencode",
-      name: "OpenCode (global)",
-      dir: join(homedir(), ".config", "opencode", "skills"),
-      description: "Global — all OpenCode projects",
-    },
-    {
-      value: "cursor",
-      name: "Cursor (global)",
-      dir: join(homedir(), ".cursor", "skills"),
-      description: "Global — all Cursor projects",
-    },
-    {
-      value: "gemini",
-      name: "Gemini CLI (global)",
-      dir: join(homedir(), ".gemini", "skills"),
-      description: "Global — all Gemini projects",
-    },
-  ];
+  // Step 1: Ask project or global (like setup does)
+  const scope = await p.select({
+    message: "Install skills at project level or globally?",
+    options: [
+      {
+        label: "Project",
+        value: "project",
+        hint: `.claude/skills/, .kiro/skills/, etc. — only this project`,
+      },
+      {
+        label: "Global",
+        value: "global",
+        hint: `~/.claude/skills/, ~/.config/opencode/skills/ — all projects`,
+      },
+    ],
+  });
 
-  // Check which agent directories exist
-  const availableAgents = agents.filter((a) => existsSync(dirname(a.dir)));
+  if (p.isCancel(scope)) {
+    p.outro("Cancelled.");
+    process.exit(0);
+  }
 
-  if (availableAgents.length === 0) {
-    p.log.warn("No supported AI agent config directories found.");
+  const baseDir = scope === "project" ? process.cwd() : homedir();
+  const label = scope === "project" ? " (project)" : " (global)";
+
+  // Step 2: Detect available agents
+  const available = detectAvailableAgents(baseDir);
+
+  if (available.length === 0) {
+    p.log.warn(
+      scope === "project"
+        ? "No agent config directories found in this project."
+        : "No supported AI agent config directories found.",
+    );
     p.log.info("You can manually copy the skill from:");
     p.log.info(`  ${skillPath}`);
     process.exit(0);
   }
 
-  // Check which ones already have the skill
-  const agentsWithSkill = availableAgents.filter((a) =>
-    existsSync(join(a.dir, "interactive-terminal", "SKILL.md")),
+  // Step 3: Filter out already installed agents
+  const alreadyInstalled = available.filter((a) =>
+    existsSync(join(baseDir, a.configSubdir, "skills", "interactive-terminal", "SKILL.md")),
   );
 
-  const availableToInstall = availableAgents.filter((a) => !agentsWithSkill.includes(a));
+  const toInstall = available.filter((a) => !alreadyInstalled.includes(a));
 
-  if (availableToInstall.length === 0) {
+  if (toInstall.length === 0) {
     p.log.info("Skill already installed for all available agents.");
     p.outro("Nothing to do.");
     return;
   }
 
+  // Step 4: Multiselect
   const selected = await p.multiselect({
-    message: "Which agents do you want to install the skill for?",
-    options: availableToInstall.map((a) => ({
+    message: `Which agents do you want to install the skill for?${label}`,
+    options: toInstall.map((a) => ({
       label: a.name,
       value: a.value,
-      hint: a.description,
+      hint: join(baseDir, a.configSubdir, "skills"),
     })),
     required: false,
   });
@@ -247,15 +277,16 @@ async function cmdInstallSkills(): Promise<void> {
     return;
   }
 
-  const selectedAgents = agents.filter((a) => selected.includes(a.value));
+  // Step 5: Install
+  const selectedAgents = ALL_AGENTS.filter((a) => selected.includes(a.value));
 
   const s = p.spinner();
   s.start("Installing...");
 
   for (const agent of selectedAgents) {
-    const targetDir = join(agent.dir, "interactive-terminal");
-    mkdirSync(targetDir, { recursive: true });
-    const targetFile = join(targetDir, "SKILL.md");
+    const skillsDir = join(baseDir, agent.configSubdir, "skills", "interactive-terminal");
+    mkdirSync(skillsDir, { recursive: true });
+    const targetFile = join(skillsDir, "SKILL.md");
     const skillContent = readFileSync(skillPath, "utf-8");
     writeFileSync(targetFile, skillContent, "utf-8");
     s.message(`Installed for ${agent.name}`);
