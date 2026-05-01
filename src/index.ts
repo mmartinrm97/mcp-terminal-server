@@ -16,11 +16,12 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { createInterface } from "node:readline/promises";
 import { SessionManager } from "./core/session-manager.js";
 import { createTerminalServer } from "./server.js";
 import type { SessionManagerConfig } from "./types.js";
 
-const PKG_VERSION = "0.1.0";
+const PKG_VERSION = "0.1.1";
 
 // ---------------------------------------------------------------------------
 // Configuration via environment variables
@@ -78,16 +79,58 @@ function getSkillPath(): string {
 // Commands
 // ---------------------------------------------------------------------------
 
-/** Install the MCP Terminal Server in opencode.json */
-function cmdSetup(): void {
-  const configDir = join(homedir(), ".config", "opencode");
-  const configPath = join(configDir, "opencode.json");
+/** Resolve which opencode.json to use — project or global */
+async function resolveConfigPath(): Promise<string> {
+  const cwd = process.cwd();
+  const projectPath = join(cwd, "opencode.json");
+  const globalPath = join(homedir(), ".config", "opencode", "opencode.json");
 
-  if (!existsSync(configPath)) {
-    console.error(`[mcp-terminal-server] opencode.json not found at ${configPath}`);
+  const projectExists = existsSync(projectPath);
+  const globalExists = existsSync(globalPath);
+
+  // Neither exists
+  if (!projectExists && !globalExists) {
+    console.error("[mcp-terminal-server] No opencode.json found.");
+    console.error(`[mcp-terminal-server]   Project:  ${projectPath}`);
+    console.error(`[mcp-terminal-server]   Global:   ${globalPath}`);
     console.error("[mcp-terminal-server] Create one first, then run setup again.");
     process.exit(1);
   }
+
+  // Only one exists — use it
+  if (projectExists && !globalExists) {
+    console.log("[mcp-terminal-server] ℹ️  Using project-level opencode.json");
+    return projectPath;
+  }
+  if (!projectExists && globalExists) {
+    console.log("[mcp-terminal-server] ℹ️  Using global opencode.json");
+    return globalPath;
+  }
+
+  // Both exist — ask the user
+  console.log("");
+  console.log("Found opencode.json in both locations:");
+  console.log(`  [p] Project: ${projectPath}`);
+  console.log(`  [g] Global:  ${globalPath}`);
+  console.log("");
+
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  try {
+    const answer = await rl.question("Configure at project level or globally? [p/g]: ");
+    if (answer.toLowerCase().startsWith("g")) {
+      console.log("[mcp-terminal-server] ℹ️  Using global opencode.json");
+      return globalPath;
+    }
+    console.log("[mcp-terminal-server] ℹ️  Using project-level opencode.json");
+    return projectPath;
+  } finally {
+    rl.close();
+  }
+}
+
+/** Install the MCP Terminal Server in opencode.json */
+async function cmdSetup(): Promise<void> {
+  const configPath = await resolveConfigPath();
 
   const raw = readFileSync(configPath, "utf-8");
   const config = JSON.parse(raw);
@@ -183,7 +226,7 @@ async function main(): Promise<void> {
   const command = args[0];
 
   if (command === "setup") {
-    cmdSetup();
+    await cmdSetup();
     return;
   }
 
