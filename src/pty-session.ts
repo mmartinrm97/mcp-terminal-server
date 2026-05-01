@@ -2,6 +2,7 @@ import { spawn } from 'node-pty';
 import type { IPty } from 'node-pty';
 import { OutputBuffer } from './output-buffer.js';
 import { normalizeEscapeSequences } from './utils.js';
+import { renderScreen } from './screen.js';
 import type { SessionInfo } from './types.js';
 
 /**
@@ -184,6 +185,26 @@ export class PTYSession {
       last_activity: this.lastActivity.toISOString(),
       alive: !this._ended,
     };
+  }
+
+  /**
+   * Take a screenshot of the current terminal screen.
+   *
+   * Parses all raw PTY output through an ANSI-aware screen renderer
+   * and returns clean, structured text rows with cursor position.
+   * This is the HIGH-LEVEL alternative to read() — instead of raw
+   * bytes, you get a rendered view of what's visible on the terminal.
+   */
+  screenshot(): {
+    rows: string[];
+    cursorRow: number;
+    cursorCol: number;
+    cols: number;
+    rowsCount: number;
+    text: string;
+  } {
+    const raw = this.buffer.getFullBuffer();
+    return renderScreen(raw, this.pty.cols, this.pty.rows);
   }
 
   /**

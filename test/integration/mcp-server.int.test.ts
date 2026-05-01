@@ -40,9 +40,9 @@ describe('MCP Server Integration', () => {
   // 1. List tools via handler
   // ---------------------------------------------------------------------------
   describe('handleListTools', () => {
-    it('should return all 7 tools', async () => {
+    it('should return all 8 tools', async () => {
       const result = await handleListTools();
-      expect(result.tools).toHaveLength(7);
+      expect(result.tools).toHaveLength(8);
     });
 
     it('should include all expected tool names', async () => {
@@ -55,6 +55,7 @@ describe('MCP Server Integration', () => {
       expect(names).toContain('terminal_resize');
       expect(names).toContain('terminal_list_sessions');
       expect(names).toContain('terminal_close_session');
+      expect(names).toContain('terminal_screenshot');
     });
   });
 

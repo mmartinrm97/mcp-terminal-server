@@ -20,6 +20,7 @@ import type {
   WriteResult,
   ReadResult,
   ReadUntilResult,
+  ScreenshotResult,
 } from './types.js';
 
 // ---------------------------------------------------------------------------
@@ -116,6 +117,20 @@ const TOOL_DEFINITIONS = [
         rows: { type: 'number', description: 'New row count.' },
       },
       required: ['id', 'cols', 'rows'],
+    },
+  },
+  {
+    name: 'terminal_screenshot',
+    description:
+      'Take a screenshot of the current terminal screen. Returns clean, rendered text rows ' +
+      'with cursor position — no raw ANSI codes. The HIGH-LEVEL alternative to terminal_read ' +
+      'for understanding TUI state (menus, prompts, selections).',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        id: { type: 'string', description: 'Session ID.' },
+      },
+      required: ['id'],
     },
   },
   {
@@ -340,6 +355,20 @@ export async function handleCallTool(
 
       s.session.resize(cols, rows);
       return { content: [textContent({ cols, rows })] };
+    }
+
+    // ---- terminal_screenshot ----
+    case 'terminal_screenshot': {
+      const id = args.id as string | undefined;
+      if (!id || typeof id !== 'string') {
+        throw new McpError(ErrorCode.InvalidParams, 'Missing required parameter: id');
+      }
+
+      const s = getSessionOrError(sm, id);
+      if (s.error) return toolError(s.error);
+
+      const result: ScreenshotResult = s.session.screenshot();
+      return { content: [textContent(result)] };
     }
 
     // ---- terminal_list_sessions ----

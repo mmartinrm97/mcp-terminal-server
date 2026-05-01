@@ -109,6 +109,18 @@ export interface CloseSessionInput {
 }
 
 /**
+ * Result of terminal_screenshot.
+ */
+export interface ScreenshotResult {
+  rows: string[];
+  cursorRow: number;
+  cursorCol: number;
+  cols: number;
+  rowsCount: number;
+  text: string;
+}
+
+/**
  * Configuration for the SessionManager.
  */
 export interface SessionManagerConfig {
