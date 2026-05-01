@@ -2,8 +2,29 @@
   "name": "mcp-terminal-server",
   "version": "0.1.0",
   "description": "MCP Server that exposes interactive terminal (PTY) tools for AI agents",
-  "type": "module",
-  "main": "dist/index.js",
+  "keywords": [
+    "ai-agent",
+    "claude-code",
+    "cli",
+    "interactive",
+    "llm",
+    "mcp",
+    "opencode",
+    "pty",
+    "shell",
+    "terminal",
+    "tui"
+  ],
+  "homepage": "https://github.com/YOUR_USER/mcp-terminal-server#readme",
+  "bugs": {
+    "url": "https://github.com/YOUR_USER/mcp-terminal-server/issues"
+  },
+  "license": "MIT",
+  "author": "",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/YOUR_USER/mcp-terminal-server.git"
+  },
   "bin": {
     "mcp-terminal-server": "dist/index.js"
   },
@@ -11,6 +32,8 @@
     "dist",
     "skills"
   ],
+  "type": "module",
+  "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
@@ -26,7 +49,8 @@
     "fmt": "oxfmt",
     "fmt:check": "oxfmt --check",
     "prepublishOnly": "pnpm build",
-    "postpublish": "echo 'Published! Run: pnpm setup && pnpm install-skills'"
+    "postpublish": "echo 'Published! Run: pnpm setup && pnpm install-skills'",
+    "prepare": "husky"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.9.0",
@@ -34,38 +58,29 @@
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.4.0",
     "oxfmt": "^0.47.0",
     "oxlint": "^1.62.0",
     "typescript": "^5.8.0",
     "vitest": "^3.1.0"
   },
+  "lint-staged": {
+    "*.{ts,js,mjs}": [
+      "oxlint --fix",
+      "oxfmt"
+    ],
+    "*.{json,md,yaml,yml}": [
+      "oxfmt"
+    ]
+  },
   "engines": {
     "node": ">=22"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["node-pty", "esbuild"]
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/YOUR_USER/mcp-terminal-server.git"
-  },
-  "bugs": {
-    "url": "https://github.com/YOUR_USER/mcp-terminal-server/issues"
-  },
-  "homepage": "https://github.com/YOUR_USER/mcp-terminal-server#readme",
-  "author": "",
-  "keywords": [
-    "mcp",
-    "terminal",
-    "pty",
-    "interactive",
-    "tui",
-    "opencode",
-    "claude-code",
-    "ai-agent",
-    "llm",
-    "shell",
-    "cli"
-  ],
-  "license": "MIT"
+    "onlyBuiltDependencies": [
+      "node-pty",
+      "esbuild"
+    ]
+  }
 }

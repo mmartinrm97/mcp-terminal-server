@@ -1,0 +1,36 @@
+# MCP Terminal Server — Coding Standards
+
+## TypeScript
+
+- Use `const` / `let`, never `var`
+- Prefer interfaces over type aliases for object shapes
+- Use `type` for unions, intersections, and utility types
+- No `any` — use `unknown` if type is not known
+- All public functions MUST have JSDoc comments
+- Use ES module imports with `.js` extensions (NodeNext)
+
+## Architecture
+
+- Follow the existing layered architecture: types → utils → buffer → session → manager → server
+- New features: add types first, then implementation, then MCP tool
+- Error handling: use custom error classes from `types.ts` (SessionNotFoundError, etc.)
+
+## Testing
+
+- Write tests FIRST (Strict TDD Mode)
+- Unit tests in `test/*.test.ts`, integration in `test/integration/*.test.ts`
+- Mock external deps (node-pty) in unit tests
+- Integration tests use real PTY sessions with cleanup in afterEach/afterAll
+
+## Async
+
+- Use `async/await`, never raw `.then()`
+- No floating promises — always await or handle errors
+
+## Naming
+
+- Classes: PascalCase
+- Functions/variables: camelCase
+- Interfaces: PascalCase (no `I` prefix)
+- Files: kebab-case.ts
+- Constants: UPPER_SNAKE_CASE for exported, camelCase for private
