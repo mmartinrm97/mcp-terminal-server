@@ -21,7 +21,7 @@ import { SessionManager } from "./core/session-manager.js";
 import { createTerminalServer } from "./server.js";
 import type { SessionManagerConfig } from "./types.js";
 
-const PKG_VERSION = "0.1.4";
+const PKG_VERSION = "0.1.5";
 
 // ---------------------------------------------------------------------------
 // Configuration via environment variables
