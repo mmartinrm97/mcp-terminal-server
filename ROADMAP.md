@@ -17,25 +17,9 @@
 
 ## v0.2 — Platform & Distribution
 
-- [x] Publish to npm as `mcp-terminal-server`
-- [x] `mcp-terminal-server setup` — one-command configuration
-- [x] `mcp-terminal-server install-skills` — install skills for AI agents
-- [ ] Test on **Linux** (Ubuntu, Debian, Fedora)
-- [ ] Test on **macOS** (Intel + Apple Silicon)
-- [ ] Test with **Claude Code**
-- [ ] Test with **GitHub Copilot**
-- [ ] Test with **Cursor**
-- [ ] CI: GitHub Actions (build + test on Ubuntu, macOS, Windows)
-- [ ] GitHub repository setup
-
-## v0.3 — Cross-Platform Hardening
-
-- [ ] PowerShell detection improvements (Windows)
-- [ ] node-pty native build troubleshooting guide
-- [ ] Fallback strategies for environments without node-pty
-- [ ] SSH/remote session support
-- [ ] Session persistence across MCP server restarts
-- [ ] Config file (`mcp-terminal-server.config.json`)
+- [x] Publish to npm as `terminalize`
+- [x] `terminalize install-skills` — install skills for AI agents
+- [ ] Config file (`terminalize.config.json`)
 
 ## v0.4 — Agent Experience
 

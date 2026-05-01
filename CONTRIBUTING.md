@@ -95,4 +95,4 @@ test/
 
 ## Questions?
 
-Open a [discussion](https://github.com/YOUR_USER/mcp-terminal-server/discussions) or ask in the issue tracker.
+Open a [discussion](https://github.com/mmartinrm97/terminalize/discussions) or ask in the issue tracker.

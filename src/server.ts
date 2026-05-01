@@ -589,7 +589,7 @@ export async function handleReadResource(
 export function createTerminalServer(sessionManager: SessionManager): Server {
   const server = new Server(
     {
-      name: "mcp-terminal-server",
+      name: "terminalize",
       version: "0.1.0",
     },
     {

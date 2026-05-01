@@ -3,6 +3,7 @@
 ## Problem
 
 The `bash` tool in OpenCode (and most AI platforms) executes commands in a **one-shot non-interactive** mode:
+
 - Sends a command, captures stdout/stderr, returns the result.
 - No real TTY, no persistent session, no open stdin.
 - When a command like `npm init`, `gh pr create`, `shadcn-vue add button`, `git rebase -i`, `psql`, etc. waits for user input, the agent **cannot respond** — the command times out or the agent sees truncated output.
@@ -55,20 +56,23 @@ graph TD
 Creates a new interactive terminal session.
 
 **Input:**
+
 ```json
 {
-  "id": "optional-custom-id",      // auto-generated UUID if omitted
-  "shell": "auto",                  // "auto" | "bash" | "zsh" | "pwsh" | "cmd"
-  "cwd": "/path/to/workspace",      // working directory (default: active project)
-  "cols": 80,                       // terminal columns (default: 80)
-  "rows": 24,                       // terminal rows (default: 24)
-  "env": {                          // additional environment variables
+  "id": "optional-custom-id", // auto-generated UUID if omitted
+  "shell": "auto", // "auto" | "bash" | "zsh" | "pwsh" | "cmd"
+  "cwd": "/path/to/workspace", // working directory (default: active project)
+  "cols": 80, // terminal columns (default: 80)
+  "rows": 24, // terminal rows (default: 24)
+  "env": {
+    // additional environment variables
     "TERM": "xterm-256color"
   }
 }
 ```
 
 **Output:**
+
 ```json
 {
   "id": "session-uuid-1234",
@@ -94,14 +98,16 @@ Creates a new interactive terminal session.
 Writes text/keystrokes to the terminal.
 
 **Input:**
+
 ```json
 {
   "id": "session-uuid-1234",
-  "data": "npm init\n"              // \n for Enter, \x03 for Ctrl+C, etc.
+  "data": "npm init\n" // \n for Enter, \x03 for Ctrl+C, etc.
 }
 ```
 
 **Output:**
+
 ```json
 {
   "ok": true,
@@ -110,6 +116,7 @@ Writes text/keystrokes to the terminal.
 ```
 
 **Notes:**
+
 - Supports control sequences: `\n` (Enter), `\x03` (Ctrl+C/SIGINT), `\x1b` (Escape), `\t` (Tab)
 - Also supports single-character input if needed
 
@@ -120,19 +127,21 @@ Writes text/keystrokes to the terminal.
 Reads the current content of the terminal output buffer. Non-blocking — returns whatever has accumulated so far.
 
 **Input:**
+
 ```json
 {
   "id": "session-uuid-1234",
-  "flush": true                     // if true, clears the buffer after reading
+  "flush": true // if true, clears the buffer after reading
 }
 ```
 
 **Output:**
+
 ```json
 {
   "data": "package name: (my-project) ",
-  "ended": false,                   // true if the child process has terminated
-  "exit_code": null                 // null if still alive, number if ended=true
+  "ended": false, // true if the child process has terminated
+  "exit_code": null // null if still alive, number if ended=true
 }
 ```
 
@@ -143,16 +152,18 @@ Reads the current content of the terminal output buffer. Non-blocking — return
 Reads the terminal buffer **until a pattern appears** or the timeout expires. This is the key tool for interactive flows.
 
 **Input:**
+
 ```json
 {
   "id": "session-uuid-1234",
-  "pattern": "package name:|version:|entry point:",  // regex patterns
-  "timeout_ms": 30000,              // maximum wait timeout (default: 30000)
-  "strip_ansi": true                // if true, strips ANSI codes from output
+  "pattern": "package name:|version:|entry point:", // regex patterns
+  "timeout_ms": 30000, // maximum wait timeout (default: 30000)
+  "strip_ansi": true // if true, strips ANSI codes from output
 }
 ```
 
 **Output:**
+
 ```json
 {
   "data": "package name: (my-project) ",
@@ -165,6 +176,7 @@ Reads the terminal buffer **until a pattern appears** or the timeout expires. Th
 ```
 
 **Algorithm:**
+
 1. Accumulate all PTY output in an internal buffer per session
 2. The buffer is progressively cleared of what has already been read/delivered
 3. Each `read_until` call waits until the buffer matches the regex pattern
@@ -179,6 +191,7 @@ Reads the terminal buffer **until a pattern appears** or the timeout expires. Th
 Changes the terminal dimensions (useful when the agent needs to see more content).
 
 **Input:**
+
 ```json
 {
   "id": "session-uuid-1234",
@@ -188,6 +201,7 @@ Changes the terminal dimensions (useful when the agent needs to see more content
 ```
 
 **Output:**
+
 ```json
 {
   "cols": 120,
@@ -202,13 +216,15 @@ Changes the terminal dimensions (useful when the agent needs to see more content
 Lists all active sessions.
 
 **Input:**
+
 ```json
 {
-  "verbose": false                  // if true, includes last N chars of buffer
+  "verbose": false // if true, includes last N chars of buffer
 }
 ```
 
 **Output:**
+
 ```json
 {
   "sessions": [
@@ -233,14 +249,16 @@ Lists all active sessions.
 Closes a terminal session.
 
 **Input:**
+
 ```json
 {
   "id": "session-uuid-1234",
-  "force": false                    // if true, SIGKILL instead of SIGHUP/SIGTERM
+  "force": false // if true, SIGKILL instead of SIGHUP/SIGTERM
 }
 ```
 
 **Output:**
+
 ```json
 {
   "ok": true,
@@ -249,6 +267,7 @@ Closes a terminal session.
 ```
 
 **Behavior:**
+
 1. Sends `SIGHUP` (followed by `SIGTERM` if it doesn't terminate within 3s)
 2. If `force: true` or it doesn't terminate after SIGTERM, sends `SIGKILL`
 3. Cleans up all PTY resources
@@ -376,24 +395,24 @@ The user responds, and the agent continues interacting with the terminal.
 
 ### Recommended Stack
 
-| Component | Technology | Reason |
-|-----------|-----------|--------|
-| Runtime | Node.js 22+ | User already uses Node, compatible with `node-pty` |
-| MCP SDK | `@modelcontextprotocol/sdk` | Official MCP protocol SDK |
-| PTY | `node-pty` | Cross-platform, battle-tested (used by VS Code) |
-| Transport | stdio (local) / SSE (remote) | stdio for zero-config local setup |
-| Build | TypeScript → compiled | Strong typing, same stack as the project |
+| Component | Technology                   | Reason                                             |
+| --------- | ---------------------------- | -------------------------------------------------- |
+| Runtime   | Node.js 22+                  | User already uses Node, compatible with `node-pty` |
+| MCP SDK   | `@modelcontextprotocol/sdk`  | Official MCP protocol SDK                          |
+| PTY       | `node-pty`                   | Cross-platform, battle-tested (used by VS Code)    |
+| Transport | stdio (local) / SSE (remote) | stdio for zero-config local setup                  |
+| Build     | TypeScript → compiled        | Strong typing, same stack as the project           |
 
 ### node-pty Cross-Platform
 
 `node-pty` handles platform differences automatically:
 
-| Platform | Backend | Notes |
-|----------|---------|-------|
-| **Windows 10+** | `conpty.exe` (ConPTY API) | Native since Windows 10 v1809 |
-| **Windows (fallback)** | `winpty.dll` | For Windows 8/7 or restrictive environments |
-| **macOS** | `forkpty()` via `util.forkpty()` | System native |
-| **Linux** | `forkpty()` via `util.forkpty()` | System native |
+| Platform               | Backend                          | Notes                                       |
+| ---------------------- | -------------------------------- | ------------------------------------------- |
+| **Windows 10+**        | `conpty.exe` (ConPTY API)        | Native since Windows 10 v1809               |
+| **Windows (fallback)** | `winpty.dll`                     | For Windows 8/7 or restrictive environments |
+| **macOS**              | `forkpty()` via `util.forkpty()` | System native                               |
+| **Linux**              | `forkpty()` via `util.forkpty()` | System native                               |
 
 ### Installation
 
@@ -411,7 +430,7 @@ pnpm add node-pty @modelcontextprotocol/sdk
 ### Project Structure
 
 ```
-packages/mcp-terminal-server/
+packages/terminalize/
 ├── package.json
 ├── tsconfig.json
 ├── src/
@@ -464,7 +483,7 @@ graph LR
   "mcpServers": {
     "terminal": {
       "command": "node",
-      "args": ["path/to/mcp-terminal-server/dist/index.js"],
+      "args": ["path/to/terminalize/dist/index.js"],
       "env": {
         "MCP_TERMINAL_MAX_SESSIONS": "10",
         "MCP_TERMINAL_SESSION_TTL_MS": "1800000"
@@ -487,7 +506,7 @@ If we later want this to be native in OpenCode (without MCP), the PR should:
 ## Implementation Status
 
 1. ✅ **Decision made**: MCP Server architecture with node-pty
-2. ✅ **Repo/package created**: `packages/mcp-terminal-server/`
+2. ✅ **Repo/package created**: `packages/terminalize/`
 3. ✅ **Core implemented**:
    - `output-buffer.ts` with pattern matching
    - `pty-session.ts` node-pty wrapper

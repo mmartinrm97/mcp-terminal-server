@@ -391,8 +391,8 @@ graph TD
 ```bash
 # Clone and install
 # Clone and install
-git clone https://github.com/mmartinrm97/mcp-terminal-server
-cd mcp-terminal-server
+git clone https://github.com/mmartinrm97/terminalize
+cd terminalize
 pnpm install
 
 # Build
