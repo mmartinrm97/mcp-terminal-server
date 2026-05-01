@@ -5,8 +5,9 @@
 ![License](https://img.shields.io/badge/license-MIT-blue)
 [![MCP SDK](https://img.shields.io/badge/MCP%20SDK-1.9.0-blueviolet)](https://spec.modelcontextprotocol.io)
 [![node-pty](https://img.shields.io/badge/node--pty-1.0-FF6C37)](https://github.com/microsoft/node-pty)
-![Tests](https://img.shields.io/badge/tests-174%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-203%20passing-brightgreen)
 ![Build](https://img.shields.io/badge/build-passing-brightgreen)
+[![npm](https://img.shields.io/npm/v/mcp-terminal-server?color=red)](https://www.npmjs.com/package/mcp-terminal-server)
 
 > **An MCP Server that exposes a real interactive terminal (PTY) as tools that AI agents can use to execute interactive commands.**
 
@@ -112,7 +113,40 @@ Lists all active terminal sessions.
 | --------- | --------- | ------- | ------------------------------------- |
 | `verbose` | `boolean` | `false` | Includes the last activity timestamps |
 
-### 7. `terminal_close_session`
+### 7. `terminal_send_signal`
+
+Sends a POSIX signal to the foreground process in the terminal. More explicit and reliable than writing `\x03` (Ctrl+C) as raw bytes.
+
+| Parameter | Type     | Description                                          |
+| --------- | -------- | ---------------------------------------------------- |
+| `id`      | `string` | Session ID                                           |
+| `signal`  | `string` | Signal: `SIGINT`, `SIGTSTP`, `SIGQUIT`, or `SIGKILL` |
+
+### 8. `terminal_ping`
+
+Health check endpoint. Returns server status, active session count, and uptime.
+
+| Parameter | Type | Description |
+| --------- | ---- | ----------- |
+
+### 9. `terminal_tail`
+
+Reads the last N lines of the terminal buffer (like `tail -n N`). Token-efficient — avoids paying tokens for old accumulated output.
+
+| Parameter | Type     | Default | Description                      |
+| --------- | -------- | ------- | -------------------------------- |
+| `id`      | `string` | —       | Session ID                       |
+| `lines`   | `number` | `20`    | Number of recent lines to return |
+
+### 10. `terminal_screenshot`
+
+Takes a screenshot of the current terminal screen. Returns clean, rendered text rows with cursor position — no raw ANSI codes.
+
+| Parameter | Type     | Description |
+| --------- | -------- | ----------- |
+| `id`      | `string` | Session ID  |
+
+### 11. `terminal_close_session`
 
 Closes a terminal session and frees its resources.
 
@@ -183,23 +217,34 @@ Closes a terminal session and frees its resources.
 ## Installation
 
 ```bash
-npm install -g mcp-terminal-server
-
-# Or run directly:
+# Run directly (no install needed)
 npx mcp-terminal-server
+
+# Or install globally
+npm install -g mcp-terminal-server
 ```
 
 ### Quick Setup
 
 ```bash
-# Install skills for AI agents (Claude Code, OpenCode, Cursor)
-mcp-terminal-server install-skills
-
-# Auto-configure opencode.json
+# 1. Configure MCP in opencode.json (project or global)
 mcp-terminal-server setup
 
-# Start the MCP server
+# 2. Install the interactive-terminal skill for AI agents
+mcp-terminal-server install-skills
+
+# 3. Start the MCP server (stdio transport)
 mcp-terminal-server
+```
+
+The `setup` command detects whether you have an `opencode.json` at the project level or globally and **asks which one to configure** if both exist:
+
+```
+Found opencode.json in both locations:
+  [p] Project: /home/user/project/opencode.json
+  [g] Global:  ~/.config/opencode/opencode.json
+
+Configure at project level or globally? [p/g]:
 ```
 
 ### Prerequisites
@@ -212,18 +257,15 @@ mcp-terminal-server
 
 ## OpenCode Configuration
 
-Add this to your `opencode.json`:
+If you prefer to configure manually, add this to your `opencode.json`:
 
-```bash
+```json
 {
-  "mcpServers": {
+  "mcp": {
     "terminal": {
-      "command": "node",
-      "args": ["path/to/dist/index.js"],
-      "env": {
-        "MCP_TERMINAL_MAX_SESSIONS": "10",
-        "MCP_TERMINAL_SESSION_TTL_MS": "1800000"
-      }
+      "command": ["npx", "mcp-terminal-server"],
+      "type": "local",
+      "enabled": true
     }
   }
 }
@@ -269,7 +311,7 @@ graph TD
 | **OutputBuffer**   | `src/output-buffer.ts`   | Circular buffer with regex pattern matching. Accumulates PTY data and enables `readUntil()` with 50ms polling. |
 | **PTYSession**     | `src/pty-session.ts`     | Wraps `node-pty`. Connects the OutputBuffer to the real shell process.                                         |
 | **SessionManager** | `src/session-manager.ts` | Manages session lifecycle: creation, listing, closing, automatic TTL cleanup.                                  |
-| **MCPServer**      | `src/server.ts`          | Exposes 7 tools via the MCP protocol. Handles errors and input validation.                                     |
+| **MCPServer**      | `src/server.ts`          | Exposes 11 tools via the MCP protocol. Handles errors and input validation.                                    |
 | **ShellDetector**  | `src/shell-detector.ts`  | Detects the preferred shell per platform (auto/bash/zsh/pwsh/cmd).                                             |
 | **AnsiStripper**   | `src/ansi-stripper.ts`   | Strips ANSI escape codes from terminal output.                                                                 |
 
@@ -277,21 +319,21 @@ graph TD
 
 ```bash
 # Clone and install
-git clone https://github.com/your-user/mcp-terminal-server
+git clone https://github.com/mmartinrm97/mcp-terminal-server
 cd mcp-terminal-server
-npm install
+pnpm install
 
 # Build
-npm run build
+pnpm build
 
 # Tests
-npm test            # All tests (unit + integration)
-npm run test:unit   # Unit tests only
-npm run test:int    # Integration tests only
-npm run test:watch  # Watch mode
+pnpm test            # All tests (unit + integration)
+pnpm test:unit       # Unit tests only
+pnpm test:int        # Integration tests only
+pnpm test:watch      # Watch mode
 
 # Type checking
-npx tsc --noEmit
+pnpm tsc --noEmit
 ```
 
 ### Tests
@@ -299,23 +341,24 @@ npx tsc --noEmit
 The project uses [vitest](https://vitest.dev/) with **Strict TDD Mode**:
 
 ```
-npm test
-  ✓ test/ansi-stripper.test.ts                  (9 tests)
-  ✓ test/index.test.ts                          (6 tests)
-  ✓ test/output-buffer.test.ts                  (19 tests)
-  ✓ test/pty-session.test.ts                    (17 tests)
-  ✓ test/server.test.ts                         (37 tests)
-  ✓ test/session-manager.test.ts                (14 tests)
-  ✓ test/shell-detector.test.ts                 (8 tests)
-  ✓ test/types.test.ts                          (8 tests)
-  ✓ test/utils.test.ts                          (14 tests)
-  ✓ test/integration/pty-session.int.test.ts    (15 tests)
+pnpm test
+  ✓ test/unit/ansi-stripper.test.ts              (9 tests)
+  ✓ test/unit/index.test.ts                      (6 tests)
+  ✓ test/unit/output-buffer.test.ts              (19 tests)
+  ✓ test/unit/pty-session.test.ts                (19 tests)
+  ✓ test/unit/server.test.ts                     (37 tests)
+  ✓ test/unit/session-manager.test.ts            (14 tests)
+  ✓ test/unit/shell-detector.test.ts             (8 tests)
+  ✓ test/unit/types.test.ts                      (8 tests)
+  ✓ test/unit/utils.test.ts                      (26 tests)
+  ✓ test/unit/screen.test.ts                     (15 tests)
+  ✓ test/integration/pty-session.int.test.ts     (15 tests)
   ✓ test/integration/session-manager.int.test.ts (8 tests)
-  ✓ test/integration/executables.int.test.ts    (8 tests)
-  ✓ test/integration/mcp-server.int.test.ts     (11 tests)
+  ✓ test/integration/executables.int.test.ts     (8 tests)
+  ✓ test/integration/mcp-server.int.test.ts      (11 tests)
 
- Test Files  13 passed (13)
-      Tests  174 passed (174)
+ Test Files  14 passed (14)
+      Tests  203 passed (203)
 ```
 
 ## Security
@@ -329,16 +372,16 @@ npm test
 ## Roadmap
 
 - [x] Core: OutputBuffer, PTYSession, SessionManager
-- [x] MCP Server with 7 tools
-- [x] Unit tests (132 tests)
+- [x] MCP Server with 11 tools
+- [x] Agent skill (`interactive-terminal`) for OpenCode agents
+- [x] npm publishing (v0.1.2+)
+- [x] Unit tests (161 tests)
 - [x] Integration tests with real executables (42 tests)
-- [ ] Agent skill (`interactive-terminal`) for OpenCode agents
-- [ ] npm publishing
 - [ ] SSE transport for remote connections
 
 ## Contributing
 
-See [CONTRIBUTING.md](./CONTRIBUTING.md) for development setup, coding guidelines, and pull request流程.
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for development setup, coding guidelines, and pull request process.
 
 ## Changelog
 
