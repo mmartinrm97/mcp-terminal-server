@@ -56,76 +56,76 @@ flowchart LR
 
 Creates a new interactive terminal session.
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `id` | `string` | UUID | Custom session ID |
-| `shell` | `string` | `"auto"` | Shell: `auto`, `bash`, `zsh`, `pwsh`, `cmd` |
-| `cwd` | `string` | `cwd` | Working directory |
-| `cols` | `number` | `80` | Terminal columns |
-| `rows` | `number` | `24` | Terminal rows |
-| `env` | `object` | `{}` | Additional environment variables |
+| Parameter | Type     | Default  | Description                                 |
+| --------- | -------- | -------- | ------------------------------------------- |
+| `id`      | `string` | UUID     | Custom session ID                           |
+| `shell`   | `string` | `"auto"` | Shell: `auto`, `bash`, `zsh`, `pwsh`, `cmd` |
+| `cwd`     | `string` | `cwd`    | Working directory                           |
+| `cols`    | `number` | `80`     | Terminal columns                            |
+| `rows`    | `number` | `24`     | Terminal rows                               |
+| `env`     | `object` | `{}`     | Additional environment variables            |
 
 ### 2. `terminal_write`
 
 Writes text/keystrokes to the terminal.
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `id` | `string` | Session ID |
-| `data` | `string` | Data to write (`\n` for Enter, `\x03` for Ctrl+C) |
+| Parameter | Type     | Description                                       |
+| --------- | -------- | ------------------------------------------------- |
+| `id`      | `string` | Session ID                                        |
+| `data`    | `string` | Data to write (`\n` for Enter, `\x03` for Ctrl+C) |
 
 ### 3. `terminal_read`
 
 Reads the current terminal buffer contents. Non-blocking — returns whatever output has accumulated.
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `id` | `string` | — | Session ID |
-| `flush` | `boolean` | `false` | If `true`, clears the buffer after reading |
+| Parameter | Type      | Default | Description                                |
+| --------- | --------- | ------- | ------------------------------------------ |
+| `id`      | `string`  | —       | Session ID                                 |
+| `flush`   | `boolean` | `false` | If `true`, clears the buffer after reading |
 
 ### 4. `terminal_read_until` ⭐
 
 **The most important tool.** Reads the terminal buffer until a regex pattern matches or the timeout is reached.
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `id` | `string` | — | Session ID |
-| `pattern` | `string` | — | Regex pattern to wait for |
-| `timeout_ms` | `number` | `30000` | Maximum wait time in milliseconds |
+| Parameter    | Type      | Default | Description                                     |
+| ------------ | --------- | ------- | ----------------------------------------------- |
+| `id`         | `string`  | —       | Session ID                                      |
+| `pattern`    | `string`  | —       | Regex pattern to wait for                       |
+| `timeout_ms` | `number`  | `30000` | Maximum wait time in milliseconds               |
 | `strip_ansi` | `boolean` | `false` | If `true`, strips ANSI escape codes from output |
 
 ### 5. `terminal_resize`
 
 Resizes the terminal dimensions.
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `id` | `string` | Session ID |
-| `cols` | `number` | New column count |
-| `rows` | `number` | New row count |
+| Parameter | Type     | Description      |
+| --------- | -------- | ---------------- |
+| `id`      | `string` | Session ID       |
+| `cols`    | `number` | New column count |
+| `rows`    | `number` | New row count    |
 
 ### 6. `terminal_list_sessions`
 
 Lists all active terminal sessions.
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
+| Parameter | Type      | Default | Description                           |
+| --------- | --------- | ------- | ------------------------------------- |
 | `verbose` | `boolean` | `false` | Includes the last activity timestamps |
 
 ### 7. `terminal_close_session`
 
 Closes a terminal session and frees its resources.
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `id` | `string` | — | Session ID |
-| `force` | `boolean` | `false` | Immediate termination (SIGKILL) |
+| Parameter | Type      | Default | Description                     |
+| --------- | --------- | ------- | ------------------------------- |
+| `id`      | `string`  | —       | Session ID                      |
+| `force`   | `boolean` | `false` | Immediate termination (SIGKILL) |
 
 ## Examples
 
 ### `npm init`
 
-```json
+```bash
 // 1. Create session
 → terminal_create_session({ "cwd": "/project" })
 ← { "id": "sess-1" }
@@ -155,7 +155,7 @@ Closes a terminal session and frees its resources.
 
 ### `npx create-vite` with selection
 
-```json
+```bash
 → terminal_create_session({ "cwd": "/projects" })
 → terminal_write({ "id": "sess-1", "data": "npm create vite@latest\n" })
 → terminal_read_until({ "id": "sess-1", "pattern": "Project name:" })
@@ -170,7 +170,7 @@ Closes a terminal session and frees its resources.
 
 ### `gh pr create`
 
-```json
+```bash
 → terminal_create_session({ "cwd": "/repos/my-app" })
 → terminal_write({ "id": "sess-1", "data": "gh pr create --fill\n" })
 → terminal_read_until({ "id": "sess-1", "pattern": "Submit|What", "timeout_ms": 15000 })
@@ -214,7 +214,7 @@ mcp-terminal-server
 
 Add this to your `opencode.json`:
 
-```json
+```bash
 {
   "mcpServers": {
     "terminal": {
@@ -231,10 +231,10 @@ Add this to your `opencode.json`:
 
 ### Environment Variables
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `MCP_TERMINAL_MAX_SESSIONS` | `10` | Maximum number of simultaneous sessions |
-| `MCP_TERMINAL_SESSION_TTL_MS` | `1800000` (30min) | Session inactivity TTL |
+| Variable                      | Default           | Description                             |
+| ----------------------------- | ----------------- | --------------------------------------- |
+| `MCP_TERMINAL_MAX_SESSIONS`   | `10`              | Maximum number of simultaneous sessions |
+| `MCP_TERMINAL_SESSION_TTL_MS` | `1800000` (30min) | Session inactivity TTL                  |
 
 ## Architecture
 
@@ -264,14 +264,14 @@ graph TD
 
 ### Components
 
-| Component | File | Responsibility |
-|-----------|------|----------------|
-| **OutputBuffer** | `src/output-buffer.ts` | Circular buffer with regex pattern matching. Accumulates PTY data and enables `readUntil()` with 50ms polling. |
-| **PTYSession** | `src/pty-session.ts` | Wraps `node-pty`. Connects the OutputBuffer to the real shell process. |
-| **SessionManager** | `src/session-manager.ts` | Manages session lifecycle: creation, listing, closing, automatic TTL cleanup. |
-| **MCPServer** | `src/server.ts` | Exposes 7 tools via the MCP protocol. Handles errors and input validation. |
-| **ShellDetector** | `src/shell-detector.ts` | Detects the preferred shell per platform (auto/bash/zsh/pwsh/cmd). |
-| **AnsiStripper** | `src/ansi-stripper.ts` | Strips ANSI escape codes from terminal output. |
+| Component          | File                     | Responsibility                                                                                                 |
+| ------------------ | ------------------------ | -------------------------------------------------------------------------------------------------------------- |
+| **OutputBuffer**   | `src/output-buffer.ts`   | Circular buffer with regex pattern matching. Accumulates PTY data and enables `readUntil()` with 50ms polling. |
+| **PTYSession**     | `src/pty-session.ts`     | Wraps `node-pty`. Connects the OutputBuffer to the real shell process.                                         |
+| **SessionManager** | `src/session-manager.ts` | Manages session lifecycle: creation, listing, closing, automatic TTL cleanup.                                  |
+| **MCPServer**      | `src/server.ts`          | Exposes 7 tools via the MCP protocol. Handles errors and input validation.                                     |
+| **ShellDetector**  | `src/shell-detector.ts`  | Detects the preferred shell per platform (auto/bash/zsh/pwsh/cmd).                                             |
+| **AnsiStripper**   | `src/ansi-stripper.ts`   | Strips ANSI escape codes from terminal output.                                                                 |
 
 ## Development
 
