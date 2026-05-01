@@ -134,7 +134,11 @@ See `_shared/skill-resolver.md` for the full resolution protocol.
 - Enter=\r\n (CRLF), Space=\x20, Ctrl+C=\x03, Escape=\x1b
 - On Windows use cmd shell; SIGKILL not supported — close without force
 - If read_until times out, take a screenshot to understand current state
-- If unsure what to respond, ask the user with options presented
+- **DESTRUCTIVE prompts** (delete, reset, drop, force) → ALWAYS ask the user
+- **Confirmation (y/N)**: capitalized letter is default; safe defaults → auto-answer; destructive → ask
+- **Options**: if user specified what they want → auto-select; if multiple valid choices → ask
+- **Unknown**: if you don't know what to answer → ask user with structured options
+- Ask format: show terminal output + labeled options (A/B/C/D) + recommendation
 
 ## Project Conventions
 

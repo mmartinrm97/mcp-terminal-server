@@ -129,6 +129,138 @@ Always use `terminal_screenshot` BEFORE `terminal_write` when navigating TUIs:
 The `terminal_screenshot` returns clean text rows — you can search for `●` or
 `○` to find selected/unselected items without parsing ANSI codes.
 
+## User Consultation Protocol (⭐ CRITICAL)
+
+When the terminal asks a question, you must decide: **answer automatically** or **ask the user**.
+
+### Decision Tree
+
+```
+Command asks for confirmation? (y/N, Yes/No, [y/N])
+├── Destructive action? (delete, reset, force, rm, drop, clear)
+│   ├── YES → ASK THE USER ⚠️
+│   └── NO → answer "y" automatically
+│
+├── Trivial confirmation? (Is this OK?, Proceed?)
+│   ├── Things look correct → answer "yes" automatically
+│   └── Unsure → ASK THE USER
+│
+├── Has clear default you agree with? → Just press Enter ⏎
+│
+Command asks for a CHOICE with menus/options?
+├── Options are obvious from context? (React for a JS project)
+│   ├── YES → navigate and select automatically
+│   └── NO or MULTIPLE valid options → ASK THE USER
+│
+Command asks for TEXT input? (name, path, etc.)
+├── Was specified by user? → use that value
+├── Has reasonable default? → press Enter (accept default)
+└── Not specified, no default → ASK THE USER
+```
+
+### When to ALWAYS ask the user
+
+| Scenario | Example | Why |
+|----------|---------|-----|
+| Destructive action | `prisma db reset`, `drop table`, `rm -rf` | Data loss risk |
+| License choice | MIT, GPL, Apache, ISC | Legal implications |
+| Unknown password/token | API keys, database passwords | Can't guess |
+| Multiple valid options | "Which features?" when user didn't specify | Preference |
+| Unclear intent | "Customize settings?" without context | Avoid wrong defaults |
+
+### How to Present Options to the User
+
+When you ask the user, use this structured format:
+
+```
+The terminal is asking:
+
+   package name: (my-project)
+   version: (1.0.0)
+   description:
+
+─────────────────────────────────────
+What do you want to do?
+
+A) Use all defaults (just press Enter)          ← recommended
+B) Custom package name: ________
+C) Custom description: ________
+D) See full terminal output
+─────────────────────────────────────
+```
+
+For a TUI menu with multiple options:
+
+```
+The terminal shows a menu:
+
+   Select a framework:
+     ○ Vanilla
+     ○ Vue
+     ● React
+     ○ Svelte
+
+   [↑↓] move · [enter] confirm
+
+─────────────────────────────────────
+Which framework do you want?
+
+A) React          ← most common
+B) Vue
+C) Svelte
+D) Vanilla
+─────────────────────────────────────
+```
+
+For a destructive confirmation:
+
+```
+⚠️  The terminal is asking:
+
+   "This will reset your database. Are you sure? (y/N)"
+
+─────────────────────────────────────
+This is a DESTRUCTIVE action.
+
+A) Yes, proceed with reset
+B) No, cancel                    ← recommended
+─────────────────────────────────────
+```
+
+### y/N Confirmation Protocol
+
+For simple y/N (yes/no) prompts:
+
+```
+Prompt shows: "Continue? (Y/n)"
+→ "Y" is capitalized = default is YES
+→ Answer "n" to skip
+
+Prompt shows: "Are you sure? (y/N)"
+→ "N" is capitalized = default is NO
+→ Answer "y" to confirm (DESTRUCTIVE → ask user first!)
+```
+
+**Rule of thumb**: The capitalized letter is the default when you press Enter.
+If the default is safe, press Enter. If the default is destructive, ASK.
+
+### Pattern: Executing what the user asked
+
+When the user gives you instructions upfront (e.g., "create a Vue project with Pinia"):
+
+```
+User: "Create a Vue project with Pinia and JSX"
+
+Your flow:
+1. Run the command
+2. When you see options, match them to the user's request:
+   - "Select a framework" → Vue ✓ (user specified)
+   - "Add Pinia?" → Yes ✓ (user specified)
+   - "Add JSX?" → Yes ✓ (user specified)
+   - "Add Router?" → NOT specified → ASK USER or skip
+3. Only ask when you hit something the user didn't specify
+```
+
 ## Platform Notes
 
 ### Windows (ConPTY)
