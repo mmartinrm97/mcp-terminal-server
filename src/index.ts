@@ -12,16 +12,16 @@
  */
 
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { join, dirname } from "node:path";
-import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
 import { createInterface } from "node:readline/promises";
+import { fileURLToPath } from "node:url";
 import { SessionManager } from "./core/session-manager.js";
 import { createTerminalServer } from "./server.js";
 import type { SessionManagerConfig } from "./types.js";
 
-const PKG_VERSION = "0.1.1";
+const PKG_VERSION = "0.1.2";
 
 // ---------------------------------------------------------------------------
 // Configuration via environment variables

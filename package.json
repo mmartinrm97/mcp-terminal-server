@@ -1,6 +1,6 @@
 {
   "name": "mcp-terminal-server",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "MCP Server that exposes interactive terminal (PTY) tools for AI agents",
   "keywords": [
     "ai-agent",
