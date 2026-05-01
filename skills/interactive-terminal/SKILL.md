@@ -26,7 +26,7 @@ waits for input or shows a TUI menu, `bash` will time out or return truncated ou
 - Running `shadcn-vue add`, `prisma init` — CLI tools with questions
 - Any command that shows a menu with `↑↓` arrows or `[y/N]` prompts
 
-## Tools Overview (8 tools)
+## Tools Overview (9 tools)
 
 | Tool | Purpose | When to Use |
 |------|---------|-------------|
@@ -35,6 +35,7 @@ waits for input or shows a TUI menu, `bash` will time out or return truncated ou
 | `terminal_read` | Read raw buffer (non-blocking) | Quick peek at latest output |
 | `terminal_read_until` | Wait for a pattern, then return output | Wait for prompts/questions |
 | **`terminal_screenshot`** | **Get clean screen state with cursor position** | **⭐ TUI navigation** |
+| `terminal_tail` | Read last N lines (like `tail -n N`) | ⭐ Logs from long-running processes |
 | `terminal_resize` | Change terminal dimensions | When output is clipped |
 | `terminal_list_sessions` | List all active sessions | Debugging |
 | `terminal_close_session` | Close and cleanup a session | Always last |

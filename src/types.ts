@@ -121,6 +121,23 @@ export interface ScreenshotResult {
 }
 
 /**
+ * Input parameters for terminal_tail.
+ */
+export interface TailInput {
+  id: string;
+  lines?: number;
+}
+
+/**
+ * Result of terminal_tail.
+ */
+export interface TailResult {
+  data: string;
+  lines: number;
+  total_size: number;
+}
+
+/**
  * Configuration for the SessionManager.
  */
 export interface SessionManagerConfig {

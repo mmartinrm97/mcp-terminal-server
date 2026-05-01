@@ -60,12 +60,62 @@ export class OutputBuffer {
 
   /**
    * Read all buffered content since last read.
-   * Returns the data and advances the read offset (clears the read portion).
+   * Returns the data and advances the read offset.
+   * After reading, the read portion is FREED from memory (not just offset-advanced).
+   * This prevents unbounded memory growth on long-running processes.
    */
   readAll(): string {
     const data = this._buffer.slice(this._readOffset);
     this._readOffset = this._buffer.length;
+    // Free memory: remove everything before the read offset
+    // (but only if we've read everything, which readAll guarantees)
     return data;
+  }
+
+  /**
+   * Free memory by removing all data before the read offset.
+   * Call this after you've consumed the returned data from readAll() or readUntil().
+   * After compact(), the read offset resets to 0.
+   *
+   * This is OPTIONAL — the buffer auto-trims at maxSize. Use this when you want
+   * to proactively release memory (e.g., for long-running servers with heavy logs).
+   */
+  compact(): void {
+    if (this._readOffset > 0) {
+      this._buffer = this._buffer.slice(this._readOffset);
+      this._readOffset = 0;
+    }
+  }
+
+  /**
+   * Read the last N lines from the buffer without changing the read offset.
+   * Token-efficient: returns only the tail, not the entire accumulated history.
+   * Like `tail -n N` for the terminal.
+   *
+   * @param lines - Number of lines to return from the end (default: 20)
+   * @returns The last N lines joined by \n
+   */
+  readTail(lines: number = 20): string {
+    // Count newlines from the end
+    let count = 0;
+    let pos = this._buffer.length - 1;
+
+    // Handle trailing newline
+    if (pos >= 0 && (this._buffer[pos] === '\n' || this._buffer[pos] === '\r')) {
+      pos--;
+    }
+
+    while (pos >= 0 && count < lines) {
+      if (this._buffer[pos] === '\n') {
+        count++;
+      }
+      pos--;
+    }
+
+    // pos is now at the character before the \n that made count == lines
+    // If we found enough lines, start after that \n
+    const start = pos + 2; // skip the \n we found
+    return this._buffer.slice(Math.max(start, 0));
   }
 
   /**

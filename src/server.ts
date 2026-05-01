@@ -21,6 +21,7 @@ import type {
   ReadResult,
   ReadUntilResult,
   ScreenshotResult,
+  TailResult,
 } from './types.js';
 
 // ---------------------------------------------------------------------------
@@ -117,6 +118,25 @@ const TOOL_DEFINITIONS = [
         rows: { type: 'number', description: 'New row count.' },
       },
       required: ['id', 'cols', 'rows'],
+    },
+  },
+  {
+    name: 'terminal_tail',
+    description:
+      'Read the last N lines of the terminal buffer (like `tail -n N`). ' +
+      'Token-efficient: returns only recent output, not the full accumulated history. ' +
+      'Use this INSTEAD of terminal_read for long-running processes (dev servers, logs, etc.) ' +
+      'to avoid paying tokens for old output.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        id: { type: 'string', description: 'Session ID.' },
+        lines: {
+          type: 'number',
+          description: 'Number of recent lines to return (default: 20).',
+        },
+      },
+      required: ['id'],
     },
   },
   {
@@ -289,6 +309,21 @@ export async function handleCallTool(
 
       const flush = typeof args.flush === 'boolean' ? args.flush : undefined;
       const result: ReadResult = s.session.read(flush);
+      return { content: [textContent(result)] };
+    }
+
+    // ---- terminal_tail ----
+    case 'terminal_tail': {
+      const id = args.id as string | undefined;
+      if (!id || typeof id !== 'string') {
+        throw new McpError(ErrorCode.InvalidParams, 'Missing required parameter: id');
+      }
+
+      const s = getSessionOrError(sm, id);
+      if (s.error) return toolError(s.error);
+
+      const lines = typeof args.lines === 'number' ? args.lines : 20;
+      const result: TailResult = s.session.tail(lines);
       return { content: [textContent(result)] };
     }
 

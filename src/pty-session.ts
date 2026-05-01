@@ -110,6 +110,22 @@ export class PTYSession {
   }
 
   /**
+   * Read the last N lines from the buffer (like `tail -n N`).
+   * Token-efficient: returns only the tail, not the entire accumulated history.
+   * Does NOT change the read offset — safe to call alongside read() / readUntil().
+   *
+   * @param lines - Number of lines to return (default: 20)
+   */
+  tail(lines: number = 20): { data: string; lines: number; total_size: number } {
+    const data = this.buffer.readTail(lines);
+    return {
+      data,
+      lines,
+      total_size: this.buffer.size,
+    };
+  }
+
+  /**
    * Read until a pattern matches in the buffer.
    * Delegates to OutputBuffer.readUntil.
    *
