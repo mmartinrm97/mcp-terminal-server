@@ -79,7 +79,7 @@ function getSkillPath(): string {
 // Commands
 // ---------------------------------------------------------------------------
 
-/** Resolve which opencode.json to use — project or global */
+/** Resolve which opencode.json to use — always ask the user */
 async function resolveConfigPath(): Promise<string> {
   const cwd = process.cwd();
   const projectPath = join(cwd, "opencode.json");
@@ -97,26 +97,23 @@ async function resolveConfigPath(): Promise<string> {
     process.exit(1);
   }
 
-  // Only one exists — use it
-  if (projectExists && !globalExists) {
-    console.log("[mcp-terminal-server] ℹ️  Using project-level opencode.json");
-    return projectPath;
-  }
-  if (!projectExists && globalExists) {
-    console.log("[mcp-terminal-server] ℹ️  Using global opencode.json");
-    return globalPath;
-  }
-
-  // Both exist — ask the user
   console.log("");
-  console.log("Found opencode.json in both locations:");
-  console.log(`  [p] Project: ${projectPath}`);
-  console.log(`  [g] Global:  ${globalPath}`);
+  console.log("Which opencode.json do you want to configure?");
+  if (projectExists) {
+    console.log(`  [p] Project  — ${projectPath}`);
+  } else {
+    console.log(`  [p] Project  — ${projectPath} (does not exist yet)`);
+  }
+  if (globalExists) {
+    console.log(`  [g] Global   — ${globalPath}`);
+  } else {
+    console.log(`  [g] Global   — ${globalPath} (does not exist yet)`);
+  }
   console.log("");
 
   const rl = createInterface({ input: process.stdin, output: process.stdout });
   try {
-    const answer = await rl.question("Configure at project level or globally? [p/g]: ");
+    const answer = await rl.question("Choose [p/g]: ");
     if (answer.toLowerCase().startsWith("g")) {
       console.log("[mcp-terminal-server] ℹ️  Using global opencode.json");
       return globalPath;
@@ -143,10 +140,14 @@ async function cmdSetup(): Promise<void> {
   // Get the server executable path
   const serverPath = process.argv[1]; // path to dist/index.js
 
+  // Determine the best command based on how the server was invoked
+  const isNpxRun = process.argv[1].includes("_npx");
+  const serverCommand = isNpxRun ? ["npx", "mcp-terminal-server"] : ["node", serverPath];
+
   // Add terminal server config (don't overwrite if already exists)
   if (!config.mcp.terminal) {
     config.mcp.terminal = {
-      command: ["node", serverPath],
+      command: serverCommand,
       type: "local",
       enabled: true,
     };

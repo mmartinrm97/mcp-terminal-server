@@ -237,14 +237,16 @@ mcp-terminal-server install-skills
 mcp-terminal-server
 ```
 
-The `setup` command detects whether you have an `opencode.json` at the project level or globally and **asks which one to configure** if both exist:
+The `setup` command **always asks** which config to update:
 
 ```
-Found opencode.json in both locations:
-  [p] Project: /home/user/project/opencode.json
-  [g] Global:  ~/.config/opencode/opencode.json
+$ npx mcp-terminal-server setup
 
-Configure at project level or globally? [p/g]:
+Which opencode.json do you want to configure?
+  [p] Project  — /home/user/project/opencode.json
+  [g] Global   — ~/.config/opencode/opencode.json
+
+Choose [p/g]:
 ```
 
 ### Prerequisites
