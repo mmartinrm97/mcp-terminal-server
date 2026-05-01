@@ -12,11 +12,11 @@
  */
 
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
 import { homedir } from "node:os";
-import { dirname, join } from "node:path";
-import { createInterface } from "node:readline/promises";
+import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import * as p from "@clack/prompts";
 import { SessionManager } from "./core/session-manager.js";
 import { createTerminalServer } from "./server.js";
 import type { SessionManagerConfig } from "./types.js";
@@ -79,7 +79,7 @@ function getSkillPath(): string {
 // Commands
 // ---------------------------------------------------------------------------
 
-/** Resolve which opencode.json to use — always ask the user */
+/** Resolve which opencode.json to use — interactive select */
 async function resolveConfigPath(): Promise<string> {
   const cwd = process.cwd();
   const projectPath = join(cwd, "opencode.json");
@@ -90,43 +90,44 @@ async function resolveConfigPath(): Promise<string> {
 
   // Neither exists
   if (!projectExists && !globalExists) {
-    console.error("[mcp-terminal-server] No opencode.json found.");
-    console.error(`[mcp-terminal-server]   Project:  ${projectPath}`);
-    console.error(`[mcp-terminal-server]   Global:   ${globalPath}`);
-    console.error("[mcp-terminal-server] Create one first, then run setup again.");
+    p.log.error("No opencode.json found.");
+    p.log.info(`  Project:  ${projectPath}`);
+    p.log.info(`  Global:   ${globalPath}`);
+    p.log.info("Create one first, then run setup again.");
     process.exit(1);
   }
 
-  console.log("");
-  console.log("Which opencode.json do you want to configure?");
-  if (projectExists) {
-    console.log(`  [p] Project  — ${projectPath}`);
-  } else {
-    console.log(`  [p] Project  — ${projectPath} (does not exist yet)`);
-  }
-  if (globalExists) {
-    console.log(`  [g] Global   — ${globalPath}`);
-  } else {
-    console.log(`  [g] Global   — ${globalPath} (does not exist yet)`);
-  }
-  console.log("");
+  const options: { label: string; value: string; hint?: string }[] = [];
 
-  const rl = createInterface({ input: process.stdin, output: process.stdout });
-  try {
-    const answer = await rl.question("Choose [p/g]: ");
-    if (answer.toLowerCase().startsWith("g")) {
-      console.log("[mcp-terminal-server] ℹ️  Using global opencode.json");
-      return globalPath;
-    }
-    console.log("[mcp-terminal-server] ℹ️  Using project-level opencode.json");
-    return projectPath;
-  } finally {
-    rl.close();
+  if (projectExists) {
+    options.push({ label: "Project", value: projectPath, hint: projectPath });
+  } else {
+    options.push({ label: "Project", value: projectPath, hint: `${projectPath} (crear nuevo)` });
   }
+
+  if (globalExists) {
+    options.push({ label: "Global", value: globalPath, hint: globalPath });
+  } else {
+    options.push({ label: "Global", value: globalPath, hint: `${globalPath} (crear nuevo)` });
+  }
+
+  const selected = await p.select({
+    message: "Which opencode.json do you want to configure?",
+    options,
+  });
+
+  if (p.isCancel(selected)) {
+    p.outro("Cancelled.");
+    process.exit(0);
+  }
+
+  return selected as string;
 }
 
 /** Install the MCP Terminal Server in opencode.json */
 async function cmdSetup(): Promise<void> {
+  p.intro("MCP Terminal Server Setup");
+
   const configPath = await resolveConfigPath();
 
   const raw = readFileSync(configPath, "utf-8");
@@ -151,16 +152,14 @@ async function cmdSetup(): Promise<void> {
       type: "local",
       enabled: true,
     };
-    console.log("[mcp-terminal-server] ✅ Added terminal MCP server to opencode.json");
+    p.log.success("Added terminal MCP server to opencode.json");
   } else {
-    console.log(
-      "[mcp-terminal-server] ⏭️  Terminal MCP server already configured in opencode.json",
-    );
+    p.log.info("Terminal MCP server already configured in opencode.json");
   }
 
   // Write back
   writeFileSync(configPath, JSON.stringify(config, null, 4) + "\n", "utf-8");
-  console.log(`[mcp-terminal-server] ✅ Updated ${configPath}`);
+  p.outro(`Updated ${configPath}`);
 }
 
 /** Install the interactive-terminal skill for AI agents */
