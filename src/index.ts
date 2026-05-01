@@ -163,58 +163,80 @@ async function cmdSetup(): Promise<void> {
 }
 
 /** Install the interactive-terminal skill for AI agents */
-function cmdInstallSkills(): void {
+async function cmdInstallSkills(): Promise<void> {
+  p.intro("Interactive Terminal Skill Install");
+
   const skillPath = getSkillPath();
 
   if (!existsSync(skillPath)) {
-    console.error(`[mcp-terminal-server] Skill not found at ${skillPath}`);
-    console.error("[mcp-terminal-server] Make sure skills/interactive-terminal/SKILL.md exists");
+    p.log.error(`Skill not found at ${skillPath}`);
+    p.log.info("Make sure skills/interactive-terminal/SKILL.md exists");
     process.exit(1);
   }
 
   // Check for common agent config directories
   const agents = [
-    { name: "Claude Code", dir: join(homedir(), ".claude", "skills") },
-    { name: "OpenCode", dir: join(homedir(), ".config", "opencode", "skills") },
-    { name: "Cursor", dir: join(homedir(), ".cursor", "skills") },
-    { name: "Gemini CLI", dir: join(homedir(), ".gemini", "skills") },
+    { value: "claude", name: "Claude Code", dir: join(homedir(), ".claude", "skills") },
+    { value: "opencode", name: "OpenCode", dir: join(homedir(), ".config", "opencode", "skills") },
+    { value: "cursor", name: "Cursor", dir: join(homedir(), ".cursor", "skills") },
+    { value: "gemini", name: "Gemini CLI", dir: join(homedir(), ".gemini", "skills") },
   ];
 
-  let installed = 0;
-  for (const agent of agents) {
-    if (existsSync(dirname(agent.dir))) {
-      // Create skills dir if needed
-      if (!existsSync(agent.dir)) {
-        mkdirSync(agent.dir, { recursive: true });
-      }
+  // Check which agents are available and which already have the skill
+  const availableAgents = agents.filter((a) => existsSync(dirname(a.dir)));
 
-      // Symlink or copy the skill
-      const targetDir = join(agent.dir, "interactive-terminal");
-      if (!existsSync(targetDir)) {
-        mkdirSync(targetDir, { recursive: true });
-        const targetFile = join(targetDir, "SKILL.md");
-        const skillContent = readFileSync(skillPath, "utf-8");
-        writeFileSync(targetFile, skillContent, "utf-8");
-        console.log(`[mcp-terminal-server] ✅ Installed skill for ${agent.name}`);
-        installed++;
-      } else {
-        console.log(`[mcp-terminal-server] ⏭️  Skill already installed for ${agent.name}`);
-      }
-    }
+  if (availableAgents.length === 0) {
+    p.log.warn("No supported AI agent config directories found.");
+    p.log.info("You can manually copy the skill from:");
+    p.log.info(`  ${skillPath}`);
+    process.exit(0);
   }
 
-  if (installed === 0) {
-    console.log("[mcp-terminal-server] ⚠️  No supported AI agent config directories found.");
-    console.log("[mcp-terminal-server]    You can manually copy the skill from:");
-    console.log(`[mcp-terminal-server]    ${skillPath}`);
-  }
-
-  // Also note the skills.sh compatibility
-  console.log("");
-  console.log("[mcp-terminal-server] 📌 To add via skills.sh:");
-  console.log(
-    `[mcp-terminal-server]    npx skills add <YOUR_GITHUB_REPO_URL> --skill interactive-terminal`,
+  // Check which agents already have the skill installed
+  const installedAgents = availableAgents.filter((a) =>
+    existsSync(join(a.dir, "interactive-terminal", "SKILL.md")),
   );
+
+  if (installedAgents.length === availableAgents.length) {
+    p.log.info("Skill already installed for all available agents.");
+    p.outro("Nothing to do.");
+    return;
+  }
+
+  // Only offer agents that don't have the skill yet
+  const candidates = availableAgents.filter((a) => !installedAgents.includes(a));
+
+  const selected = await p.multiselect({
+    message: "Which agents do you want to install the skill for?",
+    options: candidates.map((a) => ({
+      label: a.name,
+      value: a.value,
+      hint: a.dir,
+    })),
+    required: false,
+  });
+
+  if (p.isCancel(selected) || selected.length === 0) {
+    p.outro("Cancelled.");
+    return;
+  }
+
+  const selectedAgents = agents.filter((a) => selected.includes(a.value));
+
+  const s = p.spinner();
+  s.start("Installing...");
+
+  for (const agent of selectedAgents) {
+    const targetDir = join(agent.dir, "interactive-terminal");
+    mkdirSync(targetDir, { recursive: true });
+    const targetFile = join(targetDir, "SKILL.md");
+    const skillContent = readFileSync(skillPath, "utf-8");
+    writeFileSync(targetFile, skillContent, "utf-8");
+    s.message(`Installed for ${agent.name}`);
+  }
+
+  s.stop("Done installing skills.");
+  p.outro("Skills installed successfully.");
 }
 
 // ---------------------------------------------------------------------------
@@ -231,7 +253,7 @@ async function main(): Promise<void> {
   }
 
   if (command === "install-skills") {
-    cmdInstallSkills();
+    await cmdInstallSkills();
     return;
   }
 
