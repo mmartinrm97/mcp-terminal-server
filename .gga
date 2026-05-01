@@ -1,7 +1,7 @@
 # gga configuration for mcp-terminal-server
 # https://github.com/gentleman-programming/gga
 
-PROVIDER=opencode
+PROVIDER="opencode"
 FILE_PATTERNS=*.ts,*.json,*.md
 EXCLUDE_PATTERNS=*.test.ts,*.d.ts,*.config.ts
 RULES_FILE=AGENTS.md

@@ -1,1 +1,8 @@
+#!/usr/bin/env bash
+
+# Gentleman Guardian Angel — AI code review
+# Falls back gracefully if no agent session is available
+gga run || echo "⚠️  GGA skipped (no AI session available)"
+
+# Lint-staged — auto-fix + format
 npx lint-staged
