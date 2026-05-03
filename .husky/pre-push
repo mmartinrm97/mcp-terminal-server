@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+
+# Run full test suite before pushing
+echo "🧪 Running test suite before push..."
+
+pnpm test:unit 2>/dev/null || {
+  echo "❌ Unit tests failed. Fix them before pushing."
+  exit 1
+}
+
+pnpm build 2>/dev/null || {
+  echo "❌ Build failed. Fix errors before pushing."
+  exit 1
+}
+
+echo "✅ Tests and build passed."

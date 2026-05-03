@@ -1,5 +1,11 @@
 #!/usr/bin/env bash
 
+# TypeScript type checking on staged files only
+npx tsc --noEmit 2>/dev/null || {
+  echo "❌ TypeScript errors found. Fix them before committing."
+  exit 1
+}
+
 # Gentleman Guardian Angel — AI code review
 # Falls back gracefully if no agent session is available
 gga run || echo "⚠️  GGA skipped (no AI session available)"
