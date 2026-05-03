@@ -1,4 +1,4 @@
-# gga configuration for mcp-terminal-server
+# gga configuration for terminalize
 # https://github.com/gentleman-programming/gga
 
 PROVIDER="opencode"
