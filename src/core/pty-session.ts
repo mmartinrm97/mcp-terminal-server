@@ -173,11 +173,29 @@ export class PTYSession {
   /**
    * Read the current buffer content.
    * If flush is true, the buffer is cleared after reading.
+   * If a byte position is provided, returns only new data since that position
+   * (non-destructive, for incremental reads).
    *
-   * @param flush - If true, clears the buffer after returning data
+   * @param flushOrSince - If boolean, flush behavior. If number, byte position to read from.
    */
-  read(flush?: boolean): { data: string; ended: boolean; exit_code: number | null } {
-    const data = flush ? this.buffer.getFullBuffer() : this.buffer.readAll();
+  read(flushOrSince?: boolean | number): {
+    data: string;
+    ended: boolean;
+    exit_code: number | null;
+    position?: number;
+  } {
+    if (typeof flushOrSince === "number") {
+      const result = this.buffer.readAll(flushOrSince) as { data: string; position: number };
+      return {
+        data: result.data,
+        position: result.position,
+        ended: this._ended,
+        exit_code: this._exitCode,
+      };
+    }
+
+    const flush = flushOrSince ?? false;
+    const data = flush ? this.buffer.getFullBuffer() : (this.buffer.readAll() as string);
     if (flush) {
       this.buffer.clear();
     }
