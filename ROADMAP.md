@@ -21,6 +21,19 @@
 - [x] `terminalize install-skills` — install skills for AI agents
 - [ ] Config file (`terminalize.config.json`)
 
+## v0.3 — Cross-platform Testing
+
+- [ ] **Linux**: full test suite + interactive TUI smoke test (bash)
+- [ ] **macOS**: full test suite + interactive TUI smoke test (zsh)
+- [ ] **Claude Code** — MCP config + skill install + real TUI commands
+- [ ] **Cursor** — MCP config + skill install
+- [ ] **Gemini CLI** — MCP config + skill install
+- [ ] **Windsurf** — MCP config + skill install
+- [ ] **Kiro CLI** — MCP config + skill install
+- [ ] **Windows PowerShell Core** — verify pwsh detection works
+- [ ] TUI smoke tests: `npm init`, `gh pr create`, `npx create-vite`, `psql`
+- [ ] `terminal_screenshot` rendering comparison across platforms
+
 ## v0.4 — Agent Experience
 
 - [ ] Skill auto-detection via `npx autoskills` integration

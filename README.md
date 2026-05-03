@@ -444,6 +444,30 @@ pnpm test
       Tests  203 passed (203)
 ```
 
+## Limitations
+
+terminalize gives your agent a real **text-based** PTY. While powerful, there are important limits:
+
+| Situation                                     | Funciona?   | Detalle                                                                                        |
+| --------------------------------------------- | ----------- | ---------------------------------------------------------------------------------------------- |
+| `npm init`, `gh pr create`, `npx create-vite` | ✅ Perfecto | Prompts de texto, el agente responde                                                           |
+| `pnpm publish`, `npm test`                    | ✅ Perfecto | Comandos que muestran output                                                                   |
+| `psql`, `sqlite3`                             | ✅ Perfecto | CLIs con prompts                                                                               |
+| `htop`, `top`                                 | ⚠️ Parcial  | Muestrea el output, no pantalla completa                                                       |
+| `vim`, `nano`, `helix`                        | ⚠️ Limitado | El agente manda teclas, pero editar es lento y propenso a errores. `terminal_screenshot` ayuda |
+| `lazygit`, `lazydocker`                       | ⚠️ Limitado | Navegación por TUI posible, pero tosco                                                         |
+| TUIs con mouse                                | ❌ No       | El MCP no expone eventos de mouse                                                              |
+| UI gráficas / navegador                       | ❌ No       | Solo terminal                                                                                  |
+
+### Tester vs developer
+
+Esto se ha probado principalmente en **Windows (ConPTY)** con **OpenCode**. Aún no se ha probado en producción en:
+
+- **Plataformas**: ✅ Windows | ⬜ Linux | ⬜ macOS
+- **Agentes**: ✅ OpenCode | ⬜ Claude Code | ⬜ Cursor | ⬜ Gemini CLI | ⬜ Windsurf | ⬜ Kiro CLI
+
+Si probás en alguna de estas combinaciones, abrí un issue o PR con tus resultados.
+
 ## Security
 
 1. **Agent input**: The agent writes directly to the PTY. If the agent issues `rm -rf /`, the command executes — the server does not filter commands because the agent acts on behalf of the user.
