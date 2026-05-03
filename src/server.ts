@@ -192,7 +192,9 @@ const TOOL_DEFINITIONS = [
     description:
       "Take a screenshot of the current terminal screen. Returns clean, rendered text rows " +
       "with cursor position — no raw ANSI codes. The HIGH-LEVEL alternative to terminal_read " +
-      "for understanding TUI state (menus, prompts, selections).",
+      "for understanding TUI state (menus, prompts, selections). " +
+      "Also includes semantic fields: terminal_mode (shell|vim|nano|htop|lazygit|less|unknown), " +
+      "editor_mode (normal|insert|visual|replace|unknown), status_line, and content_rows.",
     inputSchema: {
       type: "object" as const,
       properties: {
