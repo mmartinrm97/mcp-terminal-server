@@ -22,7 +22,7 @@ import { SessionManager } from "./core/session-manager.js";
 import { createTerminalServer } from "./server.js";
 import type { SessionManagerConfig } from "./types.js";
 
-const PKG_VERSION = "0.2.1";
+const PKG_VERSION = "0.2.2";
 
 // ---------------------------------------------------------------------------
 // Configuration via environment variables
