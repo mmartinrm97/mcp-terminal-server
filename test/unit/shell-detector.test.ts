@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { detectShell } from "../../src/lib/shell-detector.js";
 
+const IS_WINDOWS = process.platform === "win32";
+
 describe("detectShell", () => {
   it("should return bash when explicitly specified", () => {
     const info = detectShell("bash");
@@ -16,18 +18,21 @@ describe("detectShell", () => {
     expect(info.args).toEqual([]);
   });
 
-  it("should return pwsh.exe with args when explicitly specified on Windows", () => {
+  it("should return pwsh with args when explicitly specified", () => {
     const info = detectShell("pwsh");
-    expect(info.shell).toBe("pwsh.exe");
+    // On Windows the executable has .exe extension
+    expect(info.shell).toBe(IS_WINDOWS ? "pwsh.exe" : "pwsh");
     expect(info.shellName).toBe("pwsh");
-    // pwsh uses -NoLogo -NoExit on Windows
-    expect(info.args).toContain("-NoLogo");
-    expect(info.args).toContain("-NoExit");
+    // pwsh uses -NoLogo -NoExit on Windows only
+    if (IS_WINDOWS) {
+      expect(info.args).toContain("-NoLogo");
+      expect(info.args).toContain("-NoExit");
+    }
   });
 
-  it("should return cmd.exe when explicitly specified", () => {
+  it("should return cmd when explicitly specified", () => {
     const info = detectShell("cmd");
-    expect(info.shell).toBe("cmd.exe");
+    expect(info.shell).toBe(IS_WINDOWS ? "cmd.exe" : "cmd");
     expect(info.shellName).toBe("cmd");
   });
 
