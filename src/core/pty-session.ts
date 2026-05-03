@@ -1,9 +1,26 @@
 import { spawn } from "node-pty";
+import { platform } from "node:os";
+import { execSync } from "node:child_process";
 import type { IPty } from "node-pty";
 import { OutputBuffer } from "./output-buffer.js";
 import { normalizeEscapeSequences } from "../lib/utils.js";
 import { renderScreen } from "./screen.js";
+import { SessionEndedError } from "../types.js";
 import type { SessionInfo } from "../types.js";
+
+/**
+ * Environment variables merged into every PTY session to disable pagers.
+ * Pagers (like `less`) require interactive terminal input and would block
+ * command execution in non-interactive MCP tool calls.
+ */
+const PAGER_ENV: Record<string, string> = {
+  GIT_PAGER: "cat",
+  PAGER: "cat",
+  TERM: "xterm-256color",
+};
+
+/** Windows shells that benefit from progress suppression. */
+const WINDOWS_SHELLS = new Set(["cmd.exe", "pwsh.exe", "pwsh"]);
 
 /**
  * Options for creating a PTYSession.
