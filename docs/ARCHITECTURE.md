@@ -1,4 +1,4 @@
-# MCP Terminal Server — Interactive Terminal for AI Agents
+# terminalize — Interactive Terminal for AI Agents
 
 ## Problem
 

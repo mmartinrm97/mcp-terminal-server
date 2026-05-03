@@ -1,4 +1,4 @@
-# MCP Terminal Server — Coding Standards
+# terminalize — Coding Standards
 
 ## TypeScript
 

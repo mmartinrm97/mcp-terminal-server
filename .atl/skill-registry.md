@@ -157,8 +157,8 @@ See `_shared/skill-resolver.md` for the full resolution protocol.
 
 ## Project Conventions
 
-| File                     | Path                        | Notes                                                 |
-| ------------------------ | --------------------------- | ----------------------------------------------------- |
-| MCP Terminal Server Docs | docs/MCP-TERMINAL-SERVER.md | Architecture and API spec for the PTY terminal server |
+| File                           | Path                 | Notes                                     |
+| ------------------------------ | -------------------- | ----------------------------------------- |
+| terminalize Architecture & API | docs/ARCHITECTURE.md | Architecture and API spec for terminalize |
 
 Read the convention files listed above for project-specific patterns and rules. All referenced paths have been extracted — no need to read index files to discover more.

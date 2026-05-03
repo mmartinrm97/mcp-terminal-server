@@ -1,7 +1,7 @@
 ---
 name: interactive-terminal
 description: >
-  Use the MCP Terminal Server to run interactive commands (npm init, gh pr create,
+  Use terminalize (MCP Terminal Server) to run interactive commands (npm init, gh pr create,
   npx create-vite, psql, etc.) that require TUI navigation or multi-step input.
   Trigger: When running commands that wait for user input, display TUI menus,
   or require interactive responses (npm init, gh pr create, npx create-vite,
@@ -18,6 +18,7 @@ The `bash` tool executes commands in **one-shot non-interactive** mode. When a c
 waits for input or shows a TUI menu, `bash` will time out or return truncated output.
 
 **Use the terminal tools instead** when:
+
 - Running `npm init`, `npm create`, or any `npm` command that asks questions
 - Running `gh pr create`, `gh issue create` — GitHub CLI prompts
 - Running `npx create-vite`, `npx autoskills`, or any `npx` scaffolding tool
@@ -28,19 +29,19 @@ waits for input or shows a TUI menu, `bash` will time out or return truncated ou
 
 ## Tools Overview (11 tools)
 
-| Tool | Purpose | When to Use |
-|------|---------|-------------|
-| `terminal_create_session` | Create a persistent PTY session | Always first |
-| `terminal_write` | Write keystrokes/commands to the session | ⭐ Your main input tool |
-| `terminal_read` | Read raw buffer (non-blocking) | Quick peek at latest output |
-| `terminal_read_until` | Wait for a pattern, then return output | Wait for prompts/questions |
-| **`terminal_screenshot`** | **Get clean screen state with cursor position** | **⭐ TUI navigation** |
-| `terminal_tail` | Read last N lines (like `tail -n N`) | ⭐ Logs from long-running processes |
-| `terminal_resize` | Change terminal dimensions | When output is clipped |
-| `terminal_send_signal` | Send SIGINT/SIGTSTP/SIGQUIT to foreground process | Interrupt stuck processes |
-| `terminal_ping` | Health check — server status + uptime | Verify server is alive |
-| `terminal_list_sessions` | List all active sessions | Debugging |
-| `terminal_close_session` | Close and cleanup a session | Always last |
+| Tool                      | Purpose                                           | When to Use                         |
+| ------------------------- | ------------------------------------------------- | ----------------------------------- |
+| `terminal_create_session` | Create a persistent PTY session                   | Always first                        |
+| `terminal_write`          | Write keystrokes/commands to the session          | ⭐ Your main input tool             |
+| `terminal_read`           | Read raw buffer (non-blocking)                    | Quick peek at latest output         |
+| `terminal_read_until`     | Wait for a pattern, then return output            | Wait for prompts/questions          |
+| **`terminal_screenshot`** | **Get clean screen state with cursor position**   | **⭐ TUI navigation**               |
+| `terminal_tail`           | Read last N lines (like `tail -n N`)              | ⭐ Logs from long-running processes |
+| `terminal_resize`         | Change terminal dimensions                        | When output is clipped              |
+| `terminal_send_signal`    | Send SIGINT/SIGTSTP/SIGQUIT to foreground process | Interrupt stuck processes           |
+| `terminal_ping`           | Health check — server status + uptime             | Verify server is alive              |
+| `terminal_list_sessions`  | List all active sessions                          | Debugging                           |
+| `terminal_close_session`  | Close and cleanup a session                       | Always last                         |
 
 ## Labels for Multi-Agent Flows
 
@@ -114,18 +115,18 @@ For menus with arrow-key navigation (like create-vite, autoskills):
 
 ### Keyboard Reference
 
-| Action | Send | Note |
-|--------|------|------|
-| Enter | `\r\n` | CRLF — works on both Windows and Unix |
-| Tab | `\t` | For autocomplete or focus change |
-| Escape | `\x1b` | Cancel/back in many TUIs |
-| Ctrl+C | `\x03` | Interrupt/SIGINT |
-| Up arrow | `\x1b[A` | Navigate up in menus |
-| Down arrow | `\x1b[B` | Navigate down in menus |
-| Space | `\x20` or ` ` | Toggle selection |
-| `y` / `n` | `y\r\n` / `n\r\n` | Yes/No prompts |
-| SIGINT (Ctrl+C) | `terminal_send_signal` tool | Interrupt — use INSTEAD of `\x03` |
-| SIGTSTP (Ctrl+Z) | `terminal_send_signal` tool | Suspend — use INSTEAD of `\x1a` |
+| Action           | Send                        | Note                                  |
+| ---------------- | --------------------------- | ------------------------------------- |
+| Enter            | `\r\n`                      | CRLF — works on both Windows and Unix |
+| Tab              | `\t`                        | For autocomplete or focus change      |
+| Escape           | `\x1b`                      | Cancel/back in many TUIs              |
+| Ctrl+C           | `\x03`                      | Interrupt/SIGINT                      |
+| Up arrow         | `\x1b[A`                    | Navigate up in menus                  |
+| Down arrow       | `\x1b[B`                    | Navigate down in menus                |
+| Space            | `\x20` or ` `               | Toggle selection                      |
+| `y` / `n`        | `y\r\n` / `n\r\n`           | Yes/No prompts                        |
+| SIGINT (Ctrl+C)  | `terminal_send_signal` tool | Interrupt — use INSTEAD of `\x03`     |
+| SIGTSTP (Ctrl+Z) | `terminal_send_signal` tool | Suspend — use INSTEAD of `\x1a`       |
 
 ## Screenshot-First Navigation Strategy
 
@@ -179,13 +180,13 @@ Command asks for TEXT input? (name, path, etc.)
 
 ### When to ALWAYS ask the user
 
-| Scenario | Example | Why |
-|----------|---------|-----|
-| Destructive action | `prisma db reset`, `drop table`, `rm -rf` | Data loss risk |
-| License choice | MIT, GPL, Apache, ISC | Legal implications |
-| Unknown password/token | API keys, database passwords | Can't guess |
-| Multiple valid options | "Which features?" when user didn't specify | Preference |
-| Unclear intent | "Customize settings?" without context | Avoid wrong defaults |
+| Scenario               | Example                                    | Why                  |
+| ---------------------- | ------------------------------------------ | -------------------- |
+| Destructive action     | `prisma db reset`, `drop table`, `rm -rf`  | Data loss risk       |
+| License choice         | MIT, GPL, Apache, ISC                      | Legal implications   |
+| Unknown password/token | API keys, database passwords               | Can't guess          |
+| Multiple valid options | "Which features?" when user didn't specify | Preference           |
+| Unclear intent         | "Customize settings?" without context      | Avoid wrong defaults |
 
 ### How to Present Options to the User
 
@@ -283,25 +284,28 @@ Your flow:
 ## Platform Notes
 
 ### Windows (ConPTY)
+
 - **Use `cmd` shell** for best compatibility with CLI tools
 - Commands may be echoed to output — this is normal
 - `SIGKILL` (`\x1b[3~` or POSIX signals) is NOT supported
 - Close sessions gracefully: `terminal_close_session({ id })` without force
 
 ### Unix (macOS/Linux)
+
 - **Use `auto` shell** (detects zsh/bash)
 - Line feeds with `\n` alone work (no need for `\r\n`)
 
 ## Common Patterns
 
 ### Pattern: Unknown number of prompts
+
 ```
 loop:
   result = terminal_read_until({
     id, pattern: "name:|version:|password:|\\[y/n\\]|\\[Y/n\\]|\\$ |# ",
     timeout_ms: 5000
   })
-  
+
   if result.timed_out:
     → Take screenshot to understand current state
     → If confused, ask the user what to do
@@ -315,6 +319,7 @@ loop:
 ```
 
 ### Pattern: Agent doesn't know what to answer
+
 ```
 terminal_screenshot({ id })
 → Presents options to user with context:
@@ -322,7 +327,7 @@ terminal_screenshot({ id })
      package name: (my-project)
      version: (1.0.0)
      description:
-   
+
    What values do you want to use?
    A) All defaults (just press Enter)
    B) Custom values..."
@@ -330,13 +335,13 @@ terminal_screenshot({ id })
 
 ## Error Recovery
 
-| Problem | What to do |
-|---------|------------|
-| `read_until` timed out | Take a screenshot to see current state |
-| Session not found | Create a new one |
-| Invalid pty handle | Close session, create new one |
-| SIGKILL error on Windows | Use `close_session` without `force: true` |
-| Command seems stuck | Send `\x03` (Ctrl+C) to interrupt, then close |
+| Problem                  | What to do                                    |
+| ------------------------ | --------------------------------------------- |
+| `read_until` timed out   | Take a screenshot to see current state        |
+| Session not found        | Create a new one                              |
+| Invalid pty handle       | Close session, create new one                 |
+| SIGKILL error on Windows | Use `close_session` without `force: true`     |
+| Command seems stuck      | Send `\x03` (Ctrl+C) to interrupt, then close |
 
 ## Commands
 
@@ -359,6 +364,6 @@ terminal_close_session({ id })
 
 ## Resources
 
-- **Source**: See `src/` for the MCP Terminal Server implementation
-- **Design**: See `docs/MCP-TERMINAL-SERVER.md` for full architecture
+- **Source**: See `src/` for the terminalize implementation
+- **Design**: See `docs/ARCHITECTURE.md` for full architecture
 - **Tests**: See `test/` for example usage patterns in integration tests

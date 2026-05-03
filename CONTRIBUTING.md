@@ -1,4 +1,4 @@
-# Contributing to MCP Terminal Server
+# Contributing to terminalize
 
 First off, thanks for taking the time to contribute! 🎉
 
