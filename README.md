@@ -79,14 +79,19 @@ Writes text/keystrokes to the terminal.
 | `id`      | `string` | Session ID                                        |
 | `data`    | `string` | Data to write (`\n` for Enter, `\x03` for Ctrl+C) |
 
+**Tip**: For commands where you need to know exactly when they finish, combine with `terminal_read_until` and use the `writeMarked` method internally (enabled by default via the agent skill). It wraps commands with unique completion markers (`__TERM_MARK_<hex>__`) so the agent can wait for a deterministic pattern instead of guessing the prompt.
+
 ### 3. `terminal_read`
 
 Reads the current terminal buffer contents. Non-blocking — returns whatever output has accumulated.
 
-| Parameter | Type      | Default | Description                                |
-| --------- | --------- | ------- | ------------------------------------------ |
-| `id`      | `string`  | —       | Session ID                                 |
-| `flush`   | `boolean` | `false` | If `true`, clears the buffer after reading |
+| Parameter | Type      | Default | Description                                                                                                                                     |
+| --------- | --------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `id`      | `string`  | —       | Session ID                                                                                                                                      |
+| `flush`   | `boolean` | `false` | If `true`, clears the buffer after reading                                                                                                      |
+| `since`   | `number`  | —       | Byte position for incremental reads. Returns only output after this position. Use `position` from previous response for token-efficient polling |
+
+Response includes `position` (monotonic byte counter) for use in subsequent `since` reads.
 
 ### 4. `terminal_read_until` ⭐
 
