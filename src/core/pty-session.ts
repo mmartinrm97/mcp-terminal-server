@@ -275,11 +275,36 @@ export class PTYSession {
    * @returns The exit code, or null if the process hadn't exited yet
    */
   close(force?: boolean): number | null {
-    if (force) {
-      this.pty.kill("SIGKILL");
-    } else {
-      this.pty.kill();
+    if (this._ended) {
+      return this._exitCode;
     }
+
+    const signal = force ? "SIGKILL" : "SIGHUP";
+    const pid = this.pty.pid;
+
+    try {
+      if (platform() === "win32") {
+        // Windows: kill the process tree via taskkill after pty.kill
+        this.pty.kill(signal);
+        try {
+          execSync(`taskkill /PID ${pid} /T /F`, { stdio: "ignore" });
+        } catch {
+          // taskkill may fail if process already terminated — ignore
+        }
+      } else {
+        // POSIX: kill the entire process group (negative PID)
+        try {
+          process.kill(-pid, signal);
+        } catch {
+          // Fallback: kill just the child
+          this.pty.kill(signal);
+        }
+      }
+    } catch {
+      // Ultimate fallback: basic kill
+      this.pty.kill(signal);
+    }
+
     return this._exitCode;
   }
 
