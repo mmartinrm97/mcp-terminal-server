@@ -80,7 +80,8 @@ const TOOL_DEFINITIONS = [
     name: "terminal_read",
     description:
       "Read the current terminal buffer contents. Non-blocking — returns whatever output " +
-      "has accumulated. Use flush=true to clear the buffer after reading.",
+      "has accumulated. Use flush=true to clear the buffer after reading. " +
+      "Use since=<byte_position> to read from a specific byte offset (incremental reads).",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -88,6 +89,13 @@ const TOOL_DEFINITIONS = [
         flush: {
           type: "boolean",
           description: "If true, clears the buffer after reading. Default: false.",
+        },
+        since: {
+          type: "number",
+          description:
+            "Byte position to read from (global counter). Returns data from that position " +
+            "plus the current total position. Use with position from previous response for " +
+            "incremental reads. Does NOT clear the buffer.",
         },
       },
       required: ["id"],
@@ -348,7 +356,14 @@ export async function handleCallTool(
       const s = getSessionOrError(sm, id);
       if (s.error) return toolError(s.error);
 
+      const since = typeof args.since === "number" ? args.since : undefined;
       const flush = typeof args.flush === "boolean" ? args.flush : undefined;
+
+      if (since !== undefined) {
+        const result: ReadResult = s.session.read(since);
+        return { content: [textContent(result)] };
+      }
+
       const result: ReadResult = s.session.read(flush);
       return { content: [textContent(result)] };
     }

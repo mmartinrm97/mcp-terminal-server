@@ -21,7 +21,24 @@ vi.mock("node-pty", () => ({
   spawn: vi.fn(() => mockPtyInstance),
 }));
 
+// Default: mock platform as "linux" (POSIX) so process.kill path is taken.
+// Individual tests can override with mockReturnValue("win32").
+vi.mock("node:os", async () => {
+  const actual = await vi.importActual<typeof import("node:os")>("node:os");
+  return {
+    ...actual,
+    platform: vi.fn(() => "linux"),
+  };
+});
+
+// Mock child_process.execSync for Windows taskkill tests
+vi.mock("node:child_process", () => ({
+  execSync: vi.fn(),
+}));
+
 import { spawn } from "node-pty";
+import { platform } from "node:os";
+import { execSync } from "node:child_process";
 import { PTYSession } from "../../src/core/pty-session.js";
 
 describe("PTYSession", () => {
@@ -199,6 +216,176 @@ describe("PTYSession", () => {
       if (onExitCallback) onExitCallback({ exitCode: 1 });
       expect(session.ended).toBe(true);
       expect(session.exitCode).toBe(1);
+    });
+  });
+
+  // ── Enhancement A: Completion markers ──────────────────
+  describe("writeMarked", () => {
+    it("should return a non-empty marker string", async () => {
+      const marker = await session.writeMarked("echo hello");
+      expect(marker).toBeTruthy();
+      expect(typeof marker).toBe("string");
+      expect(marker).toMatch(/^__TERM_MARK_[0-9a-f]{6}__$/);
+    });
+
+    it("should include the command in the written output", async () => {
+      const marker = await session.writeMarked("echo world");
+      // writeMarked calls this.write() internally with marker-wrapped command
+      const writeArg = mockPtyInstance.write.mock.calls.map((c: any[]) => c[0]).join("");
+      expect(writeArg).toContain("echo world");
+    });
+
+    it("should write a marker-wrapped command through the write method", async () => {
+      const marker = await session.writeMarked("ls -la");
+      const writeArg = mockPtyInstance.write.mock.calls.map((c: any[]) => c[0]).join("");
+      // The marker should appear twice in the command string
+      expect(writeArg).toContain(marker);
+      // The command itself should be between the markers
+      expect(writeArg).toContain("ls -la");
+    });
+
+    it("should generate different markers across calls", async () => {
+      const marker1 = await session.writeMarked("cmd a");
+      const marker2 = await session.writeMarked("cmd b");
+      expect(marker1).not.toBe(marker2);
+    });
+
+    it("should throw SessionEndedError when session is ended", async () => {
+      // Simulate session exit
+      if (onExitCallback) onExitCallback({ exitCode: 1 });
+      expect(session.ended).toBe(true);
+
+      await expect(session.writeMarked("echo nope")).rejects.toThrow("Session has ended");
+    });
+
+    it("should use POSIX && syntax for bash shell", async () => {
+      // The mock shell is "bash", so it should use && separators
+      const marker = await session.writeMarked("echo triangulate");
+      const writeArg = mockPtyInstance.write.mock.calls.map((c: any[]) => c[0]).join("");
+
+      // Verify POSIX format: echo MARKER && cmd && echo MARKER && echo exit: $?
+      expect(writeArg).toMatch(/\becho\b/);
+      expect(writeArg).toContain("&&");
+      // Verify marker appears at least twice (open and close)
+      const markerCount = (
+        writeArg.match(new RegExp(marker.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g")) || []
+      ).length;
+      expect(markerCount).toBeGreaterThanOrEqual(2);
+    });
+  });
+
+  // ── Enhancement B: Pager-blocking env vars ─────────
+  describe("pager env vars", () => {
+    it("should set GIT_PAGER=cat in the PTY spawn env", () => {
+      const envArg = (spawn as ReturnType<typeof vi.fn>).mock.calls[0][2]?.env as
+        | Record<string, string>
+        | undefined;
+      expect(envArg).toBeDefined();
+      expect(envArg?.GIT_PAGER).toBe("cat");
+    });
+
+    it("should set PAGER=cat in the PTY spawn env", () => {
+      const envArg = (spawn as ReturnType<typeof vi.fn>).mock.calls[0][2]?.env as
+        | Record<string, string>
+        | undefined;
+      expect(envArg?.PAGER).toBe("cat");
+    });
+
+    it("should set TERM=xterm-256color in the PTY spawn env", () => {
+      const envArg = (spawn as ReturnType<typeof vi.fn>).mock.calls[0][2]?.env as
+        | Record<string, string>
+        | undefined;
+      expect(envArg?.TERM).toBe("xterm-256color");
+    });
+
+    it("should allow user-provided env to override pager defaults", () => {
+      const sessionOverride = new PTYSession({
+        id: "override-test",
+        shell: "bash",
+        args: [],
+        cwd: "/tmp",
+        cols: 80,
+        rows: 24,
+        env: { GIT_PAGER: "less", PAGER: "less" },
+      });
+
+      const envArg = (spawn as ReturnType<typeof vi.fn>).mock.lastCall?.[2]?.env as
+        | Record<string, string>
+        | undefined;
+      expect(envArg?.GIT_PAGER).toBe("less");
+      expect(envArg?.PAGER).toBe("less");
+    });
+
+    it("should preserve user-provided env vars alongside pager defaults", () => {
+      const sessionCustom = new PTYSession({
+        id: "custom-env-test",
+        shell: "bash",
+        args: [],
+        cwd: "/tmp",
+        cols: 80,
+        rows: 24,
+        env: { MY_CUSTOM_VAR: "custom_value" },
+      });
+
+      const envArg = (spawn as ReturnType<typeof vi.fn>).mock.lastCall?.[2]?.env as
+        | Record<string, string>
+        | undefined;
+      expect(envArg?.MY_CUSTOM_VAR).toBe("custom_value");
+      // Defaults should still be present
+      expect(envArg?.TERM).toBe("xterm-256color");
+    });
+  });
+
+  // ── Enhancement C: Process group cleanup ────────────
+  describe("process group cleanup", () => {
+    it("should attempt process.kill with negative PID on POSIX", () => {
+      const killSpy = vi.spyOn(process, "kill").mockImplementation(() => {});
+
+      session.close();
+
+      expect(killSpy).toHaveBeenCalledWith(-12345, "SIGHUP");
+
+      killSpy.mockRestore();
+    });
+
+    it("should fallback to child.kill when process group kill fails", () => {
+      // process.kill throws (simulating failure)
+      const killSpy = vi.spyOn(process, "kill").mockImplementation(() => {
+        throw new Error("ESRCH");
+      });
+
+      session.close();
+
+      // Fallback: should call pty.kill()
+      expect(mockPtyInstance.kill).toHaveBeenCalled();
+      killSpy.mockRestore();
+    });
+
+    it("should use taskkill on Windows after pty kill", () => {
+      // Mock platform as win32
+      (platform as ReturnType<typeof vi.fn>).mockReturnValue("win32");
+
+      const winSession = new PTYSession({
+        id: "win-test",
+        shell: "cmd.exe",
+        args: [],
+        cwd: "/tmp",
+        cols: 80,
+        rows: 24,
+      });
+
+      winSession.close();
+
+      // Windows: pty.kill() should be called first (triggers onExit)
+      expect(mockPtyInstance.kill).toHaveBeenCalled();
+
+      // Then taskkill should clean up the process tree
+      expect(execSync).toHaveBeenCalledWith(
+        "taskkill /PID 12345 /T /F",
+        expect.objectContaining({ stdio: "ignore" }),
+      );
+
+      (platform as ReturnType<typeof vi.fn>).mockReturnValue("linux");
     });
   });
 });

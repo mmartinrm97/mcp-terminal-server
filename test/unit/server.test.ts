@@ -41,7 +41,9 @@ function createMockSession(overrides?: Partial<MockPTYSession>): MockPTYSession 
     id: "session-1",
     cwd: "/test/workspace",
     write: vi.fn().mockReturnValue(8),
-    read: vi.fn().mockReturnValue({ data: "hello world", ended: false, exit_code: null }),
+    read: vi
+      .fn()
+      .mockReturnValue({ data: "hello world", ended: false, exit_code: null, position: 0 }),
     readUntil: vi.fn().mockResolvedValue({
       data: "hello world",
       fullOutput: "full hello world",
@@ -244,6 +246,7 @@ describe("Server Handler Functions", () => {
           data: "output here",
           ended: false,
           exit_code: null,
+          position: 0,
         });
         const result = await handleCallTool(mockSm as unknown as SessionManager, {
           name: "terminal_read",
@@ -269,6 +272,76 @@ describe("Server Handler Functions", () => {
           arguments: { id: "session-1" },
         });
         expect(mockSession.read).toHaveBeenCalledWith(undefined);
+      });
+
+      // ---- Phase 3: since parameter ----
+
+      it("should accept since parameter and pass to session.read", async () => {
+        mockSession.read.mockReturnValue({
+          data: "new data",
+          ended: false,
+          exit_code: null,
+          position: 42,
+        });
+        const result = await handleCallTool(mockSm as unknown as SessionManager, {
+          name: "terminal_read",
+          arguments: { id: "session-1", since: 10 },
+        });
+        expect(mockSession.read).toHaveBeenCalledWith(10);
+        const parsed = JSON.parse(result.content[0].text);
+        expect(parsed.data).toBe("new data");
+        expect(parsed.position).toBe(42);
+      });
+
+      it("should return position in response when since is provided", async () => {
+        mockSession.read.mockReturnValue({
+          data: "specific output",
+          ended: false,
+          exit_code: null,
+          position: 100,
+        });
+        const result = await handleCallTool(mockSm as unknown as SessionManager, {
+          name: "terminal_read",
+          arguments: { id: "session-1", since: 0 },
+        });
+        const parsed = JSON.parse(result.content[0].text);
+        expect(parsed.position).toBe(100);
+      });
+
+      it("should return full data without since (backward compat)", async () => {
+        mockSession.read.mockReturnValue({
+          data: "everything",
+          ended: true,
+          exit_code: 0,
+          position: 50,
+        });
+        const result = await handleCallTool(mockSm as unknown as SessionManager, {
+          name: "terminal_read",
+          arguments: { id: "session-1" },
+        });
+        const parsed = JSON.parse(result.content[0].text);
+        expect(parsed.data).toBe("everything");
+        expect(parsed.ended).toBe(true);
+        expect(parsed.exit_code).toBe(0);
+        // position is present but not asserted for specific value
+        expect(parsed.position).toBeDefined();
+      });
+
+      it("should handle since=0 correctly (read from beginning)", async () => {
+        mockSession.read.mockReturnValue({
+          data: "complete buffer",
+          ended: false,
+          exit_code: null,
+          position: 80,
+        });
+        const result = await handleCallTool(mockSm as unknown as SessionManager, {
+          name: "terminal_read",
+          arguments: { id: "session-1", since: 0 },
+        });
+        expect(mockSession.read).toHaveBeenCalledWith(0);
+        const parsed = JSON.parse(result.content[0].text);
+        expect(parsed.data).toBe("complete buffer");
+        expect(parsed.position).toBe(80);
       });
     });
 

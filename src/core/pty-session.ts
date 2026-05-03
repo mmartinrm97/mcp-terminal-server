@@ -62,13 +62,30 @@ export class PTYSession {
     this.lastActivity = new Date();
     this.buffer = new OutputBuffer();
 
+    // Build env with pager-blocking defaults.
+    // Order: process.env base → PAGER_ENV overrides → user env takes final precedence.
+    const mergedEnv: Record<string, string> = {
+      ...(process.env as Record<string, string>),
+      ...PAGER_ENV,
+    };
+
+    // Windows shells: suppress progress bars from package managers (npm, etc.)
+    if (platform() === "win32" && WINDOWS_SHELLS.has(options.shell)) {
+      mergedEnv.PROGRESS_SUPPRESS = "1";
+    }
+
+    // User-provided env takes final precedence over everything
+    if (options.env) {
+      Object.assign(mergedEnv, options.env);
+    }
+
     // Spawn the PTY process
     this.pty = spawn(options.shell, options.args, {
       name: "xterm-256color",
       cwd: options.cwd,
       cols: options.cols,
       rows: options.rows,
-      env: options.env ?? (process.env as Record<string, string>),
+      env: mergedEnv,
     });
 
     // Capture all data events into the buffer
@@ -102,6 +119,48 @@ export class PTYSession {
     this.pty.write(processed);
     this.lastActivity = new Date();
     return Buffer.byteLength(processed);
+  }
+
+  /**
+   * Write a command wrapped with completion markers.
+   *
+   * Generates a unique marker, writes the command with marker wrapping,
+   * and returns the marker so the caller can use readUntil(marker).
+   *
+   * Shell-specific syntax:
+   * - bash/zsh: `echo MARKER && cmd && echo MARKER && echo exit: $?`
+   * - cmd.exe:  `echo MARKER & cmd & echo MARKER & echo exit:!errorlevel!`
+   * - pwsh:     `echo MARKER; cmd; echo MARKER; echo "exit: $LASTEXITCODE"`
+   *
+   * @throws {SessionEndedError} if the session has ended
+   * @returns The marker string for readUntil matching
+   */
+  async writeMarked(command: string): Promise<string> {
+    if (this._ended) {
+      throw new SessionEndedError();
+    }
+
+    const marker = this.generateMarker();
+    const shellProcess = this.pty.process;
+
+    let fullCommand: string;
+    if (shellProcess === "cmd.exe") {
+      fullCommand = `echo ${marker} & ${command} & echo ${marker} & echo exit:!errorlevel!`;
+    } else if (shellProcess === "pwsh.exe" || shellProcess === "pwsh") {
+      fullCommand = `echo ${marker}; ${command}; echo ${marker}; echo "exit: $LASTEXITCODE"`;
+    } else {
+      // bash, zsh — POSIX
+      fullCommand = `echo ${marker} && ${command} && echo ${marker} && echo exit: $?`;
+    }
+
+    this.write(fullCommand + "\n");
+    return marker;
+  }
+
+  /** Generate a unique completion marker for writeMarked. */
+  private generateMarker(): string {
+    const hex = Math.random().toString(16).slice(2, 8).padStart(6, "0");
+    return `__TERM_MARK_${hex}__`;
   }
 
   /**

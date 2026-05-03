@@ -4,7 +4,7 @@
 export interface SessionConfig {
   id?: string;
   label?: string;
-  shell?: 'auto' | 'bash' | 'zsh' | 'pwsh' | 'cmd';
+  shell?: "auto" | "bash" | "zsh" | "pwsh" | "cmd";
   cwd?: string;
   cols?: number;
   rows?: number;
@@ -41,6 +41,7 @@ export interface ReadResult {
   data: string;
   ended: boolean;
   exit_code: number | null;
+  position: number;
 }
 
 /**
@@ -60,7 +61,7 @@ export interface ReadUntilResult {
  */
 export interface CreateSessionInput {
   id?: string;
-  shell?: 'auto' | 'bash' | 'zsh' | 'pwsh' | 'cmd';
+  shell?: "auto" | "bash" | "zsh" | "pwsh" | "cmd";
   cwd?: string;
   cols?: number;
   rows?: number;
@@ -81,6 +82,7 @@ export interface WriteInput {
 export interface ReadInput {
   id: string;
   flush?: boolean;
+  since?: number;
 }
 
 /**
@@ -144,7 +146,7 @@ export interface TailResult {
  */
 export interface SendSignalInput {
   id: string;
-  signal: 'SIGINT' | 'SIGTSTP' | 'SIGQUIT' | 'SIGKILL';
+  signal: "SIGINT" | "SIGTSTP" | "SIGQUIT" | "SIGKILL";
 }
 
 /**
@@ -171,7 +173,7 @@ export interface SessionManagerConfig {
 export class SessionNotFoundError extends Error {
   constructor(sessionId: string) {
     super(`Session not found: ${sessionId}`);
-    this.name = 'SessionNotFoundError';
+    this.name = "SessionNotFoundError";
   }
 }
 
@@ -181,7 +183,7 @@ export class SessionNotFoundError extends Error {
 export class SessionLimitError extends Error {
   constructor(max: number) {
     super(`Maximum session limit reached (${max})`);
-    this.name = 'SessionLimitError';
+    this.name = "SessionLimitError";
   }
 }
 
@@ -192,10 +194,20 @@ export class ReadTimeoutError extends Error {
   public timedOut: boolean;
   public partialData: string;
 
-  constructor(message: string, partialData: string = '') {
+  constructor(message: string, partialData: string = "") {
     super(message);
-    this.name = 'ReadTimeoutError';
+    this.name = "ReadTimeoutError";
     this.timedOut = true;
     this.partialData = partialData;
+  }
+}
+
+/**
+ * Error thrown when attempting to write to a session that has already ended.
+ */
+export class SessionEndedError extends Error {
+  constructor() {
+    super("Session has ended");
+    this.name = "SessionEndedError";
   }
 }

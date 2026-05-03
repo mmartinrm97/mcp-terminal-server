@@ -23,7 +23,18 @@ See `_shared/skill-resolver.md` for the full resolution protocol.
 | Break down change into tasks                                                                                    | sdd-tasks      | ~/.config/opencode/skills/sdd-tasks/SKILL.md      |
 | Validate implementation matches specs                                                                           | sdd-verify     | ~/.config/opencode/skills/sdd-verify/SKILL.md     |
 | Create new AI agent skill                                                                                       | skill-creator  | ~/.config/opencode/skills/skill-creator/SKILL.md  |
+| Update skill registry                                                                                           | skill-registry | ~/.config/opencode/skills/skill-registry/SKILL.md |
 | Interactive CLI tools, TUI navigation, commands needing user input (npm init, gh pr, npx create-vite, etc.)     | terminalize    | ~/.config/opencode/skills/terminalize/SKILL.md    |
+
+## Project Skills
+
+| Trigger                                                                                            | Skill                     | Path                                              |
+| -------------------------------------------------------------------------------------------------- | ------------------------- | ------------------------------------------------- |
+| Building Node.js backend services (Express/Fastify), middleware, auth, database, API design        | nodejs-backend-patterns   | .agents/skills/nodejs-backend-patterns/SKILL.md   |
+| Node.js development principles, framework selection, async patterns, security, architecture        | nodejs-best-practices     | .agents/skills/nodejs-best-practices/SKILL.md     |
+| Run/configure oxlint linter, fix errors, configure rules/plugins, migrate from ESLint              | oxlint                    | .agents/skills/oxlint/SKILL.md                    |
+| TypeScript advanced types: generics, conditional types, mapped types, template literals, utilities | typescript-advanced-types | .agents/skills/typescript-advanced-types/SKILL.md |
+| Writing tests with Vitest, mocking, coverage config, test filtering, fixtures                      | vitest                    | .agents/skills/vitest/SKILL.md                    |
 
 ## Compact Rules
 
@@ -46,6 +57,7 @@ See `_shared/skill-resolver.md` for the full resolution protocol.
 
 | File                           | Path                 | Notes                                     |
 | ------------------------------ | -------------------- | ----------------------------------------- |
+| terminalize Coding Standards   | AGENTS.md            | TypeScript, architecture, testing, naming |
 | terminalize Architecture & API | docs/ARCHITECTURE.md | Architecture and API spec for terminalize |
 
 Read the convention files listed above for project-specific patterns and rules. All referenced paths have been extracted — no need to read index files to discover more.
