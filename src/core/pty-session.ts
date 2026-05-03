@@ -297,30 +297,25 @@ export class PTYSession {
       return this._exitCode;
     }
 
-    const signal = force ? "SIGKILL" : "SIGHUP";
     const pid = this.pty.pid;
 
-    try {
-      if (platform() === "win32") {
-        // Windows: kill the process tree via taskkill after pty.kill
-        this.pty.kill(signal);
-        try {
-          execSync(`taskkill /PID ${pid} /T /F`, { stdio: "ignore" });
-        } catch {
-          // taskkill may fail if process already terminated — ignore
-        }
-      } else {
-        // POSIX: kill the entire process group (negative PID)
-        try {
-          process.kill(-pid, signal);
-        } catch {
-          // Fallback: kill just the child
-          this.pty.kill(signal);
-        }
+    if (platform() === "win32") {
+      // Windows: kill the process tree via taskkill (signals not supported)
+      this.pty.kill();
+      try {
+        execSync(`taskkill /PID ${pid} /T /F`, { stdio: "ignore" });
+      } catch {
+        // taskkill may fail if process already terminated — ignore
       }
-    } catch {
-      // Ultimate fallback: basic kill
-      this.pty.kill(signal);
+    } else {
+      // POSIX: kill the entire process group (negative PID)
+      const signal = force ? "SIGKILL" : "SIGHUP";
+      try {
+        process.kill(-pid, signal);
+      } catch {
+        // Fallback: kill just the child
+        this.pty.kill(signal);
+      }
     }
 
     return this._exitCode;
@@ -346,7 +341,11 @@ export class PTYSession {
         this.pty.write("\x1c");
         break;
       case "SIGKILL":
-        this.pty.kill("SIGKILL");
+        if (platform() === "win32") {
+          this.pty.kill();
+        } else {
+          this.pty.kill("SIGKILL");
+        }
         break;
       default:
         throw new Error(`Unknown signal: ${signal}`);
