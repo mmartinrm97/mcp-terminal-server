@@ -171,4 +171,106 @@ describe("OutputBuffer", () => {
       expect(r2.matched).toBe("done");
     });
   });
+
+  describe("position tracking", () => {
+    it("position starts at 0", () => {
+      expect(buffer.position).toBe(0);
+    });
+
+    it("append('hello') → position = 5", () => {
+      buffer.append("hello");
+      expect(buffer.position).toBe(5);
+    });
+
+    it("append('hello') twice → position = 10", () => {
+      buffer.append("hello");
+      buffer.append("hello");
+      expect(buffer.position).toBe(10);
+    });
+
+    it("append('héllo') (multi-byte) → position = 6", () => {
+      buffer.append("héllo");
+      // "é" (U+00E9) is 2 bytes in UTF-8 → 1+2+1+1+1 = 6
+      expect(buffer.position).toBe(6);
+    });
+
+    it("readAll(since) returns slice from that byte position", () => {
+      buffer.append("hello");
+      // position=5, bytes: h=0-1, e=1-2, l=2-3, l=3-4, o=4-5
+      // since=3 skips "hel", returns "lo"
+      const result = buffer.readAll(3);
+      expect(result.data).toBe("lo");
+      expect(result.position).toBe(5);
+    });
+
+    it("readAll() (no args) returns full data — backward compat", () => {
+      buffer.append("hello");
+      const data = buffer.readAll();
+      // Must still return plain string for backward compatibility
+      expect(data).toBe("hello");
+    });
+
+    it("readAll(since) returns empty data when since > buffer end (trimmed)", () => {
+      const smallBuffer = new OutputBuffer(10);
+      smallBuffer.append("1234567890ABC"); // 13 bytes, max 10 → first 3 trimmed
+      // position = 13, buffer only has last 10 bytes
+      const result = smallBuffer.readAll(999);
+      expect(result.data).toBe("");
+      expect(result.position).toBe(13);
+    });
+
+    it("position reflects total bytes after readAll", () => {
+      buffer.append("hello world"); // 11 bytes
+      buffer.readAll(); // consume it
+      expect(buffer.position).toBe(11); // position is total bytes ever written
+    });
+
+    it("append with empty string does not change position", () => {
+      buffer.append("");
+      expect(buffer.position).toBe(0);
+      buffer.append("hi");
+      buffer.append("");
+      expect(buffer.position).toBe(2);
+    });
+
+    it("readAll(0) returns full buffer content", () => {
+      buffer.append("ABCDEF");
+      const result = buffer.readAll(0);
+      expect(result.data).toBe("ABCDEF");
+      expect(result.position).toBe(6);
+    });
+
+    it("readAll(since) with since in trimmed region returns empty", () => {
+      const smallBuffer = new OutputBuffer(5);
+      smallBuffer.append("0123456789"); // 10 bytes, max 5 → first ~5 trimmed
+      // position=10, bufferStartByte ≈ 5
+      const result = smallBuffer.readAll(2); // since=2 < bufferStartByte → trimmed
+      expect(result.data).toBe("");
+      expect(result.position).toBe(10);
+    });
+
+    it("readAll(since) with since == buffer start returns full remaining buffer", () => {
+      const smallBuffer = new OutputBuffer(5);
+      smallBuffer.append("ABCDEFGHIJ"); // 10 bytes, max 5
+      // position=10, bufferStartByte = 10 - 5 = 5
+      const result = smallBuffer.readAll(5);
+      // Should return the 5 bytes from position 5 to end = "FGHIJ"
+      expect(result.data).toBe("FGHIJ");
+      expect(result.position).toBe(10);
+    });
+
+    it("readAll(since) does not advance readOffset (peek, not consume)", () => {
+      buffer.append("hello world");
+      buffer.readAll(6); // peek from position 6
+      // readAll() should still return full data since readOffset wasn't advanced
+      expect(buffer.readAll()).toBe("hello world");
+    });
+
+    it("append with emoji (4-byte) counts correctly", () => {
+      buffer.append("🚀"); // rocket emoji, U+1F680 = 4 bytes in UTF-8
+      expect(buffer.position).toBe(4);
+      buffer.append("🚀");
+      expect(buffer.position).toBe(8);
+    });
+  });
 });

@@ -6,22 +6,26 @@ import { stripAnsi } from "../lib/ansi-stripper.js";
  * Circular buffer that accumulates PTY output and supports regex pattern matching.
  *
  * Key behaviors:
- * - append(chunk): add data to the buffer
+ * - append(chunk): add data to the buffer, increment global position counter
  * - readUntil(pattern): wait (async via polling) until the buffer matches a regex
- * - readAll(): return all buffered data since last read
+ * - readAll(): return all buffered data since last read (backward compat)
+ * - readAll(since): return data from a global byte position (incremental reads)
  * - clear(): clear the buffer entirely
  * - getFullBuffer(): peek at the full buffer without clearing
+ * - position: total bytes ever written (monotonic counter, counts UTF-8 bytes)
  * - size: current buffer size in bytes
  *
  * Buffer semantics:
- * - append() always adds to the end
+ * - append() always adds to the end, increments position by byte length of chunk
  * - readAll() returns everything since last read and advances the read offset
+ * - readAll(since) peeks by global byte position, does NOT advance read offset
  * - readUntil() uses internal offset tracking — only returns NEW data since last read
  * - If buffer exceeds maxSize, oldest data is trimmed (FIFO)
  */
 export class OutputBuffer {
   private _buffer = "";
   private _readOffset = 0;
+  private _bytePosition = 0;
   private readonly _maxSize: number;
 
   constructor(maxSize?: number) {
@@ -30,46 +34,86 @@ export class OutputBuffer {
   }
 
   /**
+   * Total bytes ever written to the buffer (monotonic counter).
+   * Uses Buffer.byteLength to count multi-byte characters correctly.
+   */
+  get position(): number {
+    return this._bytePosition;
+  }
+
+  /**
    * Append a chunk of data to the buffer.
    * If the buffer exceeds maxSize, oldest data is trimmed (FIFO).
    */
   append(chunk: string): void {
     this._buffer += chunk;
+    this._bytePosition += Buffer.byteLength(chunk, "utf-8");
 
     // FIFO trimming: remove oldest data if we exceed maxSize
     const overflow = Buffer.byteLength(this._buffer) - this._maxSize;
     if (overflow > 0) {
-      // Trim from the start — we need to find the character boundary
-      let trimBytes = 0;
-      for (let i = 0; i < this._buffer.length && trimBytes < overflow; i++) {
-        const charBytes = Buffer.byteLength(this._buffer[i]);
-        trimBytes += charBytes;
-      }
-      // Find how many characters correspond to `trimBytes` bytes approximately
-      let trimmed = 0;
-      let bytesSoFar = 0;
-      for (let i = 0; i < this._buffer.length && bytesSoFar < overflow; i++) {
-        bytesSoFar += Buffer.byteLength(this._buffer[i]);
-        trimmed++;
-      }
-
+      const trimmed = OutputBuffer._bytesToCharCount(this._buffer, overflow);
       this._buffer = this._buffer.slice(trimmed);
       this._readOffset = Math.max(0, this._readOffset - trimmed);
     }
   }
 
   /**
-   * Read all buffered content since last read.
+   * Count how many characters of `str` it takes to reach `maxBytes` bytes.
+   * Used to convert a byte-length cutoff to a character-index cutoff.
+   */
+  private static _bytesToCharCount(str: string, maxBytes: number): number {
+    let charCount = 0;
+    let bytesSoFar = 0;
+    for (let i = 0; i < str.length && bytesSoFar < maxBytes; i++) {
+      bytesSoFar += Buffer.byteLength(str[i]);
+      charCount++;
+    }
+    return charCount;
+  }
+
+  /**
+   * Read all buffered content since last read (no args — backward compat).
    * Returns the data and advances the read offset.
    * After reading, the read portion is FREED from memory (not just offset-advanced).
    * This prevents unbounded memory growth on long-running processes.
    */
-  readAll(): string {
-    const data = this._buffer.slice(this._readOffset);
-    this._readOffset = this._buffer.length;
-    // Free memory: remove everything before the read offset
-    // (but only if we've read everything, which readAll guarantees)
-    return data;
+  readAll(): string;
+  /**
+   * Read all buffered content from a given byte position.
+   * Returns an object with `data` (the slice) and `position` (current total bytes).
+   * Does NOT advance the read offset — this is a peek by position.
+   *
+   * @param since - Byte position to start reading from (global counter, not buffer index)
+   */
+  readAll(since: number): { data: string; position: number };
+  readAll(since?: number): string | { data: string; position: number } {
+    if (since === undefined) {
+      // Backward compat: return data from readOffset to end
+      const data = this._buffer.slice(this._readOffset);
+      this._readOffset = this._buffer.length;
+      return data;
+    }
+
+    // Position-based read: from byte `since` to current buffer end
+    if (since >= this._bytePosition) {
+      return { data: "", position: this._bytePosition };
+    }
+
+    // Calculate the byte position of the buffer's first character
+    const bufferStartByte = this._bytePosition - Buffer.byteLength(this._buffer);
+
+    if (since < bufferStartByte) {
+      // Position was trimmed away
+      return { data: "", position: this._bytePosition };
+    }
+
+    // Convert byte offset within buffer to character index
+    const bytesToSkip = since - bufferStartByte;
+    const charCount = OutputBuffer._bytesToCharCount(this._buffer, bytesToSkip);
+
+    const data = this._buffer.slice(charCount);
+    return { data, position: this._bytePosition };
   }
 
   /**
