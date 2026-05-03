@@ -4,9 +4,9 @@ import { execSync } from "node:child_process";
 import type { IPty } from "node-pty";
 import { OutputBuffer } from "./output-buffer.js";
 import { normalizeEscapeSequences } from "../lib/utils.js";
-import { renderScreen } from "./screen.js";
+import { renderScreen, analyzeScreen } from "./screen.js";
 import { SessionEndedError } from "../types.js";
-import type { SessionInfo } from "../types.js";
+import type { SessionInfo, ScreenshotResult } from "../types.js";
 
 /**
  * Environment variables merged into every PTY session to disable pagers.
@@ -209,19 +209,27 @@ export class PTYSession {
 
   /**
    * Take a screenshot of the current terminal screen.
-   * Parses all raw PTY output through an ANSI-aware screen renderer
-   * and returns clean, structured text rows with cursor position.
+   * Parses all raw PTY output through an ANSI-aware screen renderer,
+   * then runs semantic analysis to classify the foreground application.
+   * Returns clean, structured text rows with cursor position and
+   * optional semantic fields (terminal_mode, editor_mode, status_line, content_rows).
    */
-  screenshot(): {
-    rows: string[];
-    cursorRow: number;
-    cursorCol: number;
-    cols: number;
-    rowsCount: number;
-    text: string;
-  } {
+  screenshot(): ScreenshotResult {
     const raw = this.buffer.getFullBuffer();
-    return renderScreen(raw, this.pty.cols, this.pty.rows);
+    const screen = renderScreen(raw, this.pty.cols, this.pty.rows);
+    const analysis = analyzeScreen(screen.rows);
+    return {
+      rows: screen.rows,
+      cursorRow: screen.cursorRow,
+      cursorCol: screen.cursorCol,
+      cols: screen.cols,
+      rowsCount: screen.rowsCount,
+      text: screen.text,
+      terminal_mode: analysis.terminal_mode,
+      editor_mode: analysis.editor_mode,
+      status_line: analysis.status_line,
+      content_rows: analysis.content_rows,
+    };
   }
 
   /**

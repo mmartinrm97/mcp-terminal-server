@@ -122,6 +122,14 @@ export interface ScreenshotResult {
   cols: number;
   rowsCount: number;
   text: string;
+  /** Semantic classification of the foreground application (optional, v0.3+) */
+  terminal_mode?: string;
+  /** Vim-specific editor submode: "normal" | "insert" | "visual" | "replace" | "unknown" */
+  editor_mode?: string;
+  /** Last non-empty rendered row; null if < 2 non-empty rows */
+  status_line?: string | null;
+  /** All rendered rows excluding the status line */
+  content_rows?: string[];
 }
 
 /**
