@@ -13,6 +13,28 @@
  * - Scroll up when cursor reaches bottom
  */
 
+// ---------------------------------------------------------------------------
+// Semantic screen analysis types
+// ---------------------------------------------------------------------------
+
+/** High-level classification of what application is running in the terminal. */
+export type TerminalMode = "shell" | "vim" | "nano" | "htop" | "lazygit" | "less" | "unknown";
+
+/** Vim-specific editor submode. Only present when terminal_mode is "vim". */
+export type EditorMode = "normal" | "insert" | "visual" | "replace" | "unknown";
+
+/** Result of heuristic screen classification. */
+export interface ScreenAnalysis {
+  terminal_mode: TerminalMode;
+  editor_mode?: EditorMode;
+  status_line: string | null;
+  content_rows: string[];
+}
+
+// ---------------------------------------------------------------------------
+// Raw screen rendering
+// ---------------------------------------------------------------------------
+
 export interface ScreenState {
   /** Rows of clean text (no ANSI codes) */
   rows: string[];
@@ -242,4 +264,220 @@ function eraseTo(screen: string[][], endRow: number, endCol: number): void {
     for (let c = 0; c < screen[r].length; c++) screen[r][c] = " ";
   }
   for (let c = 0; c <= endCol; c++) screen[endRow][c] = " ";
+}
+
+// ---------------------------------------------------------------------------
+// Semantic screen analysis — post-process rendered rows to classify the
+// foreground application and decompose screen into content + status line.
+// ---------------------------------------------------------------------------
+
+/**
+ * Analyze rendered screen rows to detect the foreground terminal application,
+ * extract the status line, and separate content rows.
+ *
+ * Every mode detection requires ≥2 independent signals to avoid false positives.
+ *
+ * @param rows - Clean text rows from `renderScreen()` (no ANSI codes)
+ * @returns Semantic classification of the screen contents
+ */
+export function analyzeScreen(rows: string[]): ScreenAnalysis {
+  // Find the last non-empty row (candidate status line)
+  let statusIdx = -1;
+  let nonEmptyCount = 0;
+  for (let i = rows.length - 1; i >= 0; i--) {
+    if (rows[i].trim() !== "") {
+      if (statusIdx === -1) statusIdx = i;
+      nonEmptyCount++;
+    }
+  }
+
+  const statusLine: string | null = nonEmptyCount >= 2 && statusIdx >= 0 ? rows[statusIdx] : null;
+
+  // Build content rows: all rows except the status line (if present)
+  const contentRows: string[] = [];
+  for (let i = 0; i < rows.length; i++) {
+    if (statusIdx === i) continue;
+    contentRows.push(rows[i]);
+  }
+
+  // If no non-empty rows → unknown
+  if (nonEmptyCount === 0) {
+    return { terminal_mode: "unknown", status_line: null, content_rows: [] };
+  }
+
+  // ----- Vim detection (≥2 signals) -----
+  const vimResult = detectVim(rows, statusLine);
+  if (vimResult) {
+    return {
+      terminal_mode: "vim",
+      editor_mode: vimResult.editorMode,
+      status_line: statusLine,
+      content_rows: contentRows,
+    };
+  }
+
+  // ----- Nano detection (≥2 signals) -----
+  if (detectNano(rows)) {
+    return { terminal_mode: "nano", status_line: statusLine, content_rows: contentRows };
+  }
+
+  // ----- Htop detection (≥2 signals) -----
+  if (detectHtop(rows)) {
+    return { terminal_mode: "htop", status_line: statusLine, content_rows: contentRows };
+  }
+
+  // ----- Lazygit detection (≥2 signals) -----
+  if (detectLazygit(rows)) {
+    return { terminal_mode: "lazygit", status_line: statusLine, content_rows: contentRows };
+  }
+
+  // ----- Less detection (≥2 signals, but NOT if vim/nano matched) -----
+  if (detectLess(rows, statusLine)) {
+    return { terminal_mode: "less", status_line: statusLine, content_rows: contentRows };
+  }
+
+  // Default: shell
+  return { terminal_mode: "shell", status_line: statusLine, content_rows: contentRows };
+}
+
+/** Signal checkers — each requires ≥2 independent signals to return true. */
+
+function detectVim(rows: string[], statusLine: string | null): { editorMode: EditorMode } | null {
+  // Signal A: ≥2 rows starting with "~" in column 0 (tildes for vim empty lines)
+  let tildeCount = 0;
+  for (const row of rows) {
+    if (row.startsWith("~")) tildeCount++;
+  }
+  const hasTildes = tildeCount >= 2;
+
+  // Signal B: Status line matches vim patterns
+  if (!statusLine) return null;
+  const hasVimStatus = isVimStatusLine(statusLine);
+
+  if (!hasTildes || !hasVimStatus) return null;
+
+  // Determine editor mode from status line
+  const status = statusLine.toUpperCase();
+  let editorMode: EditorMode = "normal";
+  if (status.includes("-- INSERT --")) {
+    editorMode = "insert";
+  } else if (status.includes("-- REPLACE --")) {
+    editorMode = "replace";
+  } else if (status.includes("-- VISUAL")) {
+    // Matches both "-- VISUAL --" and "-- VISUAL LINE --"
+    editorMode = "visual";
+  }
+
+  return { editorMode };
+}
+
+/** Check if a row looks like a vim status line. */
+function isVimStatusLine(row: string): boolean {
+  const upper = row.toUpperCase();
+  // Explicit mode indicators
+  if (upper.includes("-- INSERT --")) return true;
+  if (upper.includes("-- REPLACE --")) return true;
+  if (upper.includes("-- VISUAL")) return true; // covers VISUAL LINE too
+  // File info pattern: "filename" 45L, 1200B
+  if (/"\S+"/.test(row)) return true;
+  return false;
+}
+
+function detectNano(rows: string[]): boolean {
+  // Signal A: Header row contains "GNU nano"
+  let hasHeader = false;
+  for (const row of rows) {
+    if (row.includes("GNU nano")) {
+      hasHeader = true;
+      break;
+    }
+  }
+
+  // Signal B: Bottom 2 rows contain nano help indicators
+  let hasHelpBar = false;
+  const lastTwo = rows.slice(-2);
+  for (const row of lastTwo) {
+    const upper = row.toUpperCase();
+    if (upper.includes("^G") || upper.includes("[ MODIFIED ]") || upper.includes("[ READ ONLY ]")) {
+      hasHelpBar = true;
+      break;
+    }
+  }
+
+  return hasHeader && hasHelpBar;
+}
+
+function detectHtop(rows: string[]): boolean {
+  // Look at first 6 rows for htop/top header patterns
+  const headerRows = rows.slice(0, Math.min(6, rows.length));
+  const headerText = headerRows.join("\n").toUpperCase();
+
+  // Signal A: Contains CPU or memory percentage info
+  const hasCpuMem =
+    headerText.includes("%CPU") ||
+    headerText.includes("CPU%") ||
+    headerText.includes("MEM%") ||
+    /\[\s*\d+\.?\d*%\]/.test(rows.slice(0, 3).join(""));
+
+  // Signal B: Contains "top -" or "htop" or memory/swap indicators
+  const hasSystemInfo =
+    headerText.includes("TOP -") ||
+    headerText.includes("HTOP") ||
+    headerText.includes("LOAD AVERAGE") ||
+    headerText.includes("MEM[") ||
+    headerText.includes("SWP[") ||
+    headerText.includes("UPTIME:");
+
+  return hasCpuMem && hasSystemInfo;
+}
+
+function detectLazygit(rows: string[]): boolean {
+  // Signal A: Unicode box-drawing characters OR explicit lazygit text
+  const boxChars = /[─│┌┐└┘├┤┬┴┼]/;
+  let hasBoxChars = false;
+  let hasLazygitText = false;
+  for (const row of rows) {
+    if (boxChars.test(row)) hasBoxChars = true;
+    if (row.toLowerCase().includes("lazygit")) hasLazygitText = true;
+  }
+  const signalA = hasBoxChars || hasLazygitText;
+
+  // Signal B: Recognizable lazygit panel headers or staged/unstaged content
+  const hasLazygitHeader = rows.some(
+    (row) =>
+      /\bStatus\b/i.test(row) ||
+      /\bFiles\b/i.test(row) ||
+      /\bBranches\b/i.test(row) ||
+      /\bStash\b/i.test(row) ||
+      /\bCommits\b/i.test(row) ||
+      /Staged changes/i.test(row) ||
+      /Unstaged changes/i.test(row),
+  );
+
+  return signalA && hasLazygitHeader;
+}
+
+function detectLess(rows: string[], statusLine: string | null): boolean {
+  const lastRow = rows[rows.length - 1] ?? "";
+  const lastRowUpper = lastRow.toUpperCase().trim();
+  const firstRow = rows[0] ?? "";
+
+  // Signal A: Bottom row has less prompt indicators
+  const hasBottomPrompt =
+    lastRowUpper === "(END)" ||
+    lastRowUpper === ":" ||
+    /^lines\s+\d+-\d+\/\d+/.test(firstRow.trim()) ||
+    /^lines\s+\d+-\d+/.test(firstRow.trim());
+
+  // Signal B: Content rows exist (non-empty) AND no editor TUI signatures
+  const nonEmptyRows = rows.filter((r) => r.trim() !== "");
+  const hasContent = nonEmptyRows.length >= 2;
+
+  // Must NOT match vim/nano patterns (less is a fallback)
+  const hasEditorSignatures =
+    rows.some((r) => r.startsWith("~")) ||
+    rows.some((r) => r.includes("GNU nano")) ||
+    (statusLine !== null && isVimStatusLine(statusLine));
+
+  return hasBottomPrompt && hasContent && !hasEditorSignatures;
 }
