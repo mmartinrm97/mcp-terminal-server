@@ -182,7 +182,7 @@ export class PTYSession {
     data: string;
     ended: boolean;
     exit_code: number | null;
-    position?: number;
+    position: number;
   } {
     if (typeof flushOrSince === "number") {
       const result = this.buffer.readAll(flushOrSince) as { data: string; position: number };
@@ -201,6 +201,7 @@ export class PTYSession {
     }
     return {
       data,
+      position: this.buffer.position,
       ended: this._ended,
       exit_code: this._exitCode,
     };
