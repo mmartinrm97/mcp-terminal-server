@@ -231,7 +231,7 @@ npm install -g terminalize
 ### Quick Setup
 
 ```bash
-# 1. Install the interactive-terminal skill for AI agents
+# 1. Install the terminalize skill for AI agents
 npx terminalize install-skills
 
 # 2. Add the MCP config to your agent (see below for examples)
@@ -480,7 +480,7 @@ Si probás en alguna de estas combinaciones, abrí un issue o PR con tus resulta
 
 - [x] Core: OutputBuffer, PTYSession, SessionManager
 - [x] MCP Server with 11 tools
-- [x] Agent skill (`interactive-terminal`) for OpenCode agents
+- [x] Agent skill (`terminalize`) for OpenCode agents
 - [x] npm publishing (v0.1.2+)
 - [x] Unit tests (161 tests)
 - [x] Integration tests with real executables (42 tests)

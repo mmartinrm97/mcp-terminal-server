@@ -5,7 +5,7 @@
  *
  * Usage:
  *   terminalize                  Start the MCP server (stdio transport)
- *   terminalize install-skills   Install the interactive-terminal agent skill
+ *   terminalize install-skills   Install the terminalize agent skill
  *   terminalize --help           Show help
  *   terminalize --version        Show version
  *
@@ -56,19 +56,19 @@ function parseEnvInt(envKey: string, defaultVal: number): number {
 // Skill installation path
 // ---------------------------------------------------------------------------
 
-/** Get the path of the interactive-terminal SKILL.md */
+/** Get the path of the terminalize SKILL.md */
 function getSkillPath(): string {
-  // When running from dist/, skills are at ../skills/interactive-terminal/SKILL.md
+  // When running from dist/, skills are at ../skills/terminalize/SKILL.md
   const distDir = dirname(fileURLToPath(import.meta.url));
   const projectRoot = join(distDir, "..");
-  const skillPath = join(projectRoot, "skills", "interactive-terminal", "SKILL.md");
+  const skillPath = join(projectRoot, "skills", "terminalize", "SKILL.md");
 
   if (existsSync(skillPath)) {
     return skillPath;
   }
 
   // Fallback: check cwd/skills
-  const cwdSkillPath = join(process.cwd(), "skills", "interactive-terminal", "SKILL.md");
+  const cwdSkillPath = join(process.cwd(), "skills", "terminalize", "SKILL.md");
   if (existsSync(cwdSkillPath)) {
     return cwdSkillPath;
   }
@@ -121,9 +121,9 @@ const ALL_AGENTS: AgentDef[] = [
  */
 function agentSkillsDir(agent: AgentDef, global: boolean, baseDir: string): string {
   if (!global && agent.universal) {
-    return join(baseDir, ".agents", "skills", "interactive-terminal");
+    return join(baseDir, ".agents", "skills", "terminalize");
   }
-  return join(baseDir, agent.configSubdir, "skills", "interactive-terminal");
+  return join(baseDir, agent.configSubdir, "skills", "terminalize");
 }
 
 /** Detect which agents have their config dir under a given base. */
@@ -152,15 +152,15 @@ function detectAgentsAt(baseDir: string, global: boolean): AgentDef[] {
   return ALL_AGENTS.filter((a) => existsSync(join(baseDir, a.configSubdir)));
 }
 
-/** Install the interactive-terminal skill for AI agents */
+/** Install the terminalize skill for AI agents */
 async function cmdInstallSkills(): Promise<void> {
-  p.intro("Interactive Terminal Skill Install");
+  p.intro("terminalize Skill Install");
 
   const skillPath = getSkillPath();
 
   if (!existsSync(skillPath)) {
     p.log.error(`Skill not found at ${skillPath}`);
-    p.log.info("Make sure skills/interactive-terminal/SKILL.md exists");
+    p.log.info("Make sure skills/terminalize/SKILL.md exists");
     process.exit(1);
   }
 
@@ -268,7 +268,7 @@ terminalize v${PKG_VERSION}
 
 Usage:
   terminalize                   Start MCP server (stdio transport)
-  terminalize install-skills    Install the interactive-terminal skill for AI agents
+  terminalize install-skills    Install the terminalize skill for AI agents
   terminalize --help            Show this help
   terminalize --version         Show version
 `);

@@ -13,7 +13,7 @@
 - ✅ 203 tests (161 unit + 42 integration)
 - ✅ Linter (oxlint) + formatter (oxfmt)
 - ✅ MIT License
-- ✅ interactive-terminal skill for AI agents
+- ✅ terminalize skill for AI agents
 
 ## v0.2 — Platform & Distribution
 

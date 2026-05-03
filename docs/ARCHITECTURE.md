@@ -526,7 +526,7 @@ If we later want this to be native in OpenCode (without MCP), the PR should:
    - `server.ts` MCP tools
    - `index.ts` entry point
 4. ⏳ **Test on 3 OS**: Windows, macOS, Linux
-5. ⏳ **Create agent skill**: `interactive-terminal` skill teaching agents to use these tools correctly
+5. ⏳ **Create agent skill**: `terminalize` skill teaching agents to use these tools correctly
 6. ⏳ **Publish**: npm package + opencode.json instructions
 
 ## References

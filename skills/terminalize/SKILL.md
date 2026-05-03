@@ -1,7 +1,7 @@
 ---
-name: interactive-terminal
+name: terminalize
 description: >
-  Use terminalize (MCP Terminal Server) to run interactive commands (npm init, gh pr create,
+  Use terminalize to run interactive commands (npm init, gh pr create,
   npx create-vite, psql, etc.) that require TUI navigation or multi-step input.
   Trigger: When running commands that wait for user input, display TUI menus,
   or require interactive responses (npm init, gh pr create, npx create-vite,
