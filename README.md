@@ -29,27 +29,31 @@ bash("npm init")  →  timeout ❌  (npm init is waiting for user input)
 
 An **MCP Server** that exposes a real pseudo-terminal (PTY) as MCP tools. The agent can create a session, write commands, read output until a pattern appears, and respond — **just like a human using a terminal**.
 
+![MCP Terminal Server flow diagram](https://mermaid.ink/img/Zmxvd2NoYXJ0IExSCiAgICBzdWJncmFwaCBBZ2VudFsiT3BlbkNvZGUgQWdlbnQiXQogICAgICAgIE9bT3JjaGVzdHJhdG9yIC8gU3ViLWFnZW50XQogICAgZW5kCiAgICBzdWJncmFwaCBTZXJ2ZXJbIk1DUCBUZXJtaW5hbCBTZXJ2ZXIiXQogICAgICAgIFNNW1Nlc3Npb24gTWFuYWdlcl0KICAgICAgICBPQltPdXRwdXQgQnVmZmVyPGJyLz5QYXR0ZXJuIE1hdGNoaW5nXQogICAgICAgIENXW0NsZWFudXAgV29ya2VyPGJyLz5UVEwgQXV0by1raWxsXQogICAgZW5kCiAgICBzdWJncmFwaCBTaGVsbFsiU2hlbGwiXQogICAgICAgIFNIW2Jhc2ggLyB6c2ggLyBwd3NoXQogICAgZW5kCiAgICBPIC0tICJNQ1AgUHJvdG9jb2w8YnIvPihzdGRpbyB0cmFuc3BvcnQpIiAtLT4gU00KICAgIFNNIC0tPiBPQgogICAgU00gLS0-IENXCiAgICBTTSAtLSAiUFRZIiAtLT4gU0g)
+
+<details>
+<summary>Diagram source (Mermaid)</summary>
+
 ```mermaid
 flowchart LR
     subgraph Agent["OpenCode Agent"]
         O[Orchestrator / Sub-agent]
     end
-
     subgraph Server["MCP Terminal Server"]
         SM[Session Manager]
         OB[Output Buffer<br/>Pattern Matching]
         CW[Cleanup Worker<br/>TTL Auto-kill]
     end
-
     subgraph Shell["Shell"]
         SH[bash / zsh / pwsh]
     end
-
     O -- "MCP Protocol<br/>(stdio transport)" --> SM
     SM --> OB
     SM --> CW
     SM -- "PTY" --> SH
 ```
+
+</details>
 
 ## MCP Tools
 
@@ -351,6 +355,11 @@ Delete the setup wizard. Instead, copy the relevant config block below:
 
 ## Architecture
 
+![Architecture diagram](https://mermaid.ink/img/Z3JhcGggVEQKICAgIEFHRU5UWyJPcGVuQ29kZSBBZ2VudDxici8-KG9yY2hlc3RyYXRvciAvIHN1Yi1hZ2VudCkiXQogICAgTUNQWyJNQ1AgUHJvdG9jb2w8YnIvPihzdGRpbyB0cmFuc3BvcnQpIl0KICAgIFRFUk1bIk1DUCBUZXJtaW5hbCBTZXJ2ZXIiXQogICAgU01bIlNlc3Npb24gTWFuYWdlciJdCiAgICBTMVsiU2Vzc2lvbiAxIChQVFkpIl0KICAgIFMyWyJTZXNzaW9uIDIgKFBUWSkiXQogICAgU05bIlNlc3Npb24gTiAoUFRZKSJdCiAgICBPQlsiT3V0cHV0IEJ1ZmZlcjxici8-UFRZIGRhdGEgZXZlbnRzIOKGkiBwYXR0ZXJuIG1hdGNoaW5nIl0KICAgIENXWyJDbGVhbnVwIFdvcmtlcjxici8-VFRMIHRpbWVvdXQg4oaSIGtpbGwgcHJvY2VzcyDihpIgZnJlZSByZXNvdXJjZXMiXQogICAgQUdFTlQgLS0-IE1DUAogICAgTUNQIC0tPiBURVJNCiAgICBURVJNIC0tPiBTTQogICAgU00gLS0-IFMxCiAgICBTTSAtLT4gUzIKICAgIFNNIC0tPiBTTgogICAgUzEgLS0-IE9CCiAgICBTMiAtLT4gT0IKICAgIFNOIC0tPiBPQgogICAgU00gLS0-IENX)
+
+<details>
+<summary>Diagram source (Mermaid)</summary>
+
 ```mermaid
 graph TD
     AGENT["OpenCode Agent<br/>(orchestrator / sub-agent)"]
@@ -374,6 +383,8 @@ graph TD
     SN --> OB
     SM --> CW
 ```
+
+</details>
 
 ### Components
 

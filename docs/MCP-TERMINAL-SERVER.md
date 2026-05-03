@@ -25,6 +25,11 @@ The agent uses its AI model to **interpret the output**, decide what to respond,
 
 ## Architecture
 
+![Architecture diagram](https://mermaid.ink/img/Z3JhcGggVEQKICAgIEFHRU5UWyJPcGVuQ29kZSBBZ2VudDxici8-KG9yY2hlc3RyYXRvciAvIHN1Yi1hZ2VudCkiXQogICAgTUNQWyJNQ1AgUHJvdG9jb2w8YnIvPihzdGRpbyB0cmFuc3BvcnQpIl0KICAgIFRFUk1bIk1DUCBUZXJtaW5hbCBTZXJ2ZXIiXQogICAgU01bIlNlc3Npb24gTWFuYWdlciJdCiAgICBTMVsiU2Vzc2lvbiAxIChQVFkpIl0KICAgIFMyWyJTZXNzaW9uIDIgKFBUWSkiXQogICAgU05bIlNlc3Npb24gTiAoUFRZKSJdCiAgICBPQlsiT3V0cHV0IEJ1ZmZlcjxici8-UFRZIGRhdGEgZXZlbnRzIOKGkiBwYXR0ZXJuIG1hdGNoaW5nIl0KICAgIENXWyJDbGVhbnVwIFdvcmtlcjxici8-VFRMIHRpbWVvdXQg4oaSIGtpbGwgcHJvY2VzcyDihpIgZnJlZSByZXNvdXJjZXMiXQogICAgQUdFTlQgLS0-IE1DUAogICAgTUNQIC0tPiBURVJNCiAgICBURVJNIC0tPiBTTQogICAgU00gLS0-IFMxCiAgICBTTSAtLT4gUzIKICAgIFNNIC0tPiBTTgogICAgUzEgLS0-IE9CCiAgICBTMiAtLT4gT0IKICAgIFNOIC0tPiBPQgogICAgU00gLS0-IENX)
+
+<details>
+<summary>Diagram source (Mermaid)</summary>
+
 ```mermaid
 graph TD
     AGENT["OpenCode Agent<br/>(orchestrator / sub-agent)"]
@@ -48,6 +53,8 @@ graph TD
     SN --> OB
     SM --> CW
 ```
+
+</details>
 
 ## MCP Tools
 
@@ -450,23 +457,28 @@ packages/terminalize/
 
 ### Internal Flow Diagram (pty-session.ts)
 
+![Internal PTY flow diagram](https://mermaid.ink/img/Z3JhcGggTFIKICAgIHN1YmdyYXBoIFBUWVNlc3Npb24KICAgICAgICBOUFtub2RlLXB0eTxici8-Y2hpbGQgcHJvY2Vzc10KICAgICAgICBPQltPdXRwdXRCdWZmZXI8YnIvPmFjY3VtdWxhdGUgKyBGSUZPXQogICAgZW5kCiAgICBOUCAtLSAiLm9uKCdkYXRhJykiIC0tPiBPQgogICAgTlAgLS0gIi53cml0ZShkYXRhKSIgLS0-IFBUWVNlc3Npb24KICAgIE5QIC0tICIucmVzaXplKCkiIC0tPiBQVFlTZXNzaW9uCiAgICBOUCAtLSAiLmtpbGwoKSIgLS0-IFBUWVNlc3Npb24KICAgIE9CIC0tICIuYXBwZW5kKGNodW5rKSIgLS0-IE9CCiAgICBPQiAtLSAiLnJlYWRVbnRpbChwYXR0ZXJuKSIgLS0-IFBUWVNlc3Npb24KICAgIE9CIC0tICIucmVhZEFsbCgpIiAtLT4gUFRZU2Vzc2lvbgogICAgT0IgLS0gIi5jbGVhcigpIiAtLT4gUFRZU2Vzc2lvbg)
+
+<details>
+<summary>Diagram source (Mermaid)</summary>
+
 ```mermaid
 graph LR
     subgraph PTYSession
         NP[node-pty<br/>child process]
         OB[OutputBuffer<br/>accumulate + FIFO]
     end
-
     NP -- ".on('data')" --> OB
     NP -- ".write(data)" --> PTYSession
     NP -- ".resize()" --> PTYSession
     NP -- ".kill()" --> PTYSession
-
     OB -- ".append(chunk)" --> OB
     OB -- ".readUntil(pattern)" --> PTYSession
     OB -- ".readAll()" --> PTYSession
     OB -- ".clear()" --> PTYSession
 ```
+
+</details>
 
 ### Security Considerations
 
