@@ -453,25 +453,22 @@ pnpm test
 
 terminalize gives your agent a real **text-based** PTY. While powerful, there are important limits:
 
-| Situation                                     | Funciona?   | Detalle                                                                                        |
-| --------------------------------------------- | ----------- | ---------------------------------------------------------------------------------------------- |
-| `npm init`, `gh pr create`, `npx create-vite` | ✅ Perfecto | Prompts de texto, el agente responde                                                           |
-| `pnpm publish`, `npm test`                    | ✅ Perfecto | Comandos que muestran output                                                                   |
-| `psql`, `sqlite3`                             | ✅ Perfecto | CLIs con prompts                                                                               |
-| `htop`, `top`                                 | ⚠️ Parcial  | Muestrea el output, no pantalla completa                                                       |
-| `vim`, `nano`, `helix`                        | ⚠️ Limitado | El agente manda teclas, pero editar es lento y propenso a errores. `terminal_screenshot` ayuda |
-| `lazygit`, `lazydocker`                       | ⚠️ Limitado | Navegación por TUI posible, pero tosco                                                         |
-| TUIs con mouse                                | ❌ No       | El MCP no expone eventos de mouse                                                              |
-| UI gráficas / navegador                       | ❌ No       | Solo terminal                                                                                  |
+| Situation                                     | Funciona?   | Detalle                                                                                  |
+| --------------------------------------------- | ----------- | ---------------------------------------------------------------------------------------- |
+| `npm init`, `gh pr create`, `npx create-vite` | ✅ Perfecto | Prompts de texto, el agente responde                                                     |
+| `pnpm publish`, `npm test`                    | ✅ Perfecto | Comandos que muestran output                                                             |
+| `psql`, `sqlite3`                             | ✅ Perfecto | CLIs con prompts                                                                         |
+| `htop`, `top`                                 | ⚠️ Parcial  | Muestrea el output, no pantalla completa                                                 |
+| `vim`, `nano`, `helix`                        | ⚠️ Limited  | Agent sends keystrokes, but editing is slow and error-prone. `terminal_screenshot` helps |
 
-### Tester vs developer
+### Tested platforms
 
-Esto se ha probado principalmente en **Windows (ConPTY)** con **OpenCode**. Aún no se ha probado en producción en:
+This has been tested primarily on **Windows (ConPTY)** with **OpenCode**. Not yet tested in production on:
 
-- **Plataformas**: ✅ Windows | ⬜ Linux | ⬜ macOS
-- **Agentes**: ✅ OpenCode | ⬜ Claude Code | ⬜ Cursor | ⬜ Gemini CLI | ⬜ Windsurf | ⬜ Kiro CLI
+- **Platforms**: ✅ Windows | ⬜ Linux | ⬜ macOS
+- **Agents**: ✅ OpenCode | ⬜ Claude Code | ⬜ Cursor | ⬜ Gemini CLI | ⬜ Windsurf | ⬜ Kiro CLI
 
-Si probás en alguna de estas combinaciones, abrí un issue o PR con tus resultados.
+If you test on any of these combinations, open an issue or PR with your results.
 
 ## Security
 
