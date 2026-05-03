@@ -10,7 +10,7 @@
 - ✅ Signal handling (`terminal_send_signal`)
 - ✅ Session labels for multi-agent flows
 - ✅ Health check (`terminal_ping`)
-- ✅ 203 tests (161 unit + 42 integration)
+- ✅ 235 tests (193 unit + 42 integration)
 - ✅ Linter (oxlint) + formatter (oxfmt)
 - ✅ MIT License
 - ✅ terminalize skill for AI agents

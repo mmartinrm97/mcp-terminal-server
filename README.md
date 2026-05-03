@@ -5,7 +5,7 @@
 ![License](https://img.shields.io/badge/license-MIT-blue)
 [![MCP SDK](https://img.shields.io/badge/MCP%20SDK-1.9.0-blueviolet)](https://spec.modelcontextprotocol.io)
 [![node-pty](https://img.shields.io/badge/node--pty-1.0-FF6C37)](https://github.com/microsoft/node-pty)
-![Tests](https://img.shields.io/badge/tests-203%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-235%20passing-brightgreen)
 ![Build](https://img.shields.io/badge/build-passing-brightgreen)
 [![npm](https://img.shields.io/npm/v/terminalize?color=red)](https://www.npmjs.com/package/terminalize)
 
@@ -446,7 +446,7 @@ pnpm test
   ✓ test/integration/mcp-server.int.test.ts      (11 tests)
 
  Test Files  14 passed (14)
-      Tests  203 passed (203)
+      Tests  235 passed (235)
 ```
 
 ## Limitations
