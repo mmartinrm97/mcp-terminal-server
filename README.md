@@ -3,7 +3,7 @@
 ![Node.js](https://img.shields.io/badge/node.js-22%2B-339933?logo=node.js&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/typescript-5.8%2B-3178C6?logo=typescript&logoColor=white)
 ![License](https://img.shields.io/badge/license-MIT-blue)
-[![MCP SDK](https://img.shields.io/badge/MCP%20SDK-1.9.0-blueviolet)](https://spec.modelcontextprotocol.io)
+[![MCP SDK](https://img.shields.io/badge/MCP%20SDK-1.29-blueviolet)](https://spec.modelcontextprotocol.io)
 [![node-pty](https://img.shields.io/badge/node--pty-1.0-FF6C37)](https://github.com/microsoft/node-pty)
 ![Tests](https://img.shields.io/badge/tests-305%20passing-brightgreen)
 ![Build](https://img.shields.io/badge/build-passing-brightgreen)
