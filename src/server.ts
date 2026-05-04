@@ -1,12 +1,6 @@
-import { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import {
-  ListToolsRequestSchema,
-  CallToolRequestSchema,
-  ListResourcesRequestSchema,
-  ReadResourceRequestSchema,
-  McpError,
-  ErrorCode,
-} from "@modelcontextprotocol/sdk/types.js";
+import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { McpError, ErrorCode } from "@modelcontextprotocol/sdk/types.js";
+import * as z from "zod";
 
 import type { SessionManager } from "./core/session-manager.js";
 import { SessionNotFoundError, SessionLimitError, ReadTimeoutError } from "./types.js";
@@ -26,7 +20,286 @@ import type {
 const SERVER_START_TIME = Date.now();
 
 // ---------------------------------------------------------------------------
-// Tool definitions
+// Helper
+// ---------------------------------------------------------------------------
+
+/** Return a JSON string as an MCP text content item. */
+function textContent(data: unknown): { type: "text"; text: string } {
+  return { type: "text" as const, text: JSON.stringify(data) };
+}
+
+/** Build an MCP error response for tool calls (isError: true). */
+function toolError(message: string) {
+  return {
+    content: [textContent({ error: message })],
+    isError: true as const,
+  };
+}
+
+/** Get a session or return an error tool response. */
+function getSessionOrError(
+  sm: SessionManager,
+  id: string,
+): { session: ReturnType<SessionManager["getSession"]>; error: string | null } {
+  try {
+    return { session: sm.getSession(id), error: null };
+  } catch (err) {
+    if (err instanceof SessionNotFoundError) {
+      return { session: null as any, error: err.message };
+    }
+    throw err;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Exported handler functions (testable pure functions)
+// ---------------------------------------------------------------------------
+
+export async function handleListTools() {
+  return { tools: TOOL_DEFINITIONS };
+}
+
+// ---------------------------------------------------------------------------
+// Individual tool handlers — extracted to reduce cognitive complexity
+// ---------------------------------------------------------------------------
+
+async function handleCreateSessionTool(
+  sm: SessionManager,
+  args: Record<string, unknown>,
+): Promise<{ content: Array<{ type: "text"; text: string }>; isError?: boolean }> {
+  try {
+    const info = await sm.createSession({
+      id: args.id as string | undefined,
+      label: args.label as string | undefined,
+      shell: args.shell as SessionConfig["shell"],
+      cwd: args.cwd as string | undefined,
+      cols: args.cols as number | undefined,
+      rows: args.rows as number | undefined,
+      env: args.env as Record<string, string> | undefined,
+    });
+    return { content: [textContent(info)] };
+  } catch (err) {
+    if (err instanceof SessionLimitError) {
+      return toolError(err.message);
+    }
+    throw err;
+  }
+}
+
+function handleWriteTool(
+  sm: SessionManager,
+  args: Record<string, unknown>,
+): { content: Array<{ type: "text"; text: string }>; isError?: boolean } {
+  const id = args.id as string | undefined;
+  const data = args.data as string | undefined;
+
+  if (!id || typeof id !== "string") {
+    throw new McpError(ErrorCode.InvalidParams, "Missing required parameter: id");
+  }
+  if (typeof data !== "string") {
+    throw new McpError(ErrorCode.InvalidParams, "Missing required parameter: data");
+  }
+
+  const s = getSessionOrError(sm, id);
+  if (s.error) return toolError(s.error);
+
+  const bytesWritten = s.session.write(data);
+  const result: WriteResult = { ok: true, bytes_written: bytesWritten };
+  return { content: [textContent(result)] };
+}
+
+function handleReadTool(
+  sm: SessionManager,
+  args: Record<string, unknown>,
+): { content: Array<{ type: "text"; text: string }>; isError?: boolean } {
+  const id = args.id as string | undefined;
+  if (!id || typeof id !== "string") {
+    throw new McpError(ErrorCode.InvalidParams, "Missing required parameter: id");
+  }
+
+  const s = getSessionOrError(sm, id);
+  if (s.error) return toolError(s.error);
+
+  const since = typeof args.since === "number" ? args.since : undefined;
+  const flush = typeof args.flush === "boolean" ? args.flush : undefined;
+
+  if (since !== undefined) {
+    const result: ReadResult = s.session.read(since);
+    return { content: [textContent(result)] };
+  }
+
+  const result: ReadResult = s.session.read(flush);
+  return { content: [textContent(result)] };
+}
+
+function handleTailTool(
+  sm: SessionManager,
+  args: Record<string, unknown>,
+): { content: Array<{ type: "text"; text: string }>; isError?: boolean } {
+  const id = args.id as string | undefined;
+  if (!id || typeof id !== "string") {
+    throw new McpError(ErrorCode.InvalidParams, "Missing required parameter: id");
+  }
+
+  const s = getSessionOrError(sm, id);
+  if (s.error) return toolError(s.error);
+
+  const lines = typeof args.lines === "number" ? args.lines : 20;
+  const result: TailResult = s.session.tail(lines);
+  return { content: [textContent(result)] };
+}
+
+async function handleReadUntilTool(
+  sm: SessionManager,
+  args: Record<string, unknown>,
+): Promise<{ content: Array<{ type: "text"; text: string }>; isError?: boolean }> {
+  const id = args.id as string | undefined;
+  const pattern = args.pattern as string | undefined;
+
+  if (!id || typeof id !== "string") {
+    throw new McpError(ErrorCode.InvalidParams, "Missing required parameter: id");
+  }
+  if (!pattern || typeof pattern !== "string") {
+    throw new McpError(ErrorCode.InvalidParams, "Missing required parameter: pattern");
+  }
+
+  const s = getSessionOrError(sm, id);
+  if (s.error) return toolError(s.error);
+
+  const timeoutMs = typeof args.timeout_ms === "number" ? args.timeout_ms : undefined;
+  const stripAnsi = typeof args.strip_ansi === "boolean" ? args.strip_ansi : undefined;
+
+  try {
+    const raw = await s.session.readUntil(pattern, timeoutMs, stripAnsi);
+    const result: ReadUntilResult = {
+      data: raw.data,
+      full_output: raw.fullOutput,
+      matched: raw.matched,
+      ended: raw.ended,
+      exit_code: raw.exit_code,
+      timed_out: raw.timed_out,
+    };
+    return { content: [textContent(result)] };
+  } catch (err) {
+    if (err instanceof ReadTimeoutError) {
+      const result: ReadUntilResult = {
+        data: err.partialData,
+        full_output: "",
+        matched: null,
+        ended: false,
+        exit_code: null,
+        timed_out: true,
+      };
+      return { content: [textContent(result)] };
+    }
+    throw err;
+  }
+}
+
+function handleResizeTool(
+  sm: SessionManager,
+  args: Record<string, unknown>,
+): { content: Array<{ type: "text"; text: string }>; isError?: boolean } {
+  const id = args.id as string | undefined;
+  const cols = args.cols as number | undefined;
+  const rows = args.rows as number | undefined;
+
+  if (!id || typeof id !== "string") {
+    throw new McpError(ErrorCode.InvalidParams, "Missing required parameter: id");
+  }
+  if (typeof cols !== "number" || typeof rows !== "number") {
+    throw new McpError(ErrorCode.InvalidParams, "Missing required parameters: cols and rows");
+  }
+
+  const s = getSessionOrError(sm, id);
+  if (s.error) return toolError(s.error);
+
+  s.session.resize(cols, rows);
+  return { content: [textContent({ cols, rows })] };
+}
+
+function handleSendSignalTool(
+  sm: SessionManager,
+  args: Record<string, unknown>,
+): { content: Array<{ type: "text"; text: string }>; isError?: boolean } {
+  const id = args.id as string | undefined;
+  const signal = args.signal as string | undefined;
+
+  if (!id || typeof id !== "string") {
+    throw new McpError(ErrorCode.InvalidParams, "Missing required parameter: id");
+  }
+  if (!signal || typeof signal !== "string") {
+    throw new McpError(ErrorCode.InvalidParams, "Missing required parameter: signal");
+  }
+
+  const s = getSessionOrError(sm, id);
+  if (s.error) return toolError(s.error);
+
+  try {
+    s.session.sendSignal(signal);
+    return { content: [textContent({ ok: true, signal })] };
+  } catch (err) {
+    return toolError((err as Error).message);
+  }
+}
+
+function handlePingTool(sm: SessionManager) {
+  const sessions = sm.activeCount;
+  const uptime = Date.now() - SERVER_START_TIME;
+  const result: PingResult = {
+    ok: true,
+    sessions,
+    uptime_ms: uptime,
+    version: PKG_VERSION,
+  };
+  return { content: [textContent(result)] };
+}
+
+function handleScreenshotTool(
+  sm: SessionManager,
+  args: Record<string, unknown>,
+): { content: Array<{ type: "text"; text: string }>; isError?: boolean } {
+  const id = args.id as string | undefined;
+  if (!id || typeof id !== "string") {
+    throw new McpError(ErrorCode.InvalidParams, "Missing required parameter: id");
+  }
+
+  const s = getSessionOrError(sm, id);
+  if (s.error) return toolError(s.error);
+
+  const result: ScreenshotResult = s.session.screenshot();
+  return { content: [textContent(result)] };
+}
+
+function handleListSessionsTool(sm: SessionManager) {
+  const sessions = sm.listSessions();
+  return { content: [textContent({ sessions })] };
+}
+
+function handleCloseSessionTool(
+  sm: SessionManager,
+  args: Record<string, unknown>,
+): { content: Array<{ type: "text"; text: string }>; isError?: boolean } {
+  const id = args.id as string | undefined;
+  if (!id || typeof id !== "string") {
+    throw new McpError(ErrorCode.InvalidParams, "Missing required parameter: id");
+  }
+
+  const force = typeof args.force === "boolean" ? args.force : false;
+
+  try {
+    const exitCode = sm.closeSession(id, force);
+    return { content: [textContent({ ok: true, exit_code: exitCode })] };
+  } catch (err) {
+    if (err instanceof SessionNotFoundError) {
+      return toolError(err.message);
+    }
+    throw err;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Tool definitions (for testing and McpServer registration)
 // ---------------------------------------------------------------------------
 
 const TOOL_DEFINITIONS = [
@@ -238,7 +511,12 @@ const TOOL_DEFINITIONS = [
 // Resource definitions
 // ---------------------------------------------------------------------------
 
-const RESOURCE_DEFINITIONS = [
+const RESOURCE_DEFINITIONS: Array<{
+  uri: string;
+  name: string;
+  description: string;
+  mimeType: string;
+}> = [
   {
     uri: "terminal://sessions",
     name: "Active Sessions",
@@ -260,44 +538,8 @@ const RESOURCE_DEFINITIONS = [
 ];
 
 // ---------------------------------------------------------------------------
-// Helper
+// handleCallTool — dispatch to individual handlers (used by tests)
 // ---------------------------------------------------------------------------
-
-/** Return a JSON string as an MCP text content item. */
-function textContent(data: unknown): { type: "text"; text: string } {
-  return { type: "text" as const, text: JSON.stringify(data) };
-}
-
-/** Build an MCP error response for tool calls (isError: true). */
-function toolError(message: string) {
-  return {
-    content: [textContent({ error: message })],
-    isError: true as const,
-  };
-}
-
-/** Get a session or return an error tool response. */
-function getSessionOrError(
-  sm: SessionManager,
-  id: string,
-): { session: ReturnType<SessionManager["getSession"]>; error: string | null } {
-  try {
-    return { session: sm.getSession(id), error: null };
-  } catch (err) {
-    if (err instanceof SessionNotFoundError) {
-      return { session: null as any, error: err.message };
-    }
-    throw err;
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Exported handler functions (testable pure functions)
-// ---------------------------------------------------------------------------
-
-export async function handleListTools() {
-  return { tools: TOOL_DEFINITIONS };
-}
 
 export async function handleCallTool(
   sm: SessionManager,
@@ -306,226 +548,28 @@ export async function handleCallTool(
   const { name, arguments: args = {} } = params;
 
   switch (name) {
-    // ---- terminal_create_session ----
-    case "terminal_create_session": {
-      try {
-        const info = await sm.createSession({
-          id: args.id as string | undefined,
-          label: args.label as string | undefined,
-          shell: args.shell as SessionConfig["shell"],
-          cwd: args.cwd as string | undefined,
-          cols: args.cols as number | undefined,
-          rows: args.rows as number | undefined,
-          env: args.env as Record<string, string> | undefined,
-        });
-        return { content: [textContent(info)] };
-      } catch (err) {
-        if (err instanceof SessionLimitError) {
-          return toolError(err.message);
-        }
-        throw err;
-      }
-    }
-
-    // ---- terminal_write ----
-    case "terminal_write": {
-      const id = args.id as string | undefined;
-      const data = args.data as string | undefined;
-
-      if (!id || typeof id !== "string") {
-        throw new McpError(ErrorCode.InvalidParams, "Missing required parameter: id");
-      }
-      if (typeof data !== "string") {
-        throw new McpError(ErrorCode.InvalidParams, "Missing required parameter: data");
-      }
-
-      const s = getSessionOrError(sm, id);
-      if (s.error) return toolError(s.error);
-
-      const bytesWritten = s.session.write(data);
-      const result: WriteResult = { ok: true, bytes_written: bytesWritten };
-      return { content: [textContent(result)] };
-    }
-
-    // ---- terminal_read ----
-    case "terminal_read": {
-      const id = args.id as string | undefined;
-      if (!id || typeof id !== "string") {
-        throw new McpError(ErrorCode.InvalidParams, "Missing required parameter: id");
-      }
-
-      const s = getSessionOrError(sm, id);
-      if (s.error) return toolError(s.error);
-
-      const since = typeof args.since === "number" ? args.since : undefined;
-      const flush = typeof args.flush === "boolean" ? args.flush : undefined;
-
-      if (since !== undefined) {
-        const result: ReadResult = s.session.read(since);
-        return { content: [textContent(result)] };
-      }
-
-      const result: ReadResult = s.session.read(flush);
-      return { content: [textContent(result)] };
-    }
-
-    // ---- terminal_tail ----
-    case "terminal_tail": {
-      const id = args.id as string | undefined;
-      if (!id || typeof id !== "string") {
-        throw new McpError(ErrorCode.InvalidParams, "Missing required parameter: id");
-      }
-
-      const s = getSessionOrError(sm, id);
-      if (s.error) return toolError(s.error);
-
-      const lines = typeof args.lines === "number" ? args.lines : 20;
-      const result: TailResult = s.session.tail(lines);
-      return { content: [textContent(result)] };
-    }
-
-    // ---- terminal_read_until ----
-    case "terminal_read_until": {
-      const id = args.id as string | undefined;
-      const pattern = args.pattern as string | undefined;
-
-      if (!id || typeof id !== "string") {
-        throw new McpError(ErrorCode.InvalidParams, "Missing required parameter: id");
-      }
-      if (!pattern || typeof pattern !== "string") {
-        throw new McpError(ErrorCode.InvalidParams, "Missing required parameter: pattern");
-      }
-
-      const s = getSessionOrError(sm, id);
-      if (s.error) return toolError(s.error);
-
-      const timeoutMs = typeof args.timeout_ms === "number" ? args.timeout_ms : undefined;
-      const stripAnsi = typeof args.strip_ansi === "boolean" ? args.strip_ansi : undefined;
-
-      try {
-        const raw = await s.session.readUntil(pattern, timeoutMs, stripAnsi);
-        const result: ReadUntilResult = {
-          data: raw.data,
-          full_output: raw.fullOutput,
-          matched: raw.matched,
-          ended: raw.ended,
-          exit_code: raw.exit_code,
-          timed_out: raw.timed_out,
-        };
-        return { content: [textContent(result)] };
-      } catch (err) {
-        if (err instanceof ReadTimeoutError) {
-          const result: ReadUntilResult = {
-            data: err.partialData,
-            full_output: "",
-            matched: null,
-            ended: false,
-            exit_code: null,
-            timed_out: true,
-          };
-          return { content: [textContent(result)] };
-        }
-        throw err;
-      }
-    }
-
-    // ---- terminal_resize ----
-    case "terminal_resize": {
-      const id = args.id as string | undefined;
-      const cols = args.cols as number | undefined;
-      const rows = args.rows as number | undefined;
-
-      if (!id || typeof id !== "string") {
-        throw new McpError(ErrorCode.InvalidParams, "Missing required parameter: id");
-      }
-      if (typeof cols !== "number" || typeof rows !== "number") {
-        throw new McpError(ErrorCode.InvalidParams, "Missing required parameters: cols and rows");
-      }
-
-      const s = getSessionOrError(sm, id);
-      if (s.error) return toolError(s.error);
-
-      s.session.resize(cols, rows);
-      return { content: [textContent({ cols, rows })] };
-    }
-
-    // ---- terminal_send_signal ----
-    case "terminal_send_signal": {
-      const id = args.id as string | undefined;
-      const signal = args.signal as string | undefined;
-
-      if (!id || typeof id !== "string") {
-        throw new McpError(ErrorCode.InvalidParams, "Missing required parameter: id");
-      }
-      if (!signal || typeof signal !== "string") {
-        throw new McpError(ErrorCode.InvalidParams, "Missing required parameter: signal");
-      }
-
-      const s = getSessionOrError(sm, id);
-      if (s.error) return toolError(s.error);
-
-      try {
-        s.session.sendSignal(signal);
-        return { content: [textContent({ ok: true, signal })] };
-      } catch (err) {
-        return toolError((err as Error).message);
-      }
-    }
-
-    // ---- terminal_ping ----
-    case "terminal_ping": {
-      const sessions = sm.activeCount;
-      const uptime = Date.now() - SERVER_START_TIME;
-      const result: PingResult = {
-        ok: true,
-        sessions,
-        uptime_ms: uptime,
-        version: PKG_VERSION,
-      };
-      return { content: [textContent(result)] };
-    }
-
-    // ---- terminal_screenshot ----
-    case "terminal_screenshot": {
-      const id = args.id as string | undefined;
-      if (!id || typeof id !== "string") {
-        throw new McpError(ErrorCode.InvalidParams, "Missing required parameter: id");
-      }
-
-      const s = getSessionOrError(sm, id);
-      if (s.error) return toolError(s.error);
-
-      const result: ScreenshotResult = s.session.screenshot();
-      return { content: [textContent(result)] };
-    }
-
-    // ---- terminal_list_sessions ----
-    case "terminal_list_sessions": {
-      const sessions = sm.listSessions();
-      return { content: [textContent({ sessions })] };
-    }
-
-    // ---- terminal_close_session ----
-    case "terminal_close_session": {
-      const id = args.id as string | undefined;
-      if (!id || typeof id !== "string") {
-        throw new McpError(ErrorCode.InvalidParams, "Missing required parameter: id");
-      }
-
-      const force = typeof args.force === "boolean" ? args.force : false;
-
-      try {
-        const exitCode = sm.closeSession(id, force);
-        return { content: [textContent({ ok: true, exit_code: exitCode })] };
-      } catch (err) {
-        if (err instanceof SessionNotFoundError) {
-          return toolError(err.message);
-        }
-        throw err;
-      }
-    }
-
-    // ---- unknown ----
+    case "terminal_create_session":
+      return handleCreateSessionTool(sm, args);
+    case "terminal_write":
+      return handleWriteTool(sm, args);
+    case "terminal_read":
+      return handleReadTool(sm, args);
+    case "terminal_tail":
+      return handleTailTool(sm, args);
+    case "terminal_read_until":
+      return handleReadUntilTool(sm, args);
+    case "terminal_resize":
+      return handleResizeTool(sm, args);
+    case "terminal_send_signal":
+      return handleSendSignalTool(sm, args);
+    case "terminal_ping":
+      return handlePingTool(sm);
+    case "terminal_screenshot":
+      return handleScreenshotTool(sm, args);
+    case "terminal_list_sessions":
+      return handleListSessionsTool(sm);
+    case "terminal_close_session":
+      return handleCloseSessionTool(sm, args);
     default:
       return toolError(`Unknown tool: ${name}`);
   }
@@ -541,57 +585,32 @@ export async function handleReadResource(
 ): Promise<{ contents: Array<{ uri: string; mimeType: string; text: string }> }> {
   const { uri } = params;
 
-  // terminal://sessions — list all sessions
   if (uri === "terminal://sessions") {
     const sessions = sm.listSessions();
     return {
-      contents: [
-        {
-          uri,
-          mimeType: "application/json",
-          text: JSON.stringify(sessions),
-        },
-      ],
+      contents: [{ uri, mimeType: "application/json", text: JSON.stringify(sessions) }],
     };
   }
 
-  // terminal://sessions/{id}/buffer
-  const bufferMatch = uri.match(/^terminal:\/\/sessions\/(.+)\/buffer$/);
+  const bufferMatch = /^terminal:\/\/sessions\/(.+)\/buffer$/.exec(uri);
   if (bufferMatch) {
     const id = bufferMatch[1];
     const s = getSessionOrError(sm, id);
-    if (s.error) {
-      throw new McpError(ErrorCode.InvalidRequest, s.error);
-    }
+    if (s.error) throw new McpError(ErrorCode.InvalidRequest, s.error);
     const readResult: ReadResult = s.session.read(false);
     return {
-      contents: [
-        {
-          uri,
-          mimeType: "application/json",
-          text: JSON.stringify(readResult),
-        },
-      ],
+      contents: [{ uri, mimeType: "application/json", text: JSON.stringify(readResult) }],
     };
   }
 
-  // terminal://sessions/{id}/status
-  const statusMatch = uri.match(/^terminal:\/\/sessions\/(.+)\/status$/);
+  const statusMatch = /^terminal:\/\/sessions\/(.+)\/status$/.exec(uri);
   if (statusMatch) {
     const id = statusMatch[1];
     const s = getSessionOrError(sm, id);
-    if (s.error) {
-      throw new McpError(ErrorCode.InvalidRequest, s.error);
-    }
+    if (s.error) throw new McpError(ErrorCode.InvalidRequest, s.error);
     const info: SessionInfo = s.session.getInfo();
     return {
-      contents: [
-        {
-          uri,
-          mimeType: "application/json",
-          text: JSON.stringify(info),
-        },
-      ],
+      contents: [{ uri, mimeType: "application/json", text: JSON.stringify(info) }],
     };
   }
 
@@ -599,46 +618,110 @@ export async function handleReadResource(
 }
 
 // ---------------------------------------------------------------------------
-// createTerminalServer — wires SDK Server with handlers
+// createTerminalServer — wires McpServer with tools and resources
 // ---------------------------------------------------------------------------
 
-export function createTerminalServer(sessionManager: SessionManager): Server {
-  const server = new Server(
-    {
-      name: "terminalize",
-      version: PKG_VERSION,
-    },
-    {
-      capabilities: {
-        tools: {},
-        resources: {},
+export function createTerminalServer(sessionManager: SessionManager): McpServer {
+  const server = new McpServer(
+    { name: "terminalize", version: PKG_VERSION },
+    { capabilities: { tools: {}, resources: {} } },
+  );
+
+  // Register each tool via Zod-validated schemas
+  const handlers: Record<string, (args: Record<string, unknown>) => any> = {
+    terminal_create_session: (a) => handleCreateSessionTool(sessionManager, a),
+    terminal_write: (a) => handleWriteTool(sessionManager, a),
+    terminal_read: (a) => handleReadTool(sessionManager, a),
+    terminal_tail: (a) => handleTailTool(sessionManager, a),
+    terminal_read_until: (a) => handleReadUntilTool(sessionManager, a),
+    terminal_resize: (a) => handleResizeTool(sessionManager, a),
+    terminal_send_signal: (a) => handleSendSignalTool(sessionManager, a),
+    terminal_ping: () => handlePingTool(sessionManager),
+    terminal_screenshot: (a) => handleScreenshotTool(sessionManager, a),
+    terminal_list_sessions: () => handleListSessionsTool(sessionManager),
+    terminal_close_session: (a) => handleCloseSessionTool(sessionManager, a),
+  };
+
+  for (const def of TOOL_DEFINITIONS) {
+    const handler = handlers[def.name];
+    if (!handler) continue;
+    const zodSchema = z.fromJSONSchema(def.inputSchema as any);
+    server.registerTool(
+      def.name,
+      {
+        description: def.description,
+        inputSchema: zodSchema,
       },
+      async (args: any) => handler(args ?? {}),
+    );
+  }
+
+  // Static resource: session list
+  server.registerResource(
+    "Active Sessions",
+    "terminal://sessions",
+    {
+      description: "JSON list of all active terminal sessions.",
+      mimeType: "application/json",
+    },
+    async (uri) => ({
+      contents: [
+        {
+          uri: uri.toString(),
+          mimeType: "application/json",
+          text: JSON.stringify(sessionManager.listSessions()),
+        },
+      ],
+    }),
+  );
+
+  // Resource template: session buffer
+  server.registerResource(
+    "Session Buffer",
+    new ResourceTemplate("terminal://sessions/{id}/buffer", { list: undefined }),
+    {
+      description: "Full buffer contents of a specific terminal session.",
+      mimeType: "application/json",
+    },
+    async (uri, variables) => {
+      const id = variables.id as string;
+      const s = getSessionOrError(sessionManager, id);
+      if (s.error) throw new McpError(ErrorCode.InvalidRequest, s.error);
+      return {
+        contents: [
+          {
+            uri: uri.toString(),
+            mimeType: "application/json",
+            text: JSON.stringify(s.session.read(false)),
+          },
+        ],
+      };
     },
   );
 
-  // List tools
-  server.setRequestHandler(ListToolsRequestSchema, async () => {
-    return handleListTools();
-  });
-
-  // Call tool
-  server.setRequestHandler(CallToolRequestSchema, async (request) => {
-    const { name, arguments: args } = request.params;
-    return handleCallTool(sessionManager, {
-      name,
-      arguments: args,
-    });
-  });
-
-  // List resources
-  server.setRequestHandler(ListResourcesRequestSchema, async () => {
-    return handleListResources();
-  });
-
-  // Read resource
-  server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
-    return handleReadResource(sessionManager, { uri: request.params.uri });
-  });
+  // Resource template: session status
+  server.registerResource(
+    "Session Status",
+    new ResourceTemplate("terminal://sessions/{id}/status", { list: undefined }),
+    {
+      description: "Status information for a specific terminal session.",
+      mimeType: "application/json",
+    },
+    async (uri, variables) => {
+      const id = variables.id as string;
+      const s = getSessionOrError(sessionManager, id);
+      if (s.error) throw new McpError(ErrorCode.InvalidRequest, s.error);
+      return {
+        contents: [
+          {
+            uri: uri.toString(),
+            mimeType: "application/json",
+            text: JSON.stringify(s.session.getInfo()),
+          },
+        ],
+      };
+    },
+  );
 
   return server;
 }

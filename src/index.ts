@@ -145,6 +145,31 @@ function detectAgentsAt(baseDir: string, global: boolean): AgentDef[] {
   return ALL_AGENTS.filter((a) => existsSync(join(baseDir, a.configSubdir)));
 }
 
+/** Install skill files for selected agents. Returns list of "name → path" strings. */
+function installSkillFiles(
+  selectedDefs: AgentDef[],
+  global: boolean,
+  baseDir: string,
+  skillPath: string,
+): string[] {
+  const spinner = p.spinner();
+  spinner.start("Installing...");
+
+  const installed: string[] = [];
+  for (const agent of selectedDefs) {
+    const targetDir = agentSkillsDir(agent, global, baseDir);
+    mkdirSync(targetDir, { recursive: true });
+    const targetFile = join(targetDir, "SKILL.md");
+    const skillContent = readFileSync(skillPath, "utf-8");
+    writeFileSync(targetFile, skillContent, "utf-8");
+    spinner.message(`Installed for ${agent.name}`);
+    installed.push(`${agent.name} → ${targetDir}`);
+  }
+
+  spinner.stop("Done installing skills.");
+  return installed;
+}
+
 /** Install the terminalize skill for AI agents */
 async function cmdInstallSkills(args: { verbose?: boolean; yes?: boolean } = {}): Promise<void> {
   p.intro("terminalize Skill Install");
@@ -203,8 +228,10 @@ async function cmdInstallSkills(args: { verbose?: boolean; yes?: boolean } = {})
   }
 
   // Step 3: Filter already installed ones
-  const alreadyInstalled = available.filter((a) => existsSync(agentSkillsDir(a, global, baseDir)));
-  const toInstall = available.filter((a) => !alreadyInstalled.includes(a));
+  const alreadyInstalled = new Set(
+    available.filter((a) => existsSync(agentSkillsDir(a, global, baseDir))).map((a) => a.value),
+  );
+  const toInstall = available.filter((a) => !alreadyInstalled.has(a.value));
 
   if (toInstall.length === 0) {
     p.log.info("Skill already installed for all available agents.");
@@ -237,23 +264,7 @@ async function cmdInstallSkills(args: { verbose?: boolean; yes?: boolean } = {})
 
   // Step 5: Install
   const selectedDefs = available.filter((a) => selected.includes(a.value));
-
-  const s = p.spinner();
-  s.start("Installing...");
-
-  const installed: string[] = [];
-
-  for (const agent of selectedDefs) {
-    const targetDir = agentSkillsDir(agent, global, baseDir);
-    mkdirSync(targetDir, { recursive: true });
-    const targetFile = join(targetDir, "SKILL.md");
-    const skillContent = readFileSync(skillPath, "utf-8");
-    writeFileSync(targetFile, skillContent, "utf-8");
-    s.message(`Installed for ${agent.name}`);
-    installed.push(`${agent.name} → ${targetDir}`);
-  }
-
-  s.stop("Done installing skills.");
+  const installed = installSkillFiles(selectedDefs, global, baseDir, skillPath);
   p.outro(`Installed for ${installed.length} agent(s):`);
   for (const line of installed) {
     p.log.info(`  ${line}`);
@@ -269,8 +280,7 @@ async function main(): Promise<void> {
   const verbose = args.includes("--verbose");
   const yes = args.includes("-y") || args.includes("--yes");
   // Filter out flags before processing the command
-  const filteredArgs = args.filter((a) => a !== "--verbose" && a !== "-y" && a !== "--yes");
-  const command = filteredArgs[0];
+  const command = args.find((a) => a !== "--verbose" && a !== "-y" && a !== "--yes");
 
   if (command === "install-skills") {
     await cmdInstallSkills({ verbose, yes });
@@ -331,8 +341,10 @@ Usage:
 
 // Only start when run directly (not imported in tests)
 if (!process.env.VITEST) {
-  main().catch((err) => {
+  try {
+    await main();
+  } catch (err) {
     process.stderr.write(`[terminalize] Fatal error: ${(err as Error).message}\n`);
     process.exit(1);
-  });
+  }
 }
