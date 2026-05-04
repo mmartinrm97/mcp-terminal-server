@@ -147,7 +147,7 @@ function detectAgentsAt(baseDir: string, global: boolean): AgentDef[] {
 }
 
 /** Install the terminalize skill for AI agents */
-async function cmdInstallSkills(verbose?: boolean): Promise<void> {
+async function cmdInstallSkills(args: { verbose?: boolean; yes?: boolean } = {}): Promise<void> {
   p.intro("terminalize Skill Install");
 
   const skillPath = getSkillPath();
@@ -187,7 +187,7 @@ async function cmdInstallSkills(verbose?: boolean): Promise<void> {
   // Step 2: Detect available agents
   const available = detectAgentsAt(baseDir, global);
 
-  if (verbose) {
+  if (args.verbose) {
     p.log.info(`Scanning: ${baseDir}`);
     p.log.info(`Detected ${available.length} agent(s): ${available.map((a) => a.name).join(", ")}`);
   }
@@ -213,20 +213,27 @@ async function cmdInstallSkills(verbose?: boolean): Promise<void> {
     return;
   }
 
-  // Step 4: Multiselect
-  const selected = await p.multiselect({
-    message: `Which agents do you want to install the skill for?${label}`,
-    options: toInstall.map((a) => ({
-      label: a.name,
-      value: a.value,
-      hint: dirname(agentSkillsDir(a, global, baseDir)),
-    })),
-    required: false,
-  });
+  // Step 4: Skip selection if -y mode and only one option available
+  let selected: (string | symbol)[];
 
-  if (p.isCancel(selected) || selected.length === 0) {
-    p.outro("Cancelled.");
-    return;
+  if (toInstall.length === 1 && args.yes) {
+    selected = [toInstall[0].value];
+    p.log.info(`Auto-selecting: ${toInstall[0].name}`);
+  } else {
+    selected = (await p.multiselect({
+      message: `Which agents do you want to install the skill for?${label}`,
+      options: toInstall.map((a) => ({
+        label: a.name,
+        value: a.value,
+        hint: dirname(agentSkillsDir(a, global, baseDir)),
+      })),
+      required: false,
+    })) as (string | symbol)[];
+
+    if (p.isCancel(selected) || selected.length === 0) {
+      p.outro("Cancelled.");
+      return;
+    }
   }
 
   // Step 5: Install
@@ -235,6 +242,8 @@ async function cmdInstallSkills(verbose?: boolean): Promise<void> {
   const s = p.spinner();
   s.start("Installing...");
 
+  const installed: string[] = [];
+
   for (const agent of selectedDefs) {
     const targetDir = agentSkillsDir(agent, global, baseDir);
     mkdirSync(targetDir, { recursive: true });
@@ -242,10 +251,14 @@ async function cmdInstallSkills(verbose?: boolean): Promise<void> {
     const skillContent = readFileSync(skillPath, "utf-8");
     writeFileSync(targetFile, skillContent, "utf-8");
     s.message(`Installed for ${agent.name}`);
+    installed.push(`${agent.name} → ${targetDir}`);
   }
 
   s.stop("Done installing skills.");
-  p.outro("Skills installed successfully.");
+  p.outro(`Installed for ${installed.length} agent(s):`);
+  for (const line of installed) {
+    p.log.info(`  ${line}`);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -255,12 +268,13 @@ async function cmdInstallSkills(verbose?: boolean): Promise<void> {
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
   const verbose = args.includes("--verbose");
-  // Filter out --verbose before processing the command
-  const filteredArgs = args.filter((a) => a !== "--verbose");
+  const yes = args.includes("-y") || args.includes("--yes");
+  // Filter out flags before processing the command
+  const filteredArgs = args.filter((a) => a !== "--verbose" && a !== "-y" && a !== "--yes");
   const command = filteredArgs[0];
 
   if (command === "install-skills") {
-    await cmdInstallSkills(verbose);
+    await cmdInstallSkills({ verbose, yes });
     return;
   }
 
