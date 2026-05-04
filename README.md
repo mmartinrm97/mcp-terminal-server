@@ -413,13 +413,12 @@ graph TD
 | **PTYSession**     | `src/core/pty-session.ts`     | Wraps `node-pty`. Connects the OutputBuffer to the real shell process.                                         |
 | **SessionManager** | `src/core/session-manager.ts` | Manages session lifecycle: creation, listing, closing, automatic TTL cleanup.                                  |
 | **MCPServer**      | `src/server.ts`               | Exposes 11 tools via the MCP protocol. Handles errors and input validation.                                    |
-| **ShellDetector**  | `src/shell-detector.ts`       | Detects the preferred shell per platform (auto/bash/zsh/pwsh/cmd).                                             |
-| **AnsiStripper**   | `src/ansi-stripper.ts`        | Strips ANSI escape codes from terminal output.                                                                 |
+| **ShellDetector**  | `src/lib/shell-detector.ts`   | Detects the preferred shell per platform (auto/bash/zsh/pwsh/cmd).                                             |
+| **AnsiStripper**   | `src/lib/ansi-stripper.ts`    | Strips ANSI escape codes from terminal output.                                                                 |
 
 ## Development
 
 ```bash
-# Clone and install
 # Clone and install
 git clone https://github.com/mmartinrm97/terminalize
 cd terminalize

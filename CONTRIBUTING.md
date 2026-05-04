@@ -56,19 +56,22 @@ pnpm test
 
 ```
 src/
-├── types.ts            # Shared types and interfaces
-├── utils.ts            # Utility functions
-├── ansi-stripper.ts    # ANSI escape code stripping
-├── shell-detector.ts   # Cross-platform shell detection
-├── output-buffer.ts    # Circular buffer with regex matching
-├── pty-session.ts      # node-pty wrapper
-├── session-manager.ts  # Session lifecycle management
-├── server.ts           # MCP server with 11 tools
-└── index.ts            # Entry point
+├── types.ts               # Shared types and interfaces
+├── index.ts               # Entry point / CLI
+├── server.ts              # MCP server with 11 tools
+├── core/
+│   ├── output-buffer.ts   # Circular buffer with regex matching
+│   ├── pty-session.ts     # node-pty wrapper (write, read, screenshot, close)
+│   ├── session-manager.ts # Session lifecycle management
+│   └── screen.ts          # ANSI screen renderer + terminal mode detection
+└── lib/
+    ├── utils.ts           # Utility functions (escape sequences, IDs)
+    ├── ansi-stripper.ts   # ANSI escape code stripping
+    └── shell-detector.ts  # Cross-platform shell detection
 
 test/
-├── *.test.ts           # Unit tests
-└── integration/        # Integration tests with real PTY sessions
+├── unit/                  # Unit tests (*.test.ts)
+└── integration/           # Integration tests with real PTY sessions
 ```
 
 ### Style Guide
@@ -82,7 +85,7 @@ test/
 
 ### Testing Guidelines
 
-- **Unit tests** go in `test/*.test.ts` (no subdirectories).
+- **Unit tests** go in `test/unit/*.test.ts`.
 - **Integration tests** go in `test/integration/*.test.ts` with `// @integration` header.
 - **Mock external dependencies** (like `node-pty`) in unit tests.
 - **Integration tests** use real PTY sessions — handle platform differences (especially Windows).

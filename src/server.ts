@@ -607,7 +607,7 @@ export function createTerminalServer(sessionManager: SessionManager): Server {
   const server = new Server(
     {
       name: "terminalize",
-      version: "0.1.0",
+      version: "0.2.5",
     },
     {
       capabilities: {
