@@ -683,20 +683,7 @@ export function createTerminalServer(sessionManager: SessionManager): McpServer 
       description: "Full buffer contents of a specific terminal session.",
       mimeType: "application/json",
     },
-    async (uri, variables) => {
-      const id = variables.id as string;
-      const s = getSessionOrError(sessionManager, id);
-      if (s.error) throw new McpError(ErrorCode.InvalidRequest, s.error);
-      return {
-        contents: [
-          {
-            uri: uri.toString(),
-            mimeType: "application/json",
-            text: JSON.stringify(s.session.read(false)),
-          },
-        ],
-      };
-    },
+    (uri, variables) => handleBufferResource(sessionManager, uri, variables),
   );
 
   // Resource template: session status
@@ -707,21 +694,52 @@ export function createTerminalServer(sessionManager: SessionManager): McpServer 
       description: "Status information for a specific terminal session.",
       mimeType: "application/json",
     },
-    async (uri, variables) => {
-      const id = variables.id as string;
-      const s = getSessionOrError(sessionManager, id);
-      if (s.error) throw new McpError(ErrorCode.InvalidRequest, s.error);
-      return {
-        contents: [
-          {
-            uri: uri.toString(),
-            mimeType: "application/json",
-            text: JSON.stringify(s.session.getInfo()),
-          },
-        ],
-      };
-    },
+    (uri, variables) => handleStatusResource(sessionManager, uri, variables),
   );
 
   return server;
+}
+
+// ---------------------------------------------------------------------------
+// Resource template handlers (extracted for testability)
+// ---------------------------------------------------------------------------
+
+/** Respond to a read on a session buffer resource template. */
+export async function handleBufferResource(
+  sm: SessionManager,
+  uri: URL,
+  variables: Record<string, string | string[]>,
+): Promise<{ contents: Array<{ uri: string; mimeType: string; text: string }> }> {
+  const id = variables.id as string;
+  const s = getSessionOrError(sm, id);
+  if (s.error) throw new McpError(ErrorCode.InvalidRequest, s.error);
+  return {
+    contents: [
+      {
+        uri: uri.toString(),
+        mimeType: "application/json",
+        text: JSON.stringify(s.session.read(false)),
+      },
+    ],
+  };
+}
+
+/** Respond to a read on a session status resource template. */
+export async function handleStatusResource(
+  sm: SessionManager,
+  uri: URL,
+  variables: Record<string, string | string[]>,
+): Promise<{ contents: Array<{ uri: string; mimeType: string; text: string }> }> {
+  const id = variables.id as string;
+  const s = getSessionOrError(sm, id);
+  if (s.error) throw new McpError(ErrorCode.InvalidRequest, s.error);
+  return {
+    contents: [
+      {
+        uri: uri.toString(),
+        mimeType: "application/json",
+        text: JSON.stringify(s.session.getInfo()),
+      },
+    ],
+  };
 }

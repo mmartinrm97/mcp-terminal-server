@@ -8,6 +8,8 @@ import {
   handleCallTool,
   handleListResources,
   handleReadResource,
+  handleBufferResource,
+  handleStatusResource,
 } from "../../src/server.js";
 
 import type { SessionManager } from "../../src/core/session-manager.js";
@@ -713,6 +715,66 @@ describe("Server Handler Functions", () => {
         handleReadResource(mockSm as unknown as SessionManager, {
           uri: "terminal://sessions/gone/buffer",
         }),
+      ).rejects.toThrow();
+    });
+  });
+
+  // ---- handleBufferResource ----
+  describe("handleBufferResource", () => {
+    it("should return buffer content for a session", async () => {
+      mockSession.read.mockReturnValue({
+        data: "buffer content",
+        ended: false,
+        exit_code: null,
+      });
+      const result = await handleBufferResource(
+        mockSm as unknown as SessionManager,
+        new URL("http://localhost/terminal://sessions/test-123/buffer"),
+        { id: "test-123" },
+      );
+      expect(result.contents).toHaveLength(1);
+      const parsed = JSON.parse(result.contents[0].text);
+      expect(parsed.data).toBe("buffer content");
+    });
+
+    it("should throw on session not found", async () => {
+      mockSm.getSession.mockImplementation(() => {
+        throw new SessionNotFoundError("gone");
+      });
+      await expect(
+        handleBufferResource(
+          mockSm as unknown as SessionManager,
+          new URL("http://localhost/terminal://sessions/gone/buffer"),
+          { id: "gone" },
+        ),
+      ).rejects.toThrow();
+    });
+  });
+
+  // ---- handleStatusResource ----
+  describe("handleStatusResource", () => {
+    it("should return session status info", async () => {
+      const result = await handleStatusResource(
+        mockSm as unknown as SessionManager,
+        new URL("http://localhost/terminal://sessions/test-123/status"),
+        { id: "test-123" },
+      );
+      expect(result.contents).toHaveLength(1);
+      const parsed = JSON.parse(result.contents[0].text);
+      expect(parsed.id).toBe("session-1");
+      expect(parsed.alive).toBe(true);
+    });
+
+    it("should throw on session not found", async () => {
+      mockSm.getSession.mockImplementation(() => {
+        throw new SessionNotFoundError("missing");
+      });
+      await expect(
+        handleStatusResource(
+          mockSm as unknown as SessionManager,
+          new URL("http://localhost/terminal://sessions/missing/status"),
+          { id: "missing" },
+        ),
       ).rejects.toThrow();
     });
   });
