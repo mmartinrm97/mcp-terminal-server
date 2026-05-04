@@ -128,24 +128,18 @@ function agentSkillsDir(agent: AgentDef, global: boolean, baseDir: string): stri
 
 /** Detect which agents have their config dir under a given base. */
 function detectAgentsAt(baseDir: string, global: boolean): AgentDef[] {
-  // At project level, detect universal agents by looking for .agents/
+  // At project level, always offer universal .agents/skills
   if (!global) {
-    const agentsDir = join(baseDir, ".agents");
-    const hasUniversal = existsSync(agentsDir);
     const nonUniversal = ALL_AGENTS.filter(
       (a) => !a.universal && existsSync(join(baseDir, a.configSubdir)),
     );
-    if (hasUniversal) {
-      // Return a synthetic "universal" entry + detected non-universal agents
-      const universal: AgentDef = {
-        value: "universal",
-        name: "Universal (.agents/skills)",
-        configSubdir: ".agents",
-        universal: true,
-      };
-      return [universal, ...nonUniversal];
-    }
-    return nonUniversal;
+    const universal: AgentDef = {
+      value: "universal",
+      name: "Universal (.agents/skills)",
+      configSubdir: ".agents",
+      universal: true,
+    };
+    return [universal, ...nonUniversal];
   }
 
   // Global level: check each agent's config dir
@@ -153,7 +147,7 @@ function detectAgentsAt(baseDir: string, global: boolean): AgentDef[] {
 }
 
 /** Install the terminalize skill for AI agents */
-async function cmdInstallSkills(): Promise<void> {
+async function cmdInstallSkills(verbose?: boolean): Promise<void> {
   p.intro("terminalize Skill Install");
 
   const skillPath = getSkillPath();
@@ -192,6 +186,11 @@ async function cmdInstallSkills(): Promise<void> {
 
   // Step 2: Detect available agents
   const available = detectAgentsAt(baseDir, global);
+
+  if (verbose) {
+    p.log.info(`Scanning: ${baseDir}`);
+    p.log.info(`Detected ${available.length} agent(s): ${available.map((a) => a.name).join(", ")}`);
+  }
 
   if (available.length === 0) {
     p.log.warn(
@@ -255,10 +254,13 @@ async function cmdInstallSkills(): Promise<void> {
 
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
-  const command = args[0];
+  const verbose = args.includes("--verbose");
+  // Filter out --verbose before processing the command
+  const filteredArgs = args.filter((a) => a !== "--verbose");
+  const command = filteredArgs[0];
 
   if (command === "install-skills") {
-    await cmdInstallSkills();
+    await cmdInstallSkills(verbose);
     return;
   }
 
@@ -271,6 +273,7 @@ Usage:
   terminalize install-skills    Install the terminalize skill for AI agents
   terminalize --help            Show this help
   terminalize --version         Show version
+  terminalize --verbose         Show debug info (use with install-skills)
 `);
     return;
   }

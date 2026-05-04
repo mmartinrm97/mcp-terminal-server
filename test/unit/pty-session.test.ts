@@ -229,7 +229,7 @@ describe("PTYSession", () => {
     });
 
     it("should include the command in the written output", async () => {
-      const marker = await session.writeMarked("echo world");
+      await session.writeMarked("echo world");
       // writeMarked calls this.write() internally with marker-wrapped command
       const writeArg = mockPtyInstance.write.mock.calls.map((c: any[]) => c[0]).join("");
       expect(writeArg).toContain("echo world");
@@ -299,7 +299,7 @@ describe("PTYSession", () => {
     });
 
     it("should allow user-provided env to override pager defaults", () => {
-      const sessionOverride = new PTYSession({
+      new PTYSession({
         id: "override-test",
         shell: "bash",
         args: [],
@@ -317,7 +317,7 @@ describe("PTYSession", () => {
     });
 
     it("should preserve user-provided env vars alongside pager defaults", () => {
-      const sessionCustom = new PTYSession({
+      new PTYSession({
         id: "custom-env-test",
         shell: "bash",
         args: [],
