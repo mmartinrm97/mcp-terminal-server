@@ -157,8 +157,8 @@ export class OutputBuffer {
     }
 
     // pos is now at the character before the \n that made count == lines
-    // If we found enough lines, start after that \n
-    const start = pos + 2; // skip the \n we found
+    // If we found enough lines, start after that \n. Otherwise return from beginning.
+    const start = count >= lines ? pos + 2 : 0;
     return this._buffer.slice(Math.max(start, 0));
   }
 

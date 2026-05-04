@@ -26,6 +26,9 @@ interface MockPTYSession {
   resize: ReturnType<typeof vi.fn>;
   close: ReturnType<typeof vi.fn>;
   getInfo: ReturnType<typeof vi.fn>;
+  tail: ReturnType<typeof vi.fn>;
+  screenshot: ReturnType<typeof vi.fn>;
+  sendSignal: ReturnType<typeof vi.fn>;
 }
 
 interface MockSessionManager {
@@ -52,6 +55,17 @@ function createMockSession(overrides?: Partial<MockPTYSession>): MockPTYSession 
       exit_code: null,
       timed_out: false,
     }),
+    tail: vi.fn().mockReturnValue({ data: "last lines", lines: 20, total_size: 100 }),
+    screenshot: vi.fn().mockReturnValue({
+      rows: ["line1", "line2"],
+      cursorRow: 1,
+      cursorCol: 5,
+      cols: 80,
+      rowsCount: 24,
+      text: "line1\nline2",
+      terminal_mode: "shell",
+    }),
+    sendSignal: vi.fn(),
     resize: vi.fn(),
     close: vi.fn().mockReturnValue(0),
     getInfo: vi.fn().mockReturnValue({
@@ -483,6 +497,134 @@ describe("Server Handler Functions", () => {
         const result = await handleCallTool(mockSm as unknown as SessionManager, {
           name: "terminal_close_session",
           arguments: { id: "no-such" },
+        });
+        expect(result.isError).toBe(true);
+        expect(result.content[0].text).toContain("Session not found");
+      });
+    });
+
+    describe("terminal_ping", () => {
+      it("should return ok status with session count and uptime", async () => {
+        mockSm.activeCount = 3;
+        const result = await handleCallTool(mockSm as unknown as SessionManager, {
+          name: "terminal_ping",
+          arguments: {},
+        });
+        const parsed = JSON.parse(result.content[0].text);
+        expect(parsed.ok).toBe(true);
+        expect(parsed.sessions).toBe(3);
+        expect(typeof parsed.uptime_ms).toBe("number");
+        expect(parsed.version).toBeDefined();
+      });
+
+      it("should report 0 sessions when none active", async () => {
+        mockSm.activeCount = 0;
+        const result = await handleCallTool(mockSm as unknown as SessionManager, {
+          name: "terminal_ping",
+          arguments: {},
+        });
+        const parsed = JSON.parse(result.content[0].text);
+        expect(parsed.ok).toBe(true);
+        expect(parsed.sessions).toBe(0);
+      });
+    });
+
+    describe("terminal_screenshot", () => {
+      it("should return screenshot result with screen rows", async () => {
+        const result = await handleCallTool(mockSm as unknown as SessionManager, {
+          name: "terminal_screenshot",
+          arguments: { id: "session-1" },
+        });
+        const parsed = JSON.parse(result.content[0].text);
+        expect(parsed.rows).toContain("line1");
+        expect(parsed.terminal_mode).toBe("shell");
+        expect(mockSession.screenshot).toHaveBeenCalled();
+      });
+
+      it("should handle SessionNotFoundError", async () => {
+        mockSm.getSession.mockImplementation(() => {
+          throw new SessionNotFoundError("missing");
+        });
+        const result = await handleCallTool(mockSm as unknown as SessionManager, {
+          name: "terminal_screenshot",
+          arguments: { id: "missing" },
+        });
+        expect(result.isError).toBe(true);
+        expect(result.content[0].text).toContain("Session not found");
+      });
+    });
+
+    describe("terminal_tail", () => {
+      it("should return last N lines of session output", async () => {
+        const result = await handleCallTool(mockSm as unknown as SessionManager, {
+          name: "terminal_tail",
+          arguments: { id: "session-1", lines: 10 },
+        });
+        const parsed = JSON.parse(result.content[0].text);
+        expect(parsed.data).toBe("last lines");
+        expect(mockSession.tail).toHaveBeenCalledWith(10);
+      });
+
+      it("should default to 20 lines when lines not specified", async () => {
+        await handleCallTool(mockSm as unknown as SessionManager, {
+          name: "terminal_tail",
+          arguments: { id: "session-1" },
+        });
+        expect(mockSession.tail).toHaveBeenCalledWith(20);
+      });
+
+      it("should handle SessionNotFoundError", async () => {
+        mockSm.getSession.mockImplementation(() => {
+          throw new SessionNotFoundError("gone");
+        });
+        const result = await handleCallTool(mockSm as unknown as SessionManager, {
+          name: "terminal_tail",
+          arguments: { id: "gone" },
+        });
+        expect(result.isError).toBe(true);
+        expect(result.content[0].text).toContain("Session not found");
+      });
+    });
+
+    describe("terminal_send_signal", () => {
+      it("should send SIGINT to the session", async () => {
+        const result = await handleCallTool(mockSm as unknown as SessionManager, {
+          name: "terminal_send_signal",
+          arguments: { id: "session-1", signal: "SIGINT" },
+        });
+        const parsed = JSON.parse(result.content[0].text);
+        expect(parsed.ok).toBe(true);
+        expect(parsed.signal).toBe("SIGINT");
+        expect(mockSession.sendSignal).toHaveBeenCalledWith("SIGINT");
+      });
+
+      it("should send SIGTSTP to the session", async () => {
+        await handleCallTool(mockSm as unknown as SessionManager, {
+          name: "terminal_send_signal",
+          arguments: { id: "session-1", signal: "SIGTSTP" },
+        });
+        expect(mockSession.sendSignal).toHaveBeenCalledWith("SIGTSTP");
+      });
+
+      it("should handle error from sendSignal", async () => {
+        mockSession.sendSignal.mockImplementation(() => {
+          throw new Error("Unknown signal: SIGFOO");
+        });
+        const result = await handleCallTool(mockSm as unknown as SessionManager, {
+          name: "terminal_send_signal",
+          arguments: { id: "session-1", signal: "SIGFOO" },
+        });
+        expect(result.isError).toBe(true);
+        expect(result.content[0].text).toContain("Unknown signal");
+      });
+
+      it("should handle SessionNotFoundError", async () => {
+        mockSm.getSession.mockImplementation(() => {
+          throw new SessionNotFoundError("lost");
+        });
+        const result = await handleCallTool(mockSm as unknown as SessionManager, {
+          name: "terminal_send_signal",
+          arguments: { id: "lost", signal: "SIGINT" },
         });
         expect(result.isError).toBe(true);
         expect(result.content[0].text).toContain("Session not found");

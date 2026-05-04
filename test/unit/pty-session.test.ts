@@ -130,6 +130,64 @@ describe("PTYSession", () => {
     });
   });
 
+  describe("write (CRLF conversion on Windows)", () => {
+    it("should convert LF to CRLF on Windows", () => {
+      (platform as ReturnType<typeof vi.fn>).mockReturnValue("win32");
+
+      const winSession = new PTYSession({
+        id: "crlf-test",
+        shell: "cmd.exe",
+        args: [],
+        cwd: "C:\\",
+        cols: 80,
+        rows: 24,
+      });
+
+      mockPtyInstance.process = "cmd.exe";
+      winSession.write("echo hello\n");
+      const lastCall = mockPtyInstance.write.mock.lastCall?.[0];
+      expect(lastCall).toBe("echo hello\r\n");
+
+      (platform as ReturnType<typeof vi.fn>).mockReturnValue("linux");
+    });
+
+    it("should not double-convert existing CRLF on Windows", () => {
+      (platform as ReturnType<typeof vi.fn>).mockReturnValue("win32");
+
+      const winSession = new PTYSession({
+        id: "crlf-test-2",
+        shell: "cmd.exe",
+        args: [],
+        cwd: "C:\\",
+        cols: 80,
+        rows: 24,
+      });
+
+      mockPtyInstance.process = "cmd.exe";
+      winSession.write("line1\r\nline2\n");
+      const lastCall = mockPtyInstance.write.mock.lastCall?.[0];
+      expect(lastCall).toBe("line1\r\nline2\r\n");
+
+      (platform as ReturnType<typeof vi.fn>).mockReturnValue("linux");
+    });
+
+    it("should skip CRLF conversion on non-Windows", () => {
+      (platform as ReturnType<typeof vi.fn>).mockReturnValue("linux");
+
+      const unixSession = new PTYSession({
+        id: "unix-crlf-test",
+        shell: "bash",
+        args: [],
+        cwd: "/tmp",
+        cols: 80,
+        rows: 24,
+      });
+
+      unixSession.write("echo hello\n");
+      expect(mockPtyInstance.write).toHaveBeenCalledWith("echo hello\n");
+    });
+  });
+
   describe("read", () => {
     it("should return buffered data from PTY output", () => {
       // Simulate PTY output
@@ -221,6 +279,11 @@ describe("PTYSession", () => {
 
   // ── Enhancement A: Completion markers ──────────────────
   describe("writeMarked", () => {
+    beforeEach(() => {
+      // Reset PTY process to bash and platform to POSIX
+      mockPtyInstance.process = "bash";
+      (platform as ReturnType<typeof vi.fn>).mockReturnValue("linux");
+    });
     it("should return a non-empty marker string", async () => {
       const marker = await session.writeMarked("echo hello");
       expect(marker).toBeTruthy();
@@ -385,6 +448,65 @@ describe("PTYSession", () => {
       );
 
       (platform as ReturnType<typeof vi.fn>).mockReturnValue("linux");
+    });
+  });
+
+  // ── Enhancement D: sendSignal ────────────────────────
+  describe("sendSignal", () => {
+    it("should send SIGINT as Ctrl+C", () => {
+      session.sendSignal("SIGINT");
+      expect(mockPtyInstance.write).toHaveBeenCalledWith("\x03");
+    });
+
+    it("should send SIGTSTP as Ctrl+Z", () => {
+      session.sendSignal("SIGTSTP");
+      expect(mockPtyInstance.write).toHaveBeenCalledWith("\x1a");
+    });
+
+    it("should send SIGQUIT as Ctrl+\\", () => {
+      session.sendSignal("SIGQUIT");
+      expect(mockPtyInstance.write).toHaveBeenCalledWith("\x1c");
+    });
+
+    it("should force close on SIGKILL", () => {
+      session.sendSignal("SIGKILL");
+      expect(mockPtyInstance.kill).toHaveBeenCalledWith("SIGKILL");
+    });
+
+    it("should throw on unknown signal", () => {
+      expect(() => session.sendSignal("SIGFOO")).toThrow("Unknown signal");
+    });
+
+    it("should update lastActivity on signal", () => {
+      const before = session.lastActivity.getTime();
+      session.sendSignal("SIGINT");
+      expect(session.lastActivity.getTime()).toBeGreaterThanOrEqual(before);
+    });
+  });
+
+  // ── Enhancement E: read with since parameter ─────────
+  describe("read with since parameter", () => {
+    it("should return data from a byte position", () => {
+      if (onDataCallback) onDataCallback("hello world");
+      const result = session.read(3);
+      expect(result.data).toBe("lo world");
+      expect(result.position).toBe(11);
+    });
+
+    it("should not advance readOffset (peek, not consume)", () => {
+      if (onDataCallback) onDataCallback("some data here");
+      session.read(5);
+      // readAll() should still return full data
+      expect(session.read().data).toBe("some data here");
+    });
+  });
+
+  // ── Enhancement F: resize after end ──────────────────
+  describe("resize", () => {
+    it("should be no-op after session ended", () => {
+      if (onExitCallback) onExitCallback({ exitCode: 0 });
+      session.resize(200, 100);
+      expect(mockPtyInstance.resize).not.toHaveBeenCalled();
     });
   });
 });

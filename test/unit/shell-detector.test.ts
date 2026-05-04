@@ -1,9 +1,21 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+
+// Mock node:os module for cross-platform testing
+vi.mock("node:os");
+import { platform } from "node:os";
 import { detectShell } from "../../src/lib/shell-detector.js";
+
+// ---------------------------------------------------------------------------
+// Platform-agnostic tests (run on whatever platform we're on)
+// ---------------------------------------------------------------------------
 
 const IS_WINDOWS = process.platform === "win32";
 
 describe("detectShell", () => {
+  beforeEach(() => {
+    vi.mocked(platform).mockReturnValue(process.platform as "win32" | "linux" | "darwin");
+  });
+
   it("should return bash when explicitly specified", () => {
     const info = detectShell("bash");
     expect(info.shell).toBe("bash");
@@ -19,11 +31,10 @@ describe("detectShell", () => {
   });
 
   it("should return pwsh with args when explicitly specified", () => {
+    vi.mocked(platform).mockReturnValue(IS_WINDOWS ? "win32" : "linux");
     const info = detectShell("pwsh");
-    // On Windows the executable has .exe extension
     expect(info.shell).toBe(IS_WINDOWS ? "pwsh.exe" : "pwsh");
     expect(info.shellName).toBe("pwsh");
-    // pwsh uses -NoLogo -NoExit on Windows only
     if (IS_WINDOWS) {
       expect(info.args).toContain("-NoLogo");
       expect(info.args).toContain("-NoExit");
@@ -46,24 +57,61 @@ describe("detectShell", () => {
 
   it("auto should return a valid executable name", () => {
     const info = detectShell("auto");
-    // Should end with .exe on Windows, or be a standard shell name on Unix
-    const isWindows = process.platform === "win32";
-    if (isWindows) {
+    if (IS_WINDOWS) {
       expect(info.shell).toMatch(/\.exe$/);
     }
-    // shell should be a valid string
     expect(info.shell).toBeTruthy();
   });
 
   it("should include args for pwsh", () => {
     const info = detectShell("pwsh");
     expect(info.args).toBeInstanceOf(Array);
-    if (process.platform === "win32") {
+    if (IS_WINDOWS) {
       expect(info.args.length).toBeGreaterThan(0);
     }
   });
 
   it("should handle auto on the current platform without throwing", () => {
     expect(() => detectShell("auto")).not.toThrow();
+  });
+
+  it("should fall back to auto for unknown shell values", () => {
+    // @ts-expect-error testing runtime behavior with invalid value
+    const info = detectShell("invalid");
+    expect(info.shell).toBeTruthy();
+    expect(info.shellName).toBeTruthy();
+  });
+
+  // -----------------------------------------------------------------------
+  // Cross-platform tests via mocked node:os.platform()
+  // -----------------------------------------------------------------------
+
+  it("should detect /bin/bash via SHELL env on Linux", () => {
+    vi.mocked(platform).mockReturnValue("linux");
+    vi.stubEnv("SHELL", "/bin/bash");
+
+    const info = detectShell("auto");
+    expect(info.shell).toBe("/bin/bash");
+    expect(info.shellName).toBe("bash");
+
+    vi.unstubAllEnvs();
+  });
+
+  it("should fall back to /bin/bash when SHELL is unset on Linux", () => {
+    vi.mocked(platform).mockReturnValue("linux");
+    vi.unstubAllEnvs();
+    delete process.env.SHELL;
+
+    const info = detectShell("auto");
+    expect(info.shell).toBe("/bin/bash");
+    expect(info.shellName).toBe("bash");
+  });
+
+  it("should detect pwsh.exe on Windows auto-detection", () => {
+    vi.mocked(platform).mockReturnValue("win32");
+
+    const info = detectShell("auto");
+    expect(info.shell).toBe("pwsh.exe");
+    expect(info.shellName).toBe("pwsh");
   });
 });

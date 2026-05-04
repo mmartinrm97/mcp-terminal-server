@@ -160,6 +160,68 @@ describe("OutputBuffer", () => {
     });
   });
 
+  describe("readTail", () => {
+    it("should return last N lines from the buffer", () => {
+      buffer.append("line1\nline2\nline3\nline4\nline5");
+      const tail = buffer.readTail(3);
+      expect(tail).toBe("line3\nline4\nline5");
+    });
+
+    it("should return all lines when buffer has fewer lines than requested", () => {
+      buffer.append("only one line");
+      const tail = buffer.readTail(100);
+      expect(tail).toBe("only one line");
+    });
+
+    it("should handle empty buffer", () => {
+      expect(buffer.readTail(10)).toBe("");
+    });
+
+    it("should handle trailing newline", () => {
+      buffer.append("line1\nline2\n");
+      const tail = buffer.readTail(1);
+      expect(tail).toBe("line2\n");
+    });
+
+    it("should handle \\r\\n line endings", () => {
+      buffer.append("a\r\nb\r\nc\r\n");
+      const tail = buffer.readTail(2);
+      expect(tail).toBe("b\r\nc\r\n");
+    });
+
+    it("should not change readOffset (tail is non-destructive)", () => {
+      buffer.append("first\nsecond\nthird");
+      buffer.readAll(); // consume data, readOffset at end
+      buffer.readTail(2);
+      expect(buffer.readAll()).toBe(""); // readOffset unchanged = at end
+    });
+  });
+
+  describe("compact", () => {
+    it("should trim buffer after readAll", () => {
+      buffer.append("hello world");
+      buffer.readAll();
+      expect(buffer.size).toBe(11);
+      buffer.compact();
+      expect(buffer.size).toBe(0);
+    });
+
+    it("should reset readOffset to 0 after compact", () => {
+      buffer.append("some data");
+      buffer.readAll(); // consume, readOffset at end
+      buffer.compact();
+      buffer.append("more data");
+      const data = buffer.readAll();
+      expect(data).toBe("more data");
+    });
+
+    it("should be a no-op when readOffset is 0", () => {
+      buffer.append("data");
+      buffer.compact();
+      expect(buffer.getFullBuffer()).toBe("data");
+    });
+  });
+
   describe("concurrent reads", () => {
     it("should support sequential readUntil calls", async () => {
       buffer.append("Step 1 complete ");
