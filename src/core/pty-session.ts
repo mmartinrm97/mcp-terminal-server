@@ -183,7 +183,12 @@ export class PTYSession {
    * Resize the PTY terminal dimensions.
    */
   resize(cols: number, rows: number): void {
-    this.pty.resize(cols, rows);
+    if (this._ended) return;
+    try {
+      this.pty.resize(cols, rows);
+    } catch {
+      // Ignore resize errors on closed PTYs (common on Windows ConPTY)
+    }
   }
 
   /**
