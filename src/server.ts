@@ -10,6 +10,7 @@ import {
 
 import type { SessionManager } from "./core/session-manager.js";
 import { SessionNotFoundError, SessionLimitError, ReadTimeoutError } from "./types.js";
+import { PKG_VERSION } from "./version.js";
 import type {
   SessionConfig,
   SessionInfo,
@@ -64,14 +65,12 @@ const TOOL_DEFINITIONS = [
   },
   {
     name: "terminal_write",
-    description:
-      "Write text/keystrokes to the terminal session. Supports control sequences: \\n (Enter), " +
-      "\\x03 (Ctrl+C/SIGINT), \\x1b (Escape), \\t (Tab).",
+    description: String.raw`Write text/keystrokes to the terminal session. Supports control sequences: \n (Enter), \x03 (Ctrl+C/SIGINT), \x1b (Escape), \t (Tab).`,
     inputSchema: {
       type: "object" as const,
       properties: {
         id: { type: "string", description: "Session ID returned by terminal_create_session." },
-        data: { type: "string", description: "Text data to write. Use \\n for Enter." },
+        data: { type: "string", description: String.raw`Text data to write. Use \n for Enter.` },
       },
       required: ["id", "data"],
     },
@@ -171,7 +170,7 @@ const TOOL_DEFINITIONS = [
         signal: {
           type: "string",
           enum: ["SIGINT", "SIGTSTP", "SIGQUIT", "SIGKILL"],
-          description: "Signal to send. SIGINT=Ctrl+C, SIGTSTP=Ctrl+Z, SIGQUIT=Ctrl+\\.",
+          description: "Signal to send. SIGINT=Ctrl+C, SIGTSTP=Ctrl+Z, SIGQUIT=Ctrl+\\",
         },
       },
       required: ["id", "signal"],
@@ -481,7 +480,7 @@ export async function handleCallTool(
         ok: true,
         sessions,
         uptime_ms: uptime,
-        version: "0.2.5",
+        version: PKG_VERSION,
       };
       return { content: [textContent(result)] };
     }
@@ -607,7 +606,7 @@ export function createTerminalServer(sessionManager: SessionManager): Server {
   const server = new Server(
     {
       name: "terminalize",
-      version: "0.2.5",
+      version: PKG_VERSION,
     },
     {
       capabilities: {
@@ -627,7 +626,7 @@ export function createTerminalServer(sessionManager: SessionManager): Server {
     const { name, arguments: args } = request.params;
     return handleCallTool(sessionManager, {
       name,
-      arguments: args as Record<string, unknown> | undefined,
+      arguments: args,
     });
   });
 
