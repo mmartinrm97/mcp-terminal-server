@@ -343,6 +343,20 @@ Delete the setup wizard. Instead, copy the relevant config block below:
 }
 ```
 
+**Codex (OpenAI CLI)** (`~/.codex/config.toml` or project `.codex/config.toml`):
+
+```toml
+[mcp_servers.terminalize]
+command = "npx"
+args = ["terminalize"]
+```
+
+Or via Codex CLI:
+
+```bash
+codex mcp add terminalize -- npx terminalize
+```
+
 ### Prerequisites
 
 - **Node.js 22+** (required for `crypto.randomUUID()`)
@@ -466,7 +480,7 @@ terminalize gives your agent a real **text-based** PTY. While powerful, there ar
 This has been tested primarily on **Windows (ConPTY)** with **OpenCode**. Not yet tested in production on:
 
 - **Platforms**: ✅ Windows | ⬜ Linux | ⬜ macOS
-- **Agents**: ✅ OpenCode | ⬜ Claude Code | ⬜ Cursor | ⬜ Gemini CLI | ⬜ Windsurf | ⬜ Kiro CLI
+- **Agents**: ✅ OpenCode | ⬜ Claude Code | ⬜ Cursor | ⬜ Gemini CLI | ⬜ Windsurf | ⬜ Kiro CLI | ✅ Codex
 
 If you test on any of these combinations, open an issue or PR with your results.
 
