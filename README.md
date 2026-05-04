@@ -9,7 +9,7 @@
 ![Build](https://img.shields.io/badge/build-passing-brightgreen)
 [![npm](https://img.shields.io/npm/v/terminalize?color=red)](https://www.npmjs.com/package/terminalize)
 [![Quality Gate](https://img.shields.io/badge/quality%20gate-0%20issues-brightgreen)](http://localhost:9000/dashboard?id=terminalize)
-[![Coverage](https://img.shields.io/badge/coverage-75%25-yellow)](http://localhost:9000/dashboard?id=terminalize)
+[![Coverage](https://img.shields.io/badge/coverage-88%25-brightgreen)](http://localhost:9000/dashboard?id=terminalize)
 
 > **Stop the "one-shot" guessing game. Give your AI agents a persistent terminal they can actually talk to.**
 
@@ -466,23 +466,20 @@ pnpm test
 
 ## Coverage
 
-> **Current: 77% statements · 72% branches · 75% line coverage**
+> **Current: 86% statements · 83% branches · 88% lines coverage**
 
 El estándar de la industria es **80%** de cobertura de línea — es el threshold por defecto de SonarQube. Para proyectos críticos (financieros, salud) se espera **90%+**. Con 77% estamos cerca pero no alcanzamos.
 
-| Archivo                     | Cobertura | Líneas sin cubrir |
-| --------------------------- | --------- | ----------------- |
-| `src/lib/shell-detector.ts` | 55% ⚠️    | 11                |
-| `src/server.ts`             | 60% ⚠️    | 68                |
-| `src/core/pty-session.ts`   | 73%       | 25                |
-| `src/core/output-buffer.ts` | 75%       | 14                |
+| Archivo                       | Cobertura | Líneas sin cubrir |
+| ----------------------------- | --------- | ----------------- |
+| `src/server.ts`               | 79% 🟡    | 37                |
+| `src/core/session-manager.ts` | 78% 🟡    | —                 |
+| `src/core/pty-session.ts`     | 89% 🟢    | —                 |
+| `src/core/output-buffer.ts`   | >90% 🟢   | —                 |
+| `src/lib/shell-detector.ts`   | 85% 🟢    | —                 |
+| `src/core/screen.ts`          | 91% 🟢    | —                 |
 
-Los archivos con mayor deuda técnica son `shell-detector.ts` y `server.ts` (que creció mucho tras la migración a McpServer). Idealmente habría que:
-
-1. Tests para `shell-detector.ts`: mockear `execSync` para cubrir detección de cada shell
-2. Tests unitarios para `server.ts`: los new tool handlers (handleCreateSessionTool, handleWriteTool, etc.) tienen buena parte sin coverage directo
-3. Tests para las resource templates de McpServer en `server.ts`
-4. Más casos borde en `pty-session.ts` (señales, close con force, etc.)
+El único archivo que impide cerrar el quality gate es `server.ts` (79%, 37 líneas sin cubrir en las resource templates de McpServer).
 
 ## Limitations
 
