@@ -481,7 +481,7 @@ export async function handleCallTool(
         ok: true,
         sessions,
         uptime_ms: uptime,
-        version: "0.1.0",
+        version: "0.2.3",
       };
       return { content: [textContent(result)] };
     }
