@@ -13,14 +13,14 @@ import type { SessionInfo, ScreenshotResult } from "../types.js";
  * Pagers (like `less`) require interactive terminal input and would block
  * command execution in non-interactive MCP tool calls.
  */
-const PAGER_ENV: Record<string, string> = {
+const pagerEnv: Record<string, string> = {
   GIT_PAGER: "cat",
   PAGER: "cat",
   TERM: "xterm-256color",
 };
 
 /** Windows shells that benefit from progress suppression. */
-const WINDOWS_SHELLS = new Set(["cmd.exe", "pwsh.exe", "pwsh"]);
+const windowsShells = new Set(["cmd.exe", "pwsh.exe", "pwsh"]);
 
 /**
  * Options for creating a PTYSession.
@@ -50,11 +50,17 @@ export class PTYSession {
   readonly createdAt: Date;
   readonly cwd: string;
   lastActivity: Date;
-  _shellName: string;
+  shellName: string;
 
-  private _ended = false;
-  private _exitCode: number | null = null;
+  private isEnded = false;
+  private processExitCode: number | null = null;
 
+  /**
+   * Create a new PTY session.
+   * Spawns a node-pty process with the given options and sets up data/exit listeners.
+   *
+   * @param options - Session configuration including shell, cwd, terminal size, and env
+   */
   constructor(options: PTYSessionOptions) {
     this.id = options.id;
     this.label = options.label ?? null;
@@ -62,17 +68,17 @@ export class PTYSession {
     this.createdAt = new Date();
     this.lastActivity = new Date();
     this.buffer = new OutputBuffer();
-    this._shellName = options.shell;
+    this.shellName = options.shell;
 
     // Build env with pager-blocking defaults.
-    // Order: process.env base → PAGER_ENV overrides → user env takes final precedence.
+    // Order: process.env base → pagerEnv overrides → user env takes final precedence.
     const mergedEnv: Record<string, string> = {
       ...(process.env as Record<string, string>),
-      ...PAGER_ENV,
+      ...pagerEnv,
     };
 
     // Windows shells: suppress progress bars from package managers (npm, etc.)
-    if (platform() === "win32" && WINDOWS_SHELLS.has(options.shell)) {
+    if (platform() === "win32" && windowsShells.has(options.shell)) {
       mergedEnv.PROGRESS_SUPPRESS = "1";
     }
 
@@ -97,8 +103,8 @@ export class PTYSession {
 
     // Track process exit
     this.pty.onExit((exitInfo: { exitCode: number; signal?: number }) => {
-      this._ended = true;
-      this._exitCode = exitInfo.exitCode;
+      this.isEnded = true;
+      this.processExitCode = exitInfo.exitCode;
     });
   }
 
@@ -125,7 +131,7 @@ export class PTYSession {
       if (shellProcess) {
         // Convert LF to CRLF, but don't double-convert existing CRLF
         // This covers pwsh.exe, pwsh, powershell.exe, cmd.exe, and any Windows shell
-        processed = processed.replace(/(?<!\r)\n/g, "\r\n");
+        processed = processed.replaceAll(/(?<!\r)\n/g, "\r\n");
       }
     }
     this.pty.write(processed);
@@ -152,7 +158,7 @@ export class PTYSession {
    * @returns The marker string for readUntil matching
    */
   async writeMarked(command: string): Promise<string> {
-    if (this._ended) {
+    if (this.isEnded) {
       throw new SessionEndedError();
     }
 
@@ -183,7 +189,7 @@ export class PTYSession {
    * Resize the PTY terminal dimensions.
    */
   resize(cols: number, rows: number): void {
-    if (this._ended) return;
+    if (this.isEnded) return;
     try {
       this.pty.resize(cols, rows);
     } catch {
@@ -210,21 +216,21 @@ export class PTYSession {
       return {
         data: result.data,
         position: result.position,
-        ended: this._ended,
-        exit_code: this._exitCode,
+        ended: this.isEnded,
+        exit_code: this.processExitCode,
       };
     }
 
     const flush = flushOrSince ?? false;
-    const data = flush ? this.buffer.getFullBuffer() : (this.buffer.readAll() as string);
+    const data = flush ? this.buffer.getFullBuffer() : this.buffer.readAll();
     if (flush) {
       this.buffer.clear();
     }
     return {
       data,
       position: this.buffer.position,
-      ended: this._ended,
-      exit_code: this._exitCode,
+      ended: this.isEnded,
+      exit_code: this.processExitCode,
     };
   }
 
@@ -293,19 +299,19 @@ export class PTYSession {
       const result = await this.buffer.readUntil(pattern, timeoutMs, stripAnsiColors);
       return {
         ...result,
-        ended: this._ended,
-        exit_code: this._exitCode,
+        ended: this.isEnded,
+        exit_code: this.processExitCode,
         timed_out: false,
       };
     } catch (err) {
       // Check if it's a ReadTimeoutError
       if (err instanceof Error && "timedOut" in err) {
         return {
-          data: (err as any).partialData ?? "",
+          data: (err as { partialData?: string }).partialData ?? "",
           fullOutput: this.buffer.getFullBuffer(),
           matched: "",
-          ended: this._ended,
-          exit_code: this._exitCode,
+          ended: this.isEnded,
+          exit_code: this.processExitCode,
           timed_out: true,
         };
       }
@@ -323,8 +329,8 @@ export class PTYSession {
    * @returns The exit code, or null if the process hadn't exited yet
    */
   close(force?: boolean): number | null {
-    if (this._ended) {
-      return this._exitCode;
+    if (this.isEnded) {
+      return this.processExitCode;
     }
 
     const pid = this.pty.pid;
@@ -348,7 +354,7 @@ export class PTYSession {
       }
     }
 
-    return this._exitCode;
+    return this.processExitCode;
   }
 
   /**
@@ -390,13 +396,13 @@ export class PTYSession {
     return {
       id: this.id,
       label: this.label,
-      shell: this._shellName,
+      shell: this.shellName,
       cwd: this.cwd,
       cols: this.pty.cols,
       rows: this.pty.rows,
       created_at: this.createdAt.toISOString(),
       last_activity: this.lastActivity.toISOString(),
-      alive: !this._ended,
+      alive: !this.isEnded,
     };
   }
 
@@ -404,13 +410,13 @@ export class PTYSession {
    * Whether the PTY process has ended.
    */
   get ended(): boolean {
-    return this._ended;
+    return this.isEnded;
   }
 
   /**
    * The exit code of the PTY process, or null if still running.
    */
   get exitCode(): number | null {
-    return this._exitCode;
+    return this.processExitCode;
   }
 }

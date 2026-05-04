@@ -9,13 +9,12 @@
  * - OSC sequences (\x1b]...\x07 or \x1b]...\x1b\\)
  */
 
-// Comprehensive ANSI escape sequence pattern
+// Build ANSI escape sequence pattern without control character literals in source.
 // CSI: ESC [ + optional parameter bytes + optional intermediate bytes + final byte
-// OSC: ESC ] + text + ST (ESC \ or BEL \x07)
-// eslint-disable-next-line no-control-regex — intentional, matching ANSI escape codes
-const ANSI_PATTERN =
-  // CSI sequences: ESC [ ... final byte (0x40-0x7E)
-  /(?:\x1b\[[\d;]*[A-Za-z])|(?:\x1b\][^\x07\x1b]*(?:\x07|\x1b\\))/g;
+// OSC: ESC ] + text + ST (ESC \\ or BEL \\x07)
+const csi = String.raw`\x1b\[[\d;]*[A-Za-z]`;
+const osc = String.raw`\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)`;
+const ansiPattern = new RegExp(`(?:${csi})|(?:${osc})`, "g");
 
 /**
  * Strip ANSI escape codes from a string of terminal output.
@@ -24,5 +23,5 @@ const ANSI_PATTERN =
  * @returns Clean text with all ANSI escape sequences removed
  */
 export function stripAnsi(data: string): string {
-  return data.replace(ANSI_PATTERN, "");
+  return data.replaceAll(ansiPattern, "");
 }

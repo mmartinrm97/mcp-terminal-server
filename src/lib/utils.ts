@@ -71,12 +71,12 @@ export function normalizeEscapeSequences(data: string): string {
   return (
     data
       // Replace literal backslash sequences (in order: multi-char first, then single)
-      .replace(/\\x03/g, "\x03")
-      .replace(/\\x1b\[/g, "\x1b[")
-      .replace(/\\x1b/g, "\x1b")
-      .replace(/\\n/g, "\n")
-      .replace(/\\r/g, "\r")
-      .replace(/\\t/g, "\t")
-      .replace(/\\\\/g, "\\")
+      .replaceAll(String.raw`\x03`, "\x03")
+      .replaceAll(String.raw`\x1b[`, "\x1b[")
+      .replaceAll(String.raw`\x1b`, "\x1b")
+      .replaceAll(String.raw`\n`, "\n")
+      .replaceAll(String.raw`\r`, "\r")
+      .replaceAll(String.raw`\t`, "\t")
+      .replaceAll(String.raw`\\`, "\\")
   );
 }

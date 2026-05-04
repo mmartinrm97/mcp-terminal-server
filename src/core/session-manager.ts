@@ -15,9 +15,9 @@ import type { SessionConfig, SessionInfo, SessionManagerConfig } from "../types.
  * - Max session limit enforcement (default: 10)
  */
 export class SessionManager {
-  private sessions: Map<string, PTYSession> = new Map();
-  private config: SessionManagerConfig;
-  private cleanupTimer: ReturnType<typeof setInterval>;
+  private readonly sessions: Map<string, PTYSession> = new Map();
+  private readonly config: SessionManagerConfig;
+  private readonly cleanupTimer: ReturnType<typeof setInterval>;
 
   /**
    * @param config - Optional configuration override
@@ -97,6 +97,7 @@ export class SessionManager {
 
   /**
    * List all active sessions.
+   * @returns Array of session info objects.
    */
   listSessions(): SessionInfo[] {
     return Array.from(this.sessions.values()).map((s) => s.getInfo());
@@ -119,6 +120,7 @@ export class SessionManager {
 
   /**
    * Get the number of active sessions.
+   * @returns The number of currently open sessions.
    */
   get activeCount(): number {
     return this.sessions.size;
