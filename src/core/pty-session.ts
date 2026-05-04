@@ -118,12 +118,13 @@ export class PTYSession {
    */
   write(data: string): number {
     let processed = normalizeEscapeSequences(data);
-    // Windows PowerShell requires CRLF (\r\n) to execute commands.
-    // A lone LF (\n) enters multiline mode (>> prompt).
+    // Windows shells (PowerShell, cmd.exe) require CRLF (\r\n) to execute commands.
+    // A lone LF (\n) enters multiline mode (>> prompt) in PowerShell.
     if (platform() === "win32") {
       const shellProcess = this.pty.process;
-      if (shellProcess === "pwsh.exe" || shellProcess === "pwsh") {
+      if (shellProcess) {
         // Convert LF to CRLF, but don't double-convert existing CRLF
+        // This covers pwsh.exe, pwsh, powershell.exe, cmd.exe, and any Windows shell
         processed = processed.replace(/(?<!\r)\n/g, "\r\n");
       }
     }
