@@ -407,14 +407,14 @@ graph TD
 
 ### Components
 
-| Component          | File                     | Responsibility                                                                                                 |
-| ------------------ | ------------------------ | -------------------------------------------------------------------------------------------------------------- |
-| **OutputBuffer**   | `src/output-buffer.ts`   | Circular buffer with regex pattern matching. Accumulates PTY data and enables `readUntil()` with 50ms polling. |
-| **PTYSession**     | `src/pty-session.ts`     | Wraps `node-pty`. Connects the OutputBuffer to the real shell process.                                         |
-| **SessionManager** | `src/session-manager.ts` | Manages session lifecycle: creation, listing, closing, automatic TTL cleanup.                                  |
-| **MCPServer**      | `src/server.ts`          | Exposes 11 tools via the MCP protocol. Handles errors and input validation.                                    |
-| **ShellDetector**  | `src/shell-detector.ts`  | Detects the preferred shell per platform (auto/bash/zsh/pwsh/cmd).                                             |
-| **AnsiStripper**   | `src/ansi-stripper.ts`   | Strips ANSI escape codes from terminal output.                                                                 |
+| Component          | File                          | Responsibility                                                                                                 |
+| ------------------ | ----------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| **OutputBuffer**   | `src/core/output-buffer.ts`   | Circular buffer with regex pattern matching. Accumulates PTY data and enables `readUntil()` with 50ms polling. |
+| **PTYSession**     | `src/core/pty-session.ts`     | Wraps `node-pty`. Connects the OutputBuffer to the real shell process.                                         |
+| **SessionManager** | `src/core/session-manager.ts` | Manages session lifecycle: creation, listing, closing, automatic TTL cleanup.                                  |
+| **MCPServer**      | `src/server.ts`               | Exposes 11 tools via the MCP protocol. Handles errors and input validation.                                    |
+| **ShellDetector**  | `src/shell-detector.ts`       | Detects the preferred shell per platform (auto/bash/zsh/pwsh/cmd).                                             |
+| **AnsiStripper**   | `src/ansi-stripper.ts`        | Strips ANSI escape codes from terminal output.                                                                 |
 
 ## Development
 
@@ -491,24 +491,6 @@ If you test on any of these combinations, open an issue or PR with your results.
 3. **Session limit**: Maximum N simultaneous sessions (configurable, default: 10).
 4. **Orphan cleanup**: If the MCP server process dies, child PTY processes are cleaned up automatically.
 5. **No secrets**: The server MUST NOT be used for sensitive input (passwords, tokens) because the intermediary agent sees everything.
-
-## Roadmap
-
-- [x] Core: OutputBuffer, PTYSession, SessionManager
-- [x] MCP Server with 11 tools
-- [x] Agent skill (`terminalize`) for OpenCode agents
-- [x] npm publishing (v0.1.2+)
-- [x] Unit tests (161 tests)
-- [x] Integration tests with real executables (42 tests)
-- [ ] SSE transport for remote connections
-
-## Contributing
-
-See [CONTRIBUTING.md](./CONTRIBUTING.md) for development setup, coding guidelines, and pull request process.
-
-## Changelog
-
-See [CHANGELOG.md](./CHANGELOG.md) for version history and release notes.
 
 ## Roadmap
 

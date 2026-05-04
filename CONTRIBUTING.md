@@ -63,7 +63,7 @@ src/
 ├── output-buffer.ts    # Circular buffer with regex matching
 ├── pty-session.ts      # node-pty wrapper
 ├── session-manager.ts  # Session lifecycle management
-├── server.ts           # MCP server with 7 tools
+├── server.ts           # MCP server with 11 tools
 └── index.ts            # Entry point
 
 test/
