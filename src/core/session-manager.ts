@@ -53,6 +53,13 @@ export class SessionManager {
     // Generate or use provided ID
     const id = config.id ?? generateSessionId();
 
+    // Reject duplicate IDs to prevent orphaned PTY sessions
+    if (this.sessions.has(id)) {
+      throw new Error(
+        `Session ID "${id}" already exists. Use a unique ID or omit it for auto-generation.`,
+      );
+    }
+
     // Resolve cwd
     const cwd = config.cwd ?? process.cwd();
 
