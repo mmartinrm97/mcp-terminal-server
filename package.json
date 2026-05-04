@@ -1,6 +1,6 @@
 {
   "name": "terminalize",
-  "version": "0.2.5",
+  "version": "0.3.0",
   "description": "Interactive terminal (PTY) for AI agents — MCP server that gives agents a real shell",
   "keywords": [
     "ai-agent",
