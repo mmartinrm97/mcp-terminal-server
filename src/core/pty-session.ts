@@ -50,6 +50,7 @@ export class PTYSession {
   readonly createdAt: Date;
   readonly cwd: string;
   lastActivity: Date;
+  _shellName: string;
 
   private _ended = false;
   private _exitCode: number | null = null;
@@ -61,6 +62,7 @@ export class PTYSession {
     this.createdAt = new Date();
     this.lastActivity = new Date();
     this.buffer = new OutputBuffer();
+    this._shellName = options.shell;
 
     // Build env with pager-blocking defaults.
     // Order: process.env base → PAGER_ENV overrides → user env takes final precedence.
@@ -115,7 +117,16 @@ export class PTYSession {
    * @returns Number of bytes written
    */
   write(data: string): number {
-    const processed = normalizeEscapeSequences(data);
+    let processed = normalizeEscapeSequences(data);
+    // Windows PowerShell requires CRLF (\r\n) to execute commands.
+    // A lone LF (\n) enters multiline mode (>> prompt).
+    if (platform() === "win32") {
+      const shellProcess = this.pty.process;
+      if (shellProcess === "pwsh.exe" || shellProcess === "pwsh") {
+        // Convert LF to CRLF, but don't double-convert existing CRLF
+        processed = processed.replace(/(?<!\r)\n/g, "\r\n");
+      }
+    }
     this.pty.write(processed);
     this.lastActivity = new Date();
     return Buffer.byteLength(processed);
@@ -369,7 +380,7 @@ export class PTYSession {
     return {
       id: this.id,
       label: this.label,
-      shell: this.pty.process,
+      shell: this._shellName,
       cwd: this.cwd,
       cols: this.pty.cols,
       rows: this.pty.rows,
