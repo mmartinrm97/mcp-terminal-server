@@ -9,7 +9,7 @@
 ![Build](https://img.shields.io/badge/build-passing-brightgreen)
 [![npm](https://img.shields.io/npm/v/terminalize?color=red)](https://www.npmjs.com/package/terminalize)
 
-> **Give your AI agent a real interactive terminal.** terminalize exposes a real PTY as MCP tools — persistent sessions, keystrokes, output waiting, and signal control.
+> **Stop the "one-shot" guessing game. Give your AI agents a persistent terminal they can actually talk to.**
 
 ---
 
