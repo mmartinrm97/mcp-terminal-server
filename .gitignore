@@ -44,3 +44,5 @@ prisma.config.ts
 vite-project
 
 /src/generated/prisma
+
+.scannerwork/
