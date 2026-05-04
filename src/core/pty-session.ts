@@ -138,8 +138,12 @@ export class PTYSession {
    * Generates a unique marker, writes the command with marker wrapping,
    * and returns the marker so the caller can use readUntil(marker).
    *
+   * The marker ALWAYS appears after the command, regardless of exit code.
+   * Uses `;` (not `&&`) on POSIX to ensure the marker is printed even
+   * when the command fails.
+   *
    * Shell-specific syntax:
-   * - bash/zsh: `echo MARKER && cmd && echo MARKER && echo exit: $?`
+   * - bash/zsh: `echo MARKER; cmd; echo MARKER; echo "exit: $?"`
    * - cmd.exe:  `echo MARKER & cmd & echo MARKER & echo exit:!errorlevel!`
    * - pwsh:     `echo MARKER; cmd; echo MARKER; echo "exit: $LASTEXITCODE"`
    *
@@ -160,8 +164,8 @@ export class PTYSession {
     } else if (shellProcess === "pwsh.exe" || shellProcess === "pwsh") {
       fullCommand = `echo ${marker}; ${command}; echo ${marker}; echo "exit: $LASTEXITCODE"`;
     } else {
-      // bash, zsh — POSIX
-      fullCommand = `echo ${marker} && ${command} && echo ${marker} && echo exit: $?`;
+      // bash, zsh — POSIX: use ; so markers print even if command fails
+      fullCommand = `echo ${marker}; ${command}; echo ${marker}; echo "exit: $?"`;
     }
 
     this.write(fullCommand + "\n");

@@ -258,14 +258,13 @@ describe("PTYSession", () => {
       await expect(session.writeMarked("echo nope")).rejects.toThrow("Session has ended");
     });
 
-    it("should use POSIX && syntax for bash shell", async () => {
-      // The mock shell is "bash", so it should use && separators
+    it("should use POSIX ; syntax for bash shell", async () => {
+      // The mock shell is "bash", so it should use ; separators
       const marker = await session.writeMarked("echo triangulate");
       const writeArg = mockPtyInstance.write.mock.calls.map((c: any[]) => c[0]).join("");
-
-      // Verify POSIX format: echo MARKER && cmd && echo MARKER && echo exit: $?
+      // Verify POSIX format: echo MARKER; cmd; echo MARKER; echo "exit: $?"
       expect(writeArg).toMatch(/\becho\b/);
-      expect(writeArg).toContain("&&");
+      expect(writeArg).toContain(";");
       // Verify marker appears at least twice (open and close)
       const markerCount = (
         writeArg.match(new RegExp(marker.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g")) || []
