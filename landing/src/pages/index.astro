@@ -43,37 +43,38 @@ const features = [
 
 interface Agent {
   name: string;
+  slug: string;
   color: string;
 }
 
 const agents: Agent[] = [
-  { name: 'OpenCode', color: '#6c5ce7' },
-  { name: 'Claude Code', color: '#d97706' },
-  { name: 'Cursor', color: '#00d2ff' },
-  { name: 'Gemini CLI', color: '#4285f4' },
-  { name: 'Copilot', color: '#8957e5' },
-  { name: 'Codex', color: '#10a37f' },
-  { name: 'Kiro CLI', color: '#ff6b6b' },
-  { name: 'Windsurf', color: '#2ecc71' },
+  { name: 'OpenCode', slug: 'opencode', color: '#6c5ce7' },
+  { name: 'Claude', slug: 'claude', color: '#d97706' },
+  { name: 'Cursor', slug: 'cursor', color: '#00d2ff' },
+  { name: 'Gemini', slug: 'googlegemini', color: '#4285f4' },
+  { name: 'Copilot', slug: 'githubcopilot', color: '#8957e5' },
+  { name: 'OpenAI', slug: 'openai', color: '#10a37f' },
+  { name: 'Kiro', slug: 'kiro', color: '#ff6b6b' },
+  { name: 'Windsurf', slug: 'windsurf', color: '#2ecc71' },
 ];
 
-// Marquee log lines
-const marqueeLogs = [
-  '[OpenCode]  terminal_write({ id: "sess-1", data: "npm init\\n" })',
-  '[Claude]    terminal_read_until({ pattern: "package name:" })',
-  '[Cursor]    terminal_write({ id: "sess-2", data: "gh pr create\\n" })',
-  '[Gemini]    terminal_screenshot({ id: "sess-1" }) → "vim" mode',
-  '[Copilot]   terminal_read_until({ pattern: "Submit?" }) → matched',
-  '[Codex]     terminal_write({ id: "sess-3", data: "npx create-vite\\n" })',
-  '[Kiro]      terminal_send_signal({ id: "sess-1", signal: "SIGINT" })',
-  '[OpenCode]  terminal_read_until({ timeout_ms: 10000 }) → "Done!"',
-  '[Claude]    terminal_close_session({ id: "sess-1" }) → exit_code: 0',
-  '[Cursor]    terminal_tail({ id: "sess-2", lines: 5 }) → last 5 lines',
-  '[Windsurf]  terminal_create_session({ shell: "pwsh", cwd: "/project" })',
-  '[Gemini]    terminal_write({ id: "sess-3", data: "psql -U admin\\n" })',
-  '[Copilot]   terminal_read_until({ pattern: "database=" }) → "mydb"',
-  '[Codex]     terminal_screenshot({ id: "sess-2" }) → "lazygit" mode',
-  '[OpenCode]  terminal_resize({ id: "sess-1", cols: 120, rows: 40 })',
+// Marquee with brand-colored agent tags
+const marqueeLogs: { agent: string; color: string; text: string }[] = [
+  { agent: 'OpenCode', color: '#6c5ce7', text: 'terminal_write({ id: "sess-1", data: "npm init\\n" })' },
+  { agent: 'Claude', color: '#d97706', text: 'terminal_read_until({ pattern: "package name:" })' },
+  { agent: 'Cursor', color: '#00d2ff', text: 'terminal_write({ id: "sess-2", data: "gh pr create\\n" })' },
+  { agent: 'Gemini', color: '#4285f4', text: 'terminal_screenshot({ id: "sess-1" }) → "vim" mode' },
+  { agent: 'Copilot', color: '#8957e5', text: 'terminal_read_until({ pattern: "Submit?" }) → matched' },
+  { agent: 'OpenAI', color: '#10a37f', text: 'terminal_write({ id: "sess-3", data: "npx create-vite\\n" })' },
+  { agent: 'Kiro', color: '#ff6b6b', text: 'terminal_send_signal({ id: "sess-1", signal: "SIGINT" })' },
+  { agent: 'OpenCode', color: '#6c5ce7', text: 'terminal_read_until({ timeout_ms: 10000 }) → "Done!"' },
+  { agent: 'Claude', color: '#d97706', text: 'terminal_close_session({ id: "sess-1" }) → exit_code: 0' },
+  { agent: 'Cursor', color: '#00d2ff', text: 'terminal_tail({ id: "sess-2", lines: 5 })' },
+  { agent: 'Windsurf', color: '#2ecc71', text: 'terminal_create_session({ shell: "pwsh", cwd: "/project" })' },
+  { agent: 'Gemini', color: '#4285f4', text: 'terminal_write({ id: "sess-3", data: "psql -U admin\\n" })' },
+  { agent: 'Copilot', color: '#8957e5', text: 'terminal_read_until({ pattern: "database=" }) → "mydb"' },
+  { agent: 'OpenAI', color: '#10a37f', text: 'terminal_screenshot({ id: "sess-2" }) → "lazygit"' },
+  { agent: 'OpenCode', color: '#6c5ce7', text: 'terminal_resize({ id: "sess-1", cols: 120, rows: 40 })' },
 ];
 ---
 
@@ -145,11 +146,14 @@ const marqueeLogs = [
     </div>
   </section>
 
-  <!-- Marquee / Ticker — slowed down -->
+  <!-- Marquee / Ticker — brand-colored agent tags -->
   <div class="overflow-hidden py-4 bg-[#161b22] border-y border-[#30363d]">
-    <div class="marquee-track flex gap-12 whitespace-nowrap font-mono text-xs">
+    <div class="marquee-track flex gap-12 whitespace-nowrap font-mono text-xs items-center">
       {[...marqueeLogs, ...marqueeLogs].map((log) => (
-        <span class="text-[#8b949e] shrink-0">{log}</span>
+        <span class="shrink-0 flex items-center gap-1.5">
+          <span class="font-semibold" style={`color: ${log.color}`}>[{log.agent}]</span>
+          <span class="text-[#8b949e]">{log.text}</span>
+        </span>
       ))}
     </div>
   </div>
@@ -193,20 +197,23 @@ const marqueeLogs = [
         ))}
       </div>
 
-      <!-- Agents with brand-colored badges -->
+      <!-- Agents with brand SVG logos via simple-icons CDN (CC0 license) -->
       <div class="mt-20 text-center" data-reveal>
         <h3 class="text-lg font-semibold mb-4">Compatible with</h3>
         <div class="flex flex-wrap gap-3 justify-center">
           {agents.map((a) => (
-            <span class="flex items-center gap-2 bg-[#0d1117] border border-[#30363d] rounded-full pl-1 pr-4 py-1 text-sm text-[#8b949e] hover:border-[#6c5ce7]/50 transition-colors">
-              <span
-                class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0"
-                style={`background-color: ${a.color}`}
-              >{a.name[0]}</span>
+            <span class="flex items-center gap-2 bg-[#0d1117] border border-[#30363d] rounded-full pl-3 pr-4 py-1.5 text-sm text-[#8b949e] hover:border-[#6c5ce7]/50 transition-colors">
+              <img
+                src={`https://cdn.simpleicons.org/${a.slug}/${a.color.slice(1)}`}
+                alt={a.name}
+                class="w-4 h-4 shrink-0"
+                loading="lazy"
+              />
               {a.name}
             </span>
           ))}
         </div>
+        <p class="text-xs text-[#30363d] mt-6">Brand icons via Simple Icons · CC0 1.0 Universal</p>
       </div>
     </div>
   </section>
@@ -239,7 +246,7 @@ const marqueeLogs = [
   ::-webkit-scrollbar-thumb:hover { background: #6c5ce7; }
   * { scrollbar-color: #30363d #0d1117; scrollbar-width: thin; }
 
-  /* ── Marquee animation — slowed to 80s for smooth scroll ── */
+  /* ── Marquee — 80s, smooth, pausable ── */
   .marquee-track {
     animation: marquee 80s linear infinite;
     width: max-content;
@@ -250,7 +257,7 @@ const marqueeLogs = [
   }
   .marquee-track:hover { animation-play-state: paused; }
 
-  /* ── Typewriter animation ── */
+  /* ── Typewriter ── */
   .terminal-lines { text-align: left; }
   .typing-line {
     overflow: hidden;
@@ -263,8 +270,6 @@ const marqueeLogs = [
     0% { width: 0; }
     100% { width: calc(var(--chars) * 0.65ch); }
   }
-
-  /* ── Blinking cursor ── */
   .cursor-blink {
     color: #6c5ce7;
     animation: blink 0.8s step-end infinite;
