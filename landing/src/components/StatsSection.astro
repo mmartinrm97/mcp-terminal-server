@@ -1,8 +1,8 @@
 ---
 export interface Agent {
   name: string;
-  /** simple-icons slug, or empty to use initial-letter fallback */
-  slug?: string;
+  /** URL to the SVG icon */
+  icon: string;
   color: string;
 }
 
@@ -38,30 +38,23 @@ const { stats, agents } = Astro.props;
       ))}
     </div>
 
-    <!-- Agents with brand SVG logos via simple-icons CDN (CC0 license) -->
+    <!-- Agents with brand SVG logos via SVGL API -->
     <div class="mt-20 text-center" data-reveal>
       <h3 class="text-lg font-semibold mb-4">Compatible with</h3>
       <div class="flex flex-wrap gap-3 justify-center">
         {agents.map((a) => (
           <span class="flex items-center gap-2 bg-[#0d1117] border border-[#30363d] rounded-full pl-3 pr-4 py-1.5 text-sm text-[#8b949e] hover:border-[#6c5ce7]/50 transition-colors">
-            {a.slug ? (
-              <img
-                src={`https://cdn.simpleicons.org/${a.slug}/${a.color.slice(1)}`}
-                alt={a.name}
-                class="w-4 h-4 shrink-0"
-                loading="lazy"
-                onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'"
-              />
-            ) : null}
-            <span
-              class={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0 ${a.slug ? 'hidden' : ''}`}
-              style={`background-color: ${a.color}`}
-            >{a.name[0]}</span>
+            <img
+              src={a.icon}
+              alt={a.name}
+              class="w-4 h-4 shrink-0"
+              loading="lazy"
+            />
             {a.name}
           </span>
         ))}
       </div>
-      <p class="text-xs text-[#30363d] mt-6">Brand icons via Simple Icons · CC0 1.0 Universal</p>
+      <p class="text-xs text-[#30363d] mt-6">Brand icons via <a href="https://svgl.app" class="text-[#8b949e] hover:text-[#6c5ce7]">SVGL</a></p>
     </div>
   </div>
 </section>
