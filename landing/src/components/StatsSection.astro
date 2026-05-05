@@ -1,14 +1,15 @@
 ---
+export interface Agent {
+  name: string;
+  /** simple-icons slug, or empty to use initial-letter fallback */
+  slug?: string;
+  color: string;
+}
+
 export interface Stat {
   value: number;
   suffix: string;
   label: string;
-}
-
-export interface Agent {
-  name: string;
-  slug: string;
-  color: string;
 }
 
 export interface Props {
@@ -43,12 +44,19 @@ const { stats, agents } = Astro.props;
       <div class="flex flex-wrap gap-3 justify-center">
         {agents.map((a) => (
           <span class="flex items-center gap-2 bg-[#0d1117] border border-[#30363d] rounded-full pl-3 pr-4 py-1.5 text-sm text-[#8b949e] hover:border-[#6c5ce7]/50 transition-colors">
-            <img
-              src={`https://cdn.simpleicons.org/${a.slug}/${a.color.slice(1)}`}
-              alt={a.name}
-              class="w-4 h-4 shrink-0"
-              loading="lazy"
-            />
+            {a.slug ? (
+              <img
+                src={`https://cdn.simpleicons.org/${a.slug}/${a.color.slice(1)}`}
+                alt={a.name}
+                class="w-4 h-4 shrink-0"
+                loading="lazy"
+                onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'"
+              />
+            ) : null}
+            <span
+              class={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0 ${a.slug ? 'hidden' : ''}`}
+              style={`background-color: ${a.color}`}
+            >{a.name[0]}</span>
             {a.name}
           </span>
         ))}
