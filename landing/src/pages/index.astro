@@ -1,5 +1,11 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import Nav from '../components/Nav.astro';
+import Hero from '../components/Hero.astro';
+import MarqueeTicker from '../components/MarqueeTicker.astro';
+import FeaturesGrid from '../components/FeaturesGrid.astro';
+import StatsSection from '../components/StatsSection.astro';
+import SiteFooter from '../components/SiteFooter.astro';
 
 const stats = [
   { value: 305, suffix: '', label: 'Tests Passing' },
@@ -41,13 +47,7 @@ const features = [
   },
 ];
 
-interface Agent {
-  name: string;
-  slug: string;
-  color: string;
-}
-
-const agents: Agent[] = [
+const agents = [
   { name: 'OpenCode', slug: 'opencode', color: '#6c5ce7' },
   { name: 'Claude', slug: 'claude', color: '#d97706' },
   { name: 'Cursor', slug: 'cursor', color: '#00d2ff' },
@@ -58,8 +58,7 @@ const agents: Agent[] = [
   { name: 'Windsurf', slug: 'windsurf', color: '#2ecc71' },
 ];
 
-// Marquee with brand-colored agent tags
-const marqueeLogs: { agent: string; color: string; text: string }[] = [
+const marqueeLogs = [
   { agent: 'OpenCode', color: '#6c5ce7', text: 'terminal_write({ id: "sess-1", data: "npm init\\n" })' },
   { agent: 'Claude', color: '#d97706', text: 'terminal_read_until({ pattern: "package name:" })' },
   { agent: 'Cursor', color: '#00d2ff', text: 'terminal_write({ id: "sess-2", data: "gh pr create\\n" })' },
@@ -78,164 +77,16 @@ const marqueeLogs: { agent: string; color: string; text: string }[] = [
 ];
 ---
 
-<Layout title="terminalize — Interactive Terminal for AI Agents" description="Give your AI agents a persistent PTY terminal. npm init, gh pr create, psql — all interactive, all real.">
-  <!-- Navigation -->
-  <nav class="fixed top-0 w-full bg-[#0d1117]/80 backdrop-blur border-b border-[#30363d] z-50">
-    <div class="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
-      <span class="font-bold text-[#6c5ce7]">terminalize</span>
-      <div class="flex gap-6 text-sm text-[#8b949e]">
-        <a href="#features" class="hover:text-[#6c5ce7] transition-colors">Features</a>
-        <a href="#stats" class="hover:text-[#6c5ce7] transition-colors">Stats</a>
-        <a href="https://github.com/mmartinrm97/terminalize" class="hover:text-[#6c5ce7] transition-colors" target="_blank">GitHub</a>
-        <a href="https://www.npmjs.com/package/terminalize" class="hover:text-[#6c5ce7] transition-colors" target="_blank">npm</a>
-      </div>
-    </div>
-  </nav>
-
-  <!-- Hero -->
-  <section class="min-h-screen flex flex-col items-center justify-center px-4 text-center pt-14">
-    <div class="max-w-3xl">
-      <p class="text-xs font-mono text-[#6c5ce7] mb-4 tracking-widest uppercase" data-reveal>v0.3.0 · MCP Server</p>
-      <h1 class="text-5xl md:text-7xl font-bold mb-6 tracking-tight" data-reveal>
-        Interactive Terminal
-        <span class="text-[#6c5ce7]">for AI Agents</span>
-      </h1>
-      <p class="text-lg md:text-xl text-[#8b949e] mb-8 max-w-2xl mx-auto leading-relaxed" data-reveal>
-        Stop the "one-shot" guessing game. Give your AI agents a persistent PTY
-        they can <span class="text-[#e6edf3] font-semibold">actually talk to</span>.
-      </p>
-
-      <!-- Terminal with typewriter animation -->
-      <div class="bg-[#1a1b26] rounded-lg border border-[#30363d] p-4 mb-8 text-left font-mono text-sm overflow-x-auto" data-reveal>
-        <div class="flex gap-2 mb-3">
-          <span class="w-3 h-3 rounded-full bg-[#ff6b6b]"></span>
-          <span class="w-3 h-3 rounded-full bg-[#ffd93d]"></span>
-          <span class="w-3 h-3 rounded-full bg-[#2ecc71]"></span>
-        </div>
-        <div class="terminal-lines">
-          <div class="typing-line" style="--chars: 19; --delay: 0.3s">
-            <span class="text-[#8b949e]">$ </span><span class="text-[#e6edf3]">npx terminalize</span>
-          </div>
-          <div class="typing-line" style="--chars: 65; --delay: 1.5s">
-            <span class="text-[#6c5ce7]">[terminalize]</span> Starting with max_sessions=10, session_ttl_ms=1800000
-          </div>
-          <div class="typing-line" style="--chars: 46; --delay: 3.2s">
-            <span class="text-[#6c5ce7]">[terminalize]</span> Connected via stdio transport
-          </div>
-          <div class="typing-line" style="--chars: 10; --delay: 4.8s">
-            <span class="text-[#8b949e]">$ </span><span class="text-[#00d2ff]">npm init</span>
-          </div>
-          <div class="typing-line" style="--chars: 24; --delay: 6.0s">
-            <span class="text-[#8b949e]">package name: (project)</span>
-          </div>
-          <div class="cursor-blink" style="--delay: 7.5s">█</div>
-        </div>
-      </div>
-
-      <!-- Install command -->
-      <div class="flex flex-col sm:flex-row gap-3 justify-center items-center" data-reveal>
-        <code class="bg-[#161b22] border border-[#30363d] rounded-lg px-5 py-3 font-mono text-sm">
-          npm install -g terminalize
-        </code>
-        <a href="https://github.com/mmartinrm97/terminalize" target="_blank"
-          class="inline-flex items-center gap-2 bg-[#6c5ce7] hover:bg-[#5a4bd1] transition-colors text-white px-6 py-3 rounded-lg text-sm font-medium">
-          <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 16 16"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
-          Star on GitHub
-        </a>
-      </div>
-    </div>
-  </section>
-
-  <!-- Marquee / Ticker — brand-colored agent tags -->
-  <div class="overflow-hidden py-4 bg-[#161b22] border-y border-[#30363d]">
-    <div class="marquee-track flex gap-12 whitespace-nowrap font-mono text-xs items-center">
-      {[...marqueeLogs, ...marqueeLogs].map((log) => (
-        <span class="shrink-0 flex items-center gap-1.5">
-          <span class="font-semibold" style={`color: ${log.color}`}>[{log.agent}]</span>
-          <span class="text-[#8b949e]">{log.text}</span>
-        </span>
-      ))}
-    </div>
-  </div>
-
-  <!-- Features -->
-  <section id="features" class="py-24 px-4">
-    <div class="max-5xl mx-auto max-w-5xl">
-      <h2 class="text-3xl md:text-4xl font-bold text-center mb-4" data-reveal>Why terminalize?</h2>
-      <p class="text-[#8b949e] text-center mb-16 max-w-xl mx-auto" data-reveal>
-        11 MCP tools designed for interactive workflows. No more timeouts, no more guessing.
-      </p>
-
-      <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
-        {features.map((f, i) => (
-          <div class="bg-[#161b22] border border-[#30363d] rounded-xl p-6 hover:border-[#6c5ce7]/50 transition-all hover:-translate-y-0.5 duration-300" data-reveal data-delay={i * 100}>
-            <h3 class="text-[#6c5ce7] font-bold mb-2 font-mono text-sm">{f.title}</h3>
-            <p class="text-[#8b949e] text-sm mb-4">{f.desc}</p>
-            <pre class="bg-[#1a1b26] rounded-lg p-3 text-xs font-mono text-[#00d2ff] overflow-x-auto">{f.code}</pre>
-          </div>
-        ))}
-      </div>
-    </div>
-  </section>
-
-  <!-- Stats -->
-  <section id="stats" class="py-24 px-4 bg-[#161b22]">
-    <div class="max-w-4xl mx-auto">
-      <h2 class="text-3xl md:text-4xl font-bold text-center mb-4" data-reveal>Quality First</h2>
-      <p class="text-[#8b949e] text-center mb-16 max-w-xl mx-auto" data-reveal>
-        SonarQube Quality Gate: <span class="text-[#2ecc71] font-semibold">PASSING</span> &mdash; 0 issues, 89% coverage.
-      </p>
-
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-6" data-reveal>
-        {stats.map((s) => (
-          <div class="text-center">
-            <div class="text-3xl md:text-4xl font-bold text-[#6c5ce7] mb-1">
-              <span class="counter" data-target={s.value}>{s.value}</span>{s.suffix}
-            </div>
-            <div class="text-sm text-[#8b949e]">{s.label}</div>
-          </div>
-        ))}
-      </div>
-
-      <!-- Agents with brand SVG logos via simple-icons CDN (CC0 license) -->
-      <div class="mt-20 text-center" data-reveal>
-        <h3 class="text-lg font-semibold mb-4">Compatible with</h3>
-        <div class="flex flex-wrap gap-3 justify-center">
-          {agents.map((a) => (
-            <span class="flex items-center gap-2 bg-[#0d1117] border border-[#30363d] rounded-full pl-3 pr-4 py-1.5 text-sm text-[#8b949e] hover:border-[#6c5ce7]/50 transition-colors">
-              <img
-                src={`https://cdn.simpleicons.org/${a.slug}/${a.color.slice(1)}`}
-                alt={a.name}
-                class="w-4 h-4 shrink-0"
-                loading="lazy"
-              />
-              {a.name}
-            </span>
-          ))}
-        </div>
-        <p class="text-xs text-[#30363d] mt-6">Brand icons via Simple Icons · CC0 1.0 Universal</p>
-      </div>
-    </div>
-  </section>
-
-  <!-- CTA Footer -->
-  <footer class="py-16 px-4 text-center" data-reveal>
-    <div class="max-w-lg mx-auto">
-      <h2 class="text-2xl font-bold mb-3">Get Started</h2>
-      <p class="text-[#8b949e] mb-8">
-        Una línea y tu agente tiene un terminal real. npm init, gh pr create, psql — todo interactivo.
-      </p>
-      <code class="block bg-[#1a1b26] border border-[#30363d] rounded-lg px-5 py-4 font-mono text-sm mb-6">
-        npx terminalize
-      </code>
-      <div class="flex justify-center gap-4 text-sm text-[#8b949e]">
-        <a href="https://github.com/mmartinrm97/terminalize" class="hover:text-[#6c5ce7] transition-colors" target="_blank">GitHub</a>
-        <a href="https://www.npmjs.com/package/terminalize" class="hover:text-[#6c5ce7] transition-colors" target="_blank">npm</a>
-        <a href="https://github.com/mmartinrm97/terminalize/issues" class="hover:text-[#6c5ce7] transition-colors" target="_blank">Issues</a>
-      </div>
-      <p class="mt-8 text-xs text-[#30363d]">MIT License · 2026 · Made with terminalize</p>
-    </div>
-  </footer>
+<Layout
+  title="terminalize — Interactive Terminal for AI Agents"
+  description="Give your AI agents a persistent PTY terminal. npm init, gh pr create, psql — all interactive, all real."
+>
+  <Nav />
+  <Hero />
+  <MarqueeTicker logs={marqueeLogs} />
+  <FeaturesGrid features={features} />
+  <StatsSection stats={stats} agents={agents} />
+  <SiteFooter />
 </Layout>
 
 <style is:global>
@@ -246,7 +97,7 @@ const marqueeLogs: { agent: string; color: string; text: string }[] = [
   ::-webkit-scrollbar-thumb:hover { background: #6c5ce7; }
   * { scrollbar-color: #30363d #0d1117; scrollbar-width: thin; }
 
-  /* ── Marquee — 80s, smooth, pausable ── */
+  /* ── Marquee ── */
   .marquee-track {
     animation: marquee 80s linear infinite;
     width: max-content;

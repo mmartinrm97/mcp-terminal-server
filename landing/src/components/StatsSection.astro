@@ -1,0 +1,59 @@
+---
+export interface Stat {
+  value: number;
+  suffix: string;
+  label: string;
+}
+
+export interface Agent {
+  name: string;
+  slug: string;
+  color: string;
+}
+
+export interface Props {
+  stats: Stat[];
+  agents: Agent[];
+}
+
+const { stats, agents } = Astro.props;
+---
+
+<section id="stats" class="py-24 px-4 bg-[#161b22]">
+  <div class="max-w-4xl mx-auto">
+    <h2 class="text-3xl md:text-4xl font-bold text-center mb-4" data-reveal>Quality First</h2>
+    <p class="text-[#8b949e] text-center mb-16 max-w-xl mx-auto" data-reveal>
+      SonarQube Quality Gate: <span class="text-[#2ecc71] font-semibold">PASSING</span> &mdash; 0 issues, 89% coverage.
+    </p>
+
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-6" data-reveal>
+      {stats.map((s) => (
+        <div class="text-center">
+          <div class="text-3xl md:text-4xl font-bold text-[#6c5ce7] mb-1">
+            <span class="counter" data-target={s.value}>{s.value}</span>{s.suffix}
+          </div>
+          <div class="text-sm text-[#8b949e]">{s.label}</div>
+        </div>
+      ))}
+    </div>
+
+    <!-- Agents with brand SVG logos via simple-icons CDN (CC0 license) -->
+    <div class="mt-20 text-center" data-reveal>
+      <h3 class="text-lg font-semibold mb-4">Compatible with</h3>
+      <div class="flex flex-wrap gap-3 justify-center">
+        {agents.map((a) => (
+          <span class="flex items-center gap-2 bg-[#0d1117] border border-[#30363d] rounded-full pl-3 pr-4 py-1.5 text-sm text-[#8b949e] hover:border-[#6c5ce7]/50 transition-colors">
+            <img
+              src={`https://cdn.simpleicons.org/${a.slug}/${a.color.slice(1)}`}
+              alt={a.name}
+              class="w-4 h-4 shrink-0"
+              loading="lazy"
+            />
+            {a.name}
+          </span>
+        ))}
+      </div>
+      <p class="text-xs text-[#30363d] mt-6">Brand icons via Simple Icons · CC0 1.0 Universal</p>
+    </div>
+  </div>
+</section>
