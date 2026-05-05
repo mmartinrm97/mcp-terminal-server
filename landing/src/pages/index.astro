@@ -41,17 +41,28 @@ const features = [
   },
 ];
 
-const agents = [
-  'OpenCode', 'Claude Code', 'Cursor', 'Gemini CLI',
-  'Copilot', 'Codex', 'Kiro CLI', 'Windsurf',
+interface Agent {
+  name: string;
+  color: string;
+}
+
+const agents: Agent[] = [
+  { name: 'OpenCode', color: '#6c5ce7' },
+  { name: 'Claude Code', color: '#d97706' },
+  { name: 'Cursor', color: '#00d2ff' },
+  { name: 'Gemini CLI', color: '#4285f4' },
+  { name: 'Copilot', color: '#8957e5' },
+  { name: 'Codex', color: '#10a37f' },
+  { name: 'Kiro CLI', color: '#ff6b6b' },
+  { name: 'Windsurf', color: '#2ecc71' },
 ];
 
-// Marquee log lines — simulating real agent interactions via terminalize
+// Marquee log lines
 const marqueeLogs = [
   '[OpenCode]  terminal_write({ id: "sess-1", data: "npm init\\n" })',
   '[Claude]    terminal_read_until({ pattern: "package name:" })',
   '[Cursor]    terminal_write({ id: "sess-2", data: "gh pr create\\n" })',
-  '[Gemini]    terminal_screenshot({ id: "sess-1" }) → "vim" mode detected',
+  '[Gemini]    terminal_screenshot({ id: "sess-1" }) → "vim" mode',
   '[Copilot]   terminal_read_until({ pattern: "Submit?" }) → matched',
   '[Codex]     terminal_write({ id: "sess-3", data: "npx create-vite\\n" })',
   '[Kiro]      terminal_send_signal({ id: "sess-1", signal: "SIGINT" })',
@@ -93,19 +104,31 @@ const marqueeLogs = [
         they can <span class="text-[#e6edf3] font-semibold">actually talk to</span>.
       </p>
 
-      <!-- Code block -->
+      <!-- Terminal with typewriter animation -->
       <div class="bg-[#1a1b26] rounded-lg border border-[#30363d] p-4 mb-8 text-left font-mono text-sm overflow-x-auto" data-reveal>
         <div class="flex gap-2 mb-3">
           <span class="w-3 h-3 rounded-full bg-[#ff6b6b]"></span>
           <span class="w-3 h-3 rounded-full bg-[#ffd93d]"></span>
           <span class="w-3 h-3 rounded-full bg-[#2ecc71]"></span>
         </div>
-        <pre class="text-[#8b949e]">$ <span class="text-[#e6edf3]">npx terminalize</span>
-<span class="text-[#6c5ce7]">[terminalize]</span> Starting with max_sessions=10, session_ttl_ms=1800000
-<span class="text-[#6c5ce7]">[terminalize]</span> Connected via stdio transport
-
-$ <span class="text-[#00d2ff]">npm init</span>
-<span class="text-[#8b949e]">package name: (project)</span></pre>
+        <div class="terminal-lines">
+          <div class="typing-line" style="--chars: 19; --delay: 0.3s">
+            <span class="text-[#8b949e]">$ </span><span class="text-[#e6edf3]">npx terminalize</span>
+          </div>
+          <div class="typing-line" style="--chars: 65; --delay: 1.5s">
+            <span class="text-[#6c5ce7]">[terminalize]</span> Starting with max_sessions=10, session_ttl_ms=1800000
+          </div>
+          <div class="typing-line" style="--chars: 46; --delay: 3.2s">
+            <span class="text-[#6c5ce7]">[terminalize]</span> Connected via stdio transport
+          </div>
+          <div class="typing-line" style="--chars: 10; --delay: 4.8s">
+            <span class="text-[#8b949e]">$ </span><span class="text-[#00d2ff]">npm init</span>
+          </div>
+          <div class="typing-line" style="--chars: 24; --delay: 6.0s">
+            <span class="text-[#8b949e]">package name: (project)</span>
+          </div>
+          <div class="cursor-blink" style="--delay: 7.5s">█</div>
+        </div>
       </div>
 
       <!-- Install command -->
@@ -122,10 +145,9 @@ $ <span class="text-[#00d2ff]">npm init</span>
     </div>
   </section>
 
-  <!-- Marquee / Ticker -->
+  <!-- Marquee / Ticker — slowed down -->
   <div class="overflow-hidden py-4 bg-[#161b22] border-y border-[#30363d]">
     <div class="marquee-track flex gap-12 whitespace-nowrap font-mono text-xs">
-      {/* Double the logs for seamless loop */}
       {[...marqueeLogs, ...marqueeLogs].map((log) => (
         <span class="text-[#8b949e] shrink-0">{log}</span>
       ))}
@@ -171,12 +193,18 @@ $ <span class="text-[#00d2ff]">npm init</span>
         ))}
       </div>
 
-      <!-- Agents -->
+      <!-- Agents with brand-colored badges -->
       <div class="mt-20 text-center" data-reveal>
         <h3 class="text-lg font-semibold mb-4">Compatible with</h3>
         <div class="flex flex-wrap gap-3 justify-center">
           {agents.map((a) => (
-            <span class="bg-[#0d1117] border border-[#30363d] rounded-full px-4 py-2 text-sm text-[#8b949e] hover:border-[#6c5ce7]/50 transition-colors">{a}</span>
+            <span class="flex items-center gap-2 bg-[#0d1117] border border-[#30363d] rounded-full pl-1 pr-4 py-1 text-sm text-[#8b949e] hover:border-[#6c5ce7]/50 transition-colors">
+              <span
+                class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0"
+                style={`background-color: ${a.color}`}
+              >{a.name[0]}</span>
+              {a.name}
+            </span>
           ))}
         </div>
       </div>
@@ -211,9 +239,9 @@ $ <span class="text-[#00d2ff]">npm init</span>
   ::-webkit-scrollbar-thumb:hover { background: #6c5ce7; }
   * { scrollbar-color: #30363d #0d1117; scrollbar-width: thin; }
 
-  /* ── Marquee animation ── */
+  /* ── Marquee animation — slowed to 80s for smooth scroll ── */
   .marquee-track {
-    animation: marquee 30s linear infinite;
+    animation: marquee 80s linear infinite;
     width: max-content;
   }
   @keyframes marquee {
@@ -221,6 +249,32 @@ $ <span class="text-[#00d2ff]">npm init</span>
     100% { transform: translateX(-50%); }
   }
   .marquee-track:hover { animation-play-state: paused; }
+
+  /* ── Typewriter animation ── */
+  .terminal-lines { text-align: left; }
+  .typing-line {
+    overflow: hidden;
+    white-space: nowrap;
+    width: 0;
+    animation: typeLine calc(var(--chars) * 0.05s + 0.3s) ease-out forwards;
+    animation-delay: var(--delay);
+  }
+  @keyframes typeLine {
+    0% { width: 0; }
+    100% { width: calc(var(--chars) * 0.65ch); }
+  }
+
+  /* ── Blinking cursor ── */
+  .cursor-blink {
+    color: #6c5ce7;
+    animation: blink 0.8s step-end infinite;
+    animation-delay: var(--delay, 7.5s);
+    opacity: 0;
+  }
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+  }
 
   /* ── Reveal on scroll ── */
   [data-reveal] {
