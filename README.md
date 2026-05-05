@@ -1,15 +1,32 @@
 # terminalize
 
-![Node.js](https://img.shields.io/badge/node.js-22%2B-339933?logo=node.js&logoColor=white)
-![TypeScript](https://img.shields.io/badge/typescript-5.8%2B-3178C6?logo=typescript&logoColor=white)
-![License](https://img.shields.io/badge/license-MIT-blue)
+<p align="center">
+  <img src="https://img.shields.io/badge/terminalize-v0.3.0-6C5CE7?style=for-the-badge&logo=window-terminal&logoColor=white" alt="terminalize" />
+</p>
+
+<p align="center">
+  <a href="https://www.npmjs.com/package/terminalize"><img src="https://img.shields.io/npm/v/terminalize?color=red&logo=npm&style=flat-square" /></a>
+  <img src="https://img.shields.io/badge/node.js-22%2B-339933?logo=node.js&logoColor=white&style=flat-square" />
+  <img src="https://img.shields.io/badge/typescript-5.8%2B-3178C6?logo=typescript&logoColor=white&style=flat-square" />
+  <img src="https://img.shields.io/badge/license-MIT&style=flat-square" />
+  <img src="https://img.shields.io/badge/tests-305%20passing-brightgreen?style=flat-square" />
+  <a href="http://localhost:9000/dashboard?id=terminalize"><img src="https://img.shields.io/badge/quality%20gate-passing-brightgreen?style=flat-square" /></a>
+  <a href="http://localhost:9000/dashboard?id=terminalize"><img src="https://img.shields.io/badge/coverage-89%25-brightgreen?style=flat-square" /></a>
+</p>
+
+```text
+ ╔══════════════════════════════════════════════════════╗
+ ║  terminalize — Interactive Terminal for AI Agents   ║
+ ║                                                      ║
+ ║  Give your AI agents a persistent terminal they     ║
+ ║  can actually talk to. npm init, gh pr create,      ║
+ ║  psql — all interactive, all real PTY.              ║
+ ╚══════════════════════════════════════════════════════╝
+```
+
 [![MCP SDK](https://img.shields.io/badge/MCP%20SDK-1.29-blueviolet)](https://spec.modelcontextprotocol.io)
 [![node-pty](https://img.shields.io/badge/node--pty-1.0-FF6C37)](https://github.com/microsoft/node-pty)
-![Tests](https://img.shields.io/badge/tests-305%20passing-brightgreen)
-![Build](https://img.shields.io/badge/build-passing-brightgreen)
 [![npm](https://img.shields.io/npm/v/terminalize?color=red)](https://www.npmjs.com/package/terminalize)
-[![Quality Gate](https://img.shields.io/badge/quality%20gate-0%20issues-brightgreen)](http://localhost:9000/dashboard?id=terminalize)
-[![Coverage](https://img.shields.io/badge/coverage-89%25-brightgreen)](http://localhost:9000/dashboard?id=terminalize)
 
 > **Stop the "one-shot" guessing game. Give your AI agents a persistent terminal they can actually talk to.**
 
@@ -56,6 +73,155 @@ flowchart LR
 ```
 
 </details>
+
+## Installation
+
+```bash
+# Run directly (no install needed)
+npx terminalize
+
+# Or install globally
+npm install -g terminalize
+```
+
+### Quick Setup
+
+```bash
+# 1. Install the terminalize skill for AI agents
+npx terminalize install-skills
+
+# 2. Add the MCP config to your agent (see below for examples)
+
+# 3. Start the MCP server in your project
+npx terminalize
+```
+
+The `install-skills` command asks whether to install at the project or global level, then lets you select which agents to configure:
+
+```
+$ npx terminalize install-skills
+
+◇  Install skills at project level or globally?
+│  ● Project   → .agents/skills/ — only this project
+│  ○ Global    → ~/.agent/skills/ — all projects
+
+◇  Which agents do you want to install the skill for?
+│  ◻ Universal (.agents/skills)
+│  ◻ Claude Code
+│  ◻ Kiro CLI
+```
+
+### Add MCP config to your agent
+
+Delete the setup wizard. Instead, copy the relevant config block below:
+
+**OpenCode** (`~/.config/opencode/opencode.json` or project `opencode.json`):
+
+```json
+{
+  "mcp": {
+    "terminalize": {
+      "command": ["npx", "terminalize"],
+      "type": "local",
+      "enabled": true
+    }
+  }
+}
+```
+
+**Claude Code** (`~/.claude/settings.json`):
+
+```json
+{
+  "mcpServers": {
+    "terminalize": {
+      "command": "npx",
+      "args": ["terminalize"]
+    }
+  }
+}
+```
+
+**Cursor** → Settings → MCP Servers → Add:
+
+```json
+{
+  "mcpServers": {
+    "terminalize": {
+      "command": "npx",
+      "args": ["terminalize"]
+    }
+  }
+}
+```
+
+**Windsurf** (`~/.codeium/windsurf/settings.json`):
+
+```json
+{
+  "mcpServers": {
+    "terminalize": {
+      "command": "npx",
+      "args": ["terminalize"]
+    }
+  }
+}
+```
+
+**Gemini CLI** (`~/.gemini/settings.json`):
+
+```json
+{
+  "mcpServers": {
+    "terminalize": {
+      "command": "npx",
+      "args": ["terminalize"]
+    }
+  }
+}
+```
+
+**Kiro CLI** (`~/.kiro/settings.json`):
+
+```json
+{
+  "mcpServers": {
+    "terminalize": {
+      "command": "npx",
+      "args": ["terminalize"]
+    }
+  }
+}
+```
+
+**Codex (OpenAI CLI)** (`~/.codex/config.toml` or project `.codex/config.toml`):
+
+```toml
+[mcp_servers.terminalize]
+command = "npx"
+args = ["terminalize"]
+```
+
+Or via Codex CLI:
+
+```bash
+codex mcp add terminalize -- npx terminalize
+```
+
+### Prerequisites
+
+- **Node.js 22+** (required for `crypto.randomUUID()`)
+- **Native compilation**: `node-pty` requires build tools:
+  - **Windows**: Visual Studio Build Tools or MSVC
+  - **Linux**: `make`, `gcc`, `python3`
+  - **macOS**: Xcode Command Line Tools
+
+### Environment Variables
+
+| Variable                      | Default           | Description                             |
+| ----------------------------- | ----------------- | --------------------------------------- |
+| `MCP_TERMINAL_MAX_SESSIONS`   | `10`              | Maximum number of simultaneous sessions |
+| `MCP_TERMINAL_SESSION_TTL_MS` | `1800000` (30min) | Session inactivity TTL                  |
 
 ## MCP Tools
 
@@ -224,155 +390,6 @@ Closes a terminal session and frees its resources.
 → terminal_read_until({ "id": "sess-1", "pattern": "https://github.com|Error|\\$ ", "timeout_ms": 20000 })
 → terminal_close_session({ "id": "sess-1" })
 ```
-
-## Installation
-
-```bash
-# Run directly (no install needed)
-npx terminalize
-
-# Or install globally
-npm install -g terminalize
-```
-
-### Quick Setup
-
-```bash
-# 1. Install the terminalize skill for AI agents
-npx terminalize install-skills
-
-# 2. Add the MCP config to your agent (see below for examples)
-
-# 3. Start the MCP server in your project
-npx terminalize
-```
-
-The `install-skills` command asks whether to install at the project or global level, then lets you select which agents to configure:
-
-```
-$ npx terminalize install-skills
-
-◇  Install skills at project level or globally?
-│  ● Project   → .agents/skills/ — only this project
-│  ○ Global    → ~/.agent/skills/ — all projects
-
-◇  Which agents do you want to install the skill for?
-│  ◻ Universal (.agents/skills)
-│  ◻ Claude Code
-│  ◻ Kiro CLI
-```
-
-### Add MCP config to your agent
-
-Delete the setup wizard. Instead, copy the relevant config block below:
-
-**OpenCode** (`~/.config/opencode/opencode.json` or project `opencode.json`):
-
-```json
-{
-  "mcp": {
-    "terminalize": {
-      "command": ["npx", "terminalize"],
-      "type": "local",
-      "enabled": true
-    }
-  }
-}
-```
-
-**Claude Code** (`~/.claude/settings.json`):
-
-```json
-{
-  "mcpServers": {
-    "terminalize": {
-      "command": "npx",
-      "args": ["terminalize"]
-    }
-  }
-}
-```
-
-**Cursor** → Settings → MCP Servers → Add:
-
-```json
-{
-  "mcpServers": {
-    "terminalize": {
-      "command": "npx",
-      "args": ["terminalize"]
-    }
-  }
-}
-```
-
-**Windsurf** (`~/.codeium/windsurf/settings.json`):
-
-```json
-{
-  "mcpServers": {
-    "terminalize": {
-      "command": "npx",
-      "args": ["terminalize"]
-    }
-  }
-}
-```
-
-**Gemini CLI** (`~/.gemini/settings.json`):
-
-```json
-{
-  "mcpServers": {
-    "terminalize": {
-      "command": "npx",
-      "args": ["terminalize"]
-    }
-  }
-}
-```
-
-**Kiro CLI** (`~/.kiro/settings.json`):
-
-```json
-{
-  "mcpServers": {
-    "terminalize": {
-      "command": "npx",
-      "args": ["terminalize"]
-    }
-  }
-}
-```
-
-**Codex (OpenAI CLI)** (`~/.codex/config.toml` or project `.codex/config.toml`):
-
-```toml
-[mcp_servers.terminalize]
-command = "npx"
-args = ["terminalize"]
-```
-
-Or via Codex CLI:
-
-```bash
-codex mcp add terminalize -- npx terminalize
-```
-
-### Prerequisites
-
-- **Node.js 22+** (required for `crypto.randomUUID()`)
-- **Native compilation**: `node-pty` requires build tools:
-  - **Windows**: Visual Studio Build Tools or MSVC
-  - **Linux**: `make`, `gcc`, `python3`
-  - **macOS**: Xcode Command Line Tools
-
-### Environment Variables
-
-| Variable                      | Default           | Description                             |
-| ----------------------------- | ----------------- | --------------------------------------- |
-| `MCP_TERMINAL_MAX_SESSIONS`   | `10`              | Maximum number of simultaneous sessions |
-| `MCP_TERMINAL_SESSION_TTL_MS` | `1800000` (30min) | Session inactivity TTL                  |
 
 ## Architecture
 
