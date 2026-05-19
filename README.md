@@ -9,7 +9,7 @@
   <img src="https://img.shields.io/badge/node.js-22%2B-339933?logo=node.js&logoColor=white&style=flat-square" />
   <img src="https://img.shields.io/badge/typescript-5.8%2B-3178C6?logo=typescript&logoColor=white&style=flat-square" />
   <img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" />
-  <img src="https://img.shields.io/badge/tests-308%20passing-brightgreen?style=flat-square" />
+  <img src="https://img.shields.io/badge/tests-325%20passing-brightgreen?style=flat-square" />
   <a href="http://localhost:9000/dashboard?id=terminalize"><img src="https://img.shields.io/badge/quality%20gate-passing-brightgreen?style=flat-square" /></a>
   <a href="http://localhost:9000/dashboard?id=terminalize"><img src="https://img.shields.io/badge/coverage-89%25-brightgreen?style=flat-square" /></a>
 </p>
@@ -520,9 +520,28 @@ pnpm test
   ✓ test/integration/executables.int.test.ts     (8 tests)
   ✓ test/integration/mcp-server.int.test.ts      (11 tests)
 
-Test Files  14 passed (14)
-      Tests  308 passed (308)
+Test Files  15 passed (15)
+      Tests  325 passed (325)
 ```
+
+### Cross-platform smoke coverage
+
+The CI workflow runs a minimal PTY smoke check on:
+
+- Windows
+- Linux
+- macOS
+
+Current smoke scope:
+
+- create session with `shell: "auto"`
+- write a simple command
+- read output back from the PTY
+- close a long-running session cleanly
+
+Known caveat:
+
+- some interactive Node prompt flows remain less stable on Windows ConPTY, so the deeper prompt-by-prompt readline regression is guarded there and kept as a stronger Unix integration check for now.
 
 ## Coverage
 

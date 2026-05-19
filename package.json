@@ -43,6 +43,7 @@
     "test:cov": "vitest run --coverage",
     "test:unit": "pnpm vitest run test/unit",
     "test:int": "vitest run test/integration",
+    "test:smoke": "vitest run test/integration/ci-smoke.int.test.ts",
     "test:watch": "vitest",
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
