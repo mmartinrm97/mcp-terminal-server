@@ -9,7 +9,7 @@
   <img src="https://img.shields.io/badge/node.js-22%2B-339933?logo=node.js&logoColor=white&style=flat-square" />
   <img src="https://img.shields.io/badge/typescript-5.8%2B-3178C6?logo=typescript&logoColor=white&style=flat-square" />
   <img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" />
-  <img src="https://img.shields.io/badge/tests-325%20passing-brightgreen?style=flat-square" />
+  <img src="https://img.shields.io/badge/tests-332%20passing-brightgreen?style=flat-square" />
   <a href="http://localhost:9000/dashboard?id=terminalize"><img src="https://img.shields.io/badge/quality%20gate-passing-brightgreen?style=flat-square" /></a>
   <a href="http://localhost:9000/dashboard?id=terminalize"><img src="https://img.shields.io/badge/coverage-89%25-brightgreen?style=flat-square" /></a>
 </p>
@@ -369,6 +369,22 @@ Use this when an interactive flow behaved unexpectedly and you need to know:
 | `id`          | `string` | —       | Session ID                                |
 | `event_limit` | `number` | `50`    | Maximum number of recent events to return |
 
+### 13. `terminal_session_export`
+
+Returns a structured export payload for issue reports and failure replay.
+
+This includes:
+
+- session metadata
+- recent timeline events
+- latest semantic screenshot
+- replay-friendly transcript derived from inputs, outputs, waits, signals, and lifecycle events
+
+| Parameter     | Type     | Default | Description                                      |
+| ------------- | -------- | ------- | ------------------------------------------------ |
+| `id`          | `string` | —       | Session ID                                       |
+| `event_limit` | `number` | `50`    | Maximum number of recent events/transcript items |
+
 ## Examples
 
 ### `npm init`
@@ -474,7 +490,7 @@ graph TD
 | **OutputBuffer**   | `src/core/output-buffer.ts`   | Circular buffer with regex pattern matching. Accumulates PTY data and enables `readUntil()` with 50ms polling. |
 | **PTYSession**     | `src/core/pty-session.ts`     | Wraps `node-pty`. Connects the OutputBuffer to the real shell process.                                         |
 | **SessionManager** | `src/core/session-manager.ts` | Manages session lifecycle: creation, listing, closing, automatic TTL cleanup.                                  |
-| **MCPServer**      | `src/server.ts`               | Exposes 12 tools via the MCP protocol. Handles errors and input validation.                                    |
+| **MCPServer**      | `src/server.ts`               | Exposes 13 tools via the MCP protocol. Handles errors and input validation.                                    |
 | **ShellDetector**  | `src/lib/shell-detector.ts`   | Detects the preferred shell per platform (auto/bash/zsh/pwsh/cmd).                                             |
 | **AnsiStripper**   | `src/lib/ansi-stripper.ts`    | Strips ANSI escape codes from terminal output.                                                                 |
 
@@ -521,7 +537,7 @@ pnpm test
   ✓ test/integration/mcp-server.int.test.ts      (11 tests)
 
 Test Files  15 passed (15)
-      Tests  325 passed (325)
+      Tests  332 passed (332)
 ```
 
 ### Cross-platform smoke coverage
@@ -542,6 +558,17 @@ Current smoke scope:
 Known caveat:
 
 - some interactive Node prompt flows remain less stable on Windows ConPTY, so the deeper prompt-by-prompt readline regression is guarded there and kept as a stronger Unix integration check for now.
+
+### Using session exports in bug reports
+
+When an interactive run fails in a confusing way:
+
+1. call `terminal_session_export`
+2. attach the JSON payload to the issue
+3. inspect:
+   - `transcript` to see what the agent wrote, saw, and waited for
+   - `recent_events` for low-level sequencing and timeout context
+   - `last_screenshot` for the final semantic terminal state
 
 ## Coverage
 

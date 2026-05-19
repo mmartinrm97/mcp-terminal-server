@@ -9,9 +9,11 @@ import { SessionEndedError } from "../types.js";
 import type {
   ReadUntilDebugInfo,
   SessionDiagnostics,
+  SessionExport,
   SessionEvent,
   SessionInfo,
   ScreenshotResult,
+  SessionTranscriptEntry,
 } from "../types.js";
 
 /**
@@ -523,6 +525,19 @@ export class PTYSession {
     };
   }
 
+  /**
+   * Export a structured snapshot suitable for issue reports and replay-like debugging.
+   */
+  exportSession(limit: number = 50): SessionExport {
+    const recentEvents = this.getRecentEvents(limit);
+    return {
+      session: this.getInfo(),
+      recent_events: recentEvents,
+      last_screenshot: this.screenshot(),
+      transcript: this.buildTranscript(recentEvents),
+    };
+  }
+
   private recordEvent(
     type: SessionEvent["type"],
     data: Omit<SessionEvent, "at" | "type"> = {},
@@ -554,6 +569,83 @@ export class PTYSession {
       can_accept_default: screenshot.canAcceptDefault,
       recommended_next_action: screenshot.recommendedNextAction,
     };
+  }
+
+  private buildTranscript(events: SessionEvent[]): SessionTranscriptEntry[] {
+    return events.flatMap<SessionTranscriptEntry>((event) => {
+      switch (event.type) {
+        case "write":
+          return [
+            {
+              at: event.at,
+              kind: "input",
+              summary: event.preview ?? "",
+              bytes: event.bytes,
+            },
+          ];
+        case "output":
+        case "read":
+          return [
+            {
+              at: event.at,
+              kind: "output",
+              summary: event.preview ?? "",
+              bytes: event.bytes,
+            },
+          ];
+        case "read_until_match":
+        case "read_until_timeout":
+          return [
+            {
+              at: event.at,
+              kind: "wait",
+              summary:
+                event.type === "read_until_timeout"
+                  ? `waited for pattern: ${event.pattern ?? ""} (timed out)`
+                  : `matched pattern: ${event.pattern ?? ""}`,
+              pattern: event.pattern,
+              timeout_ms: event.timeout_ms,
+              bytes: event.bytes,
+            },
+          ];
+        case "signal":
+          return [
+            {
+              at: event.at,
+              kind: "signal",
+              summary: event.signal ?? "signal",
+            },
+          ];
+        case "session_created":
+        case "resize":
+        case "close":
+        case "exit":
+          return [
+            {
+              at: event.at,
+              kind: "lifecycle",
+              summary: this.describeLifecycleEvent(event),
+            },
+          ];
+        default:
+          return [];
+      }
+    });
+  }
+
+  private describeLifecycleEvent(event: SessionEvent): string {
+    switch (event.type) {
+      case "session_created":
+        return "session created";
+      case "resize":
+        return `resized to ${event.cols ?? "?"}x${event.rows ?? "?"}`;
+      case "close":
+        return `session close requested (${event.preview ?? "graceful"})`;
+      case "exit":
+        return `process exited with code ${event.exit_code ?? "unknown"}`;
+      default:
+        return event.type;
+    }
   }
 
   private static preview(text: string, maxChars: number = 120): string {

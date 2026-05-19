@@ -258,6 +258,28 @@ export interface SessionDiagnostics {
 }
 
 /**
+ * Replay-friendly transcript entry derived from low-level session events.
+ */
+export interface SessionTranscriptEntry {
+  at: string;
+  kind: "input" | "output" | "wait" | "signal" | "lifecycle";
+  summary: string;
+  bytes?: number;
+  pattern?: string;
+  timeout_ms?: number;
+}
+
+/**
+ * Structured export payload for issue reports and bug reproduction.
+ */
+export interface SessionExport {
+  session: SessionInfo;
+  recent_events: SessionEvent[];
+  last_screenshot: ScreenshotResult;
+  transcript: SessionTranscriptEntry[];
+}
+
+/**
  * Configuration for the SessionManager.
  */
 export interface SessionManagerConfig {

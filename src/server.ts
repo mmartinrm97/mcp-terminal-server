@@ -9,6 +9,7 @@ import type {
   SessionConfig,
   SessionInfo,
   SessionDiagnostics,
+  SessionExport,
   WriteResult,
   ReadResult,
   ReadUntilResult,
@@ -295,6 +296,23 @@ function handleSessionDiagnosticsTool(
   return { content: [textContent(result)] };
 }
 
+function handleSessionExportTool(
+  sm: SessionManager,
+  args: Record<string, unknown>,
+): { content: Array<{ type: "text"; text: string }>; isError?: boolean } {
+  const id = args.id as string | undefined;
+  if (!id || typeof id !== "string") {
+    throw new McpError(ErrorCode.InvalidParams, "Missing required parameter: id");
+  }
+
+  const s = getSessionOrError(sm, id);
+  if (s.error) return toolError(s.error);
+
+  const eventLimit = typeof args.event_limit === "number" ? args.event_limit : 50;
+  const result: SessionExport = s.session.exportSession(eventLimit);
+  return { content: [textContent(result)] };
+}
+
 function handleCloseSessionTool(
   sm: SessionManager,
   args: Record<string, unknown>,
@@ -528,6 +546,23 @@ const TOOL_DEFINITIONS = [
     },
   },
   {
+    name: "terminal_session_export",
+    description:
+      "Return a structured export for one session: metadata, recent events, last screenshot, " +
+      "and a replay-friendly transcript for issue reports and bug reproduction.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        id: { type: "string", description: "Session ID." },
+        event_limit: {
+          type: "number",
+          description: "Maximum number of recent events/transcript items to include (default: 50).",
+        },
+      },
+      required: ["id"],
+    },
+  },
+  {
     name: "terminal_close_session",
     description:
       "Close a terminal session and free its resources. Use force=true for immediate SIGKILL.",
@@ -579,6 +614,12 @@ const RESOURCE_DEFINITIONS: Array<{
     description: "Recent timeline events for a specific terminal session.",
     mimeType: "application/json",
   },
+  {
+    uri: "terminal://sessions/{id}/export",
+    name: "Session Export",
+    description: "Structured diagnostics export for a specific terminal session.",
+    mimeType: "application/json",
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -614,6 +655,8 @@ export async function handleCallTool(
       return handleListSessionsTool(sm);
     case "terminal_session_diagnostics":
       return handleSessionDiagnosticsTool(sm, args);
+    case "terminal_session_export":
+      return handleSessionExportTool(sm, args);
     case "terminal_close_session":
       return handleCloseSessionTool(sm, args);
     default:
@@ -676,6 +719,22 @@ export async function handleReadResource(
     };
   }
 
+  const exportMatch = /^terminal:\/\/sessions\/(.+)\/export$/.exec(uri);
+  if (exportMatch) {
+    const id = exportMatch[1];
+    const s = getSessionOrError(sm, id);
+    if (s.error) throw new McpError(ErrorCode.InvalidRequest, s.error);
+    return {
+      contents: [
+        {
+          uri,
+          mimeType: "application/json",
+          text: JSON.stringify(s.session.exportSession()),
+        },
+      ],
+    };
+  }
+
   throw new McpError(ErrorCode.InvalidRequest, `Unknown resource: ${uri}`);
 }
 
@@ -702,6 +761,7 @@ export function createTerminalServer(sessionManager: SessionManager): McpServer 
     terminal_screenshot: (a) => handleScreenshotTool(sessionManager, a),
     terminal_list_sessions: () => handleListSessionsTool(sessionManager),
     terminal_session_diagnostics: (a) => handleSessionDiagnosticsTool(sessionManager, a),
+    terminal_session_export: (a) => handleSessionExportTool(sessionManager, a),
     terminal_close_session: (a) => handleCloseSessionTool(sessionManager, a),
   };
 
@@ -771,6 +831,17 @@ export function createTerminalServer(sessionManager: SessionManager): McpServer 
     (uri, variables) => handleEventsResource(sessionManager, uri, variables),
   );
 
+  // Resource template: session export
+  server.registerResource(
+    "Session Export",
+    new ResourceTemplate("terminal://sessions/{id}/export", { list: undefined }),
+    {
+      description: "Structured diagnostics export for a specific terminal session.",
+      mimeType: "application/json",
+    },
+    (uri, variables) => handleExportResource(sessionManager, uri, variables),
+  );
+
   return server;
 }
 
@@ -833,6 +904,26 @@ export async function handleEventsResource(
         uri: uri.toString(),
         mimeType: "application/json",
         text: JSON.stringify({ events: s.session.getRecentEvents() }),
+      },
+    ],
+  };
+}
+
+/** Respond to a read on a session export resource template. */
+export async function handleExportResource(
+  sm: SessionManager,
+  uri: URL,
+  variables: Record<string, string | string[]>,
+): Promise<{ contents: Array<{ uri: string; mimeType: string; text: string }> }> {
+  const id = variables.id as string;
+  const s = getSessionOrError(sm, id);
+  if (s.error) throw new McpError(ErrorCode.InvalidRequest, s.error);
+  return {
+    contents: [
+      {
+        uri: uri.toString(),
+        mimeType: "application/json",
+        text: JSON.stringify(s.session.exportSession()),
       },
     ],
   };

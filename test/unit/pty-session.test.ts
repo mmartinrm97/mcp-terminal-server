@@ -327,6 +327,17 @@ describe("PTYSession", () => {
       expect(diagnostics.recent_events.length).toBeGreaterThan(0);
       expect(diagnostics.last_screenshot.detectedPrompt).toContain("package name:");
     });
+
+    it("should derive a replay-friendly transcript from recent events", () => {
+      if (onDataCallback) onDataCallback("package name: (demo)");
+      session.write("demo-app\r\n");
+      session.read();
+
+      const exported = session.exportSession(10);
+      expect(exported.transcript.length).toBeGreaterThan(0);
+      expect(exported.transcript.some((entry) => entry.kind === "output")).toBe(true);
+      expect(exported.transcript.some((entry) => entry.kind === "input")).toBe(true);
+    });
   });
 
   describe("ended and exitCode", () => {

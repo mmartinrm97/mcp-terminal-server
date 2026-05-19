@@ -27,7 +27,7 @@ waits for input or shows a TUI menu, `bash` will time out or return truncated ou
 - Running `shadcn-vue add`, `prisma init` — CLI tools with questions
 - Any command that shows a menu with `↑↓` arrows or `[y/N]` prompts
 
-## Tools Overview (12 tools)
+## Tools Overview (13 tools)
 
 | Tool                           | Purpose                                           | When to Use                         |
 | ------------------------------ | ------------------------------------------------- | ----------------------------------- |
@@ -42,6 +42,7 @@ waits for input or shows a TUI menu, `bash` will time out or return truncated ou
 | `terminal_ping`                | Health check — server status + uptime             | Verify server is alive              |
 | `terminal_list_sessions`       | List all active sessions                          | Debugging                           |
 | `terminal_session_diagnostics` | Structured debug snapshot for a session           | Diagnose desync / timeouts          |
+| `terminal_session_export`      | Structured export for bug reports / replay        | Attach failure artifacts            |
 | `terminal_close_session`       | Close and cleanup a session                       | Always last                         |
 
 ## Labels for Multi-Agent Flows
