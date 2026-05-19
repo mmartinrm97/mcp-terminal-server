@@ -566,6 +566,19 @@ Known caveat:
 
 - some interactive Node prompt flows remain less stable on Windows ConPTY, so the deeper prompt-by-prompt readline regression is guarded there and kept as a stronger Unix integration check for now.
 
+### Unix integration coverage
+
+The CI workflow also runs the full integration suite on:
+
+- Ubuntu
+- macOS
+
+This means prompt-by-prompt reads, signal recovery, long-output handling, executable checks, and PTY lifecycle behavior are now validated automatically on Unix-like runners.
+
+Additional manual validation was also run on:
+
+- WSL2 Ubuntu 22.04 on Windows 11
+
 ### Using session exports in bug reports
 
 When an interactive run fails in a confusing way:
@@ -608,9 +621,9 @@ terminalize gives your agent a real **text-based** PTY. While powerful, there ar
 
 ### Tested platforms
 
-This has been tested primarily on **Windows (ConPTY)** for deeper interactive flows. CI now also verifies a cross-platform smoke matrix on Linux and macOS.
+This has been tested primarily on **Windows (ConPTY)** for deeper interactive flows. CI now verifies cross-platform smoke on Windows/Linux/macOS and full integration on Unix-like runners. WSL2 Ubuntu was also validated manually with the full integration suite.
 
-- **Platforms**: ✅ Windows (interactive + smoke) | ✅ Linux (CI smoke) | ✅ macOS (CI smoke)
+- **Platforms**: ✅ Windows (interactive + smoke) | ✅ Linux / WSL2 (manual full integration + CI integration) | ✅ macOS (CI integration)
 - **Agents**: ✅ OpenCode | ⬜ Claude Code | ⬜ Cursor | ⬜ Gemini CLI | ⬜ Windsurf | ⬜ Kiro CLI | ✅ Codex
 
 If you test on any of these combinations, open an issue or PR with your results.
