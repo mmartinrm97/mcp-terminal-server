@@ -59,6 +59,37 @@ Pass the session `id` between sub-agents so any agent can read/write to any sess
 
 ## Interactive Flow Pattern
 
+## Synchronization Rule (CRITICAL)
+
+**Never batch answers into the terminal.**
+
+Interactive CLIs are a synchronized conversation:
+
+1. Wait for the exact next prompt
+2. Write exactly one response
+3. Wait again
+
+### Anti-patterns
+
+```text
+❌ BAD
+- Sending "\n\n\n\n\n" to skip multiple prompts
+- Guessing that "Is this OK?" will appear next
+- Writing before reading the updated screen/prompt
+```
+
+```text
+✅ GOOD
+- read_until("package name:")
+- write("my-name\r\n")
+- read_until("version:")
+- write("\r\n")
+- read_until("description:")
+- write("\r\n")
+```
+
+If a prompt did not arrive yet, **do not spam Enter**. Read again or take a screenshot.
+
 ### Basic Flow
 
 ```
@@ -79,6 +110,16 @@ Pass the session `id` between sub-agents so any agent can read/write to any sess
 6. terminal_close_session({ id })
    → Cleanup
 ```
+
+### Golden Rule for Text Prompts
+
+For question/field-based CLIs (`npm init`, `gh pr create`, installers, auth prompts):
+
+```text
+ONE prompt → ONE answer → ONE wait
+```
+
+Do not assume you can safely skip ahead by sending multiple blank lines at once.
 
 ### TUI Menu Navigation (⭐ IMPORTANT)
 

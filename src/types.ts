@@ -23,6 +23,9 @@ export interface SessionInfo {
   rows: number;
   created_at: string;
   last_activity: string;
+  last_output_at: string | null;
+  idle_ms: number;
+  output_bytes: number;
   alive: boolean;
 }
 
@@ -54,6 +57,21 @@ export interface ReadUntilResult {
   ended: boolean;
   exit_code: number | null;
   timed_out: boolean;
+  debug?: ReadUntilDebugInfo;
+}
+
+/**
+ * Additional debug context for terminal_read_until, especially useful on timeout.
+ */
+export interface ReadUntilDebugInfo {
+  session_id: string;
+  pattern: string;
+  timeout_ms: number;
+  idle_ms: number;
+  last_output_at: string | null;
+  output_bytes: number;
+  detected_prompt: string | null;
+  recommended_next_action: "input_required" | "inspect_screen" | "wait" | "read";
 }
 
 /**
@@ -122,6 +140,18 @@ export interface ScreenshotResult {
   cols: number;
   rowsCount: number;
   text: string;
+  /** Monotonic total bytes seen in the PTY output buffer */
+  outputBytes: number;
+  /** ISO timestamp of the latest PTY output chunk, or null if none observed yet */
+  lastOutputAt: string | null;
+  /** Milliseconds since the latest PTY output chunk */
+  idleMs: number;
+  /** Best-effort signal that the terminal is likely waiting for input */
+  isInteractive: boolean;
+  /** Best-effort extracted prompt or question visible on screen */
+  detectedPrompt: string | null;
+  /** Suggested next step for agents based on current screen state */
+  recommendedNextAction: "input_required" | "inspect_screen" | "wait" | "read";
   /** Semantic classification of the foreground application (optional, v0.3+) */
   terminal_mode?: string;
   /** Vim-specific editor submode: "normal" | "insert" | "visual" | "replace" | "unknown" */
@@ -165,6 +195,42 @@ export interface PingResult {
   sessions: number;
   uptime_ms: number;
   version: string;
+}
+
+/**
+ * Timeline event captured for session diagnostics.
+ */
+export interface SessionEvent {
+  at: string;
+  type:
+    | "session_created"
+    | "output"
+    | "write"
+    | "read"
+    | "read_until_match"
+    | "read_until_timeout"
+    | "resize"
+    | "signal"
+    | "close"
+    | "exit";
+  bytes?: number;
+  preview?: string;
+  pattern?: string;
+  timeout_ms?: number;
+  matched?: string | null;
+  cols?: number;
+  rows?: number;
+  signal?: string;
+  exit_code?: number | null;
+}
+
+/**
+ * Structured diagnostics snapshot for a terminal session.
+ */
+export interface SessionDiagnostics {
+  session: SessionInfo;
+  recent_events: SessionEvent[];
+  last_screenshot: ScreenshotResult;
 }
 
 /**

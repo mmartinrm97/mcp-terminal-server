@@ -9,7 +9,7 @@
   <img src="https://img.shields.io/badge/node.js-22%2B-339933?logo=node.js&logoColor=white&style=flat-square" />
   <img src="https://img.shields.io/badge/typescript-5.8%2B-3178C6?logo=typescript&logoColor=white&style=flat-square" />
   <img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" />
-  <img src="https://img.shields.io/badge/tests-305%20passing-brightgreen?style=flat-square" />
+  <img src="https://img.shields.io/badge/tests-308%20passing-brightgreen?style=flat-square" />
   <a href="http://localhost:9000/dashboard?id=terminalize"><img src="https://img.shields.io/badge/quality%20gate-passing-brightgreen?style=flat-square" /></a>
   <a href="http://localhost:9000/dashboard?id=terminalize"><img src="https://img.shields.io/badge/coverage-89%25-brightgreen?style=flat-square" /></a>
 </p>
@@ -319,6 +319,18 @@ Reads the last N lines of the terminal buffer (like `tail -n N`). Token-efficien
 
 Takes a screenshot of the current terminal screen. Returns clean, rendered text rows with cursor position — no raw ANSI codes.
 
+Also includes best-effort semantic hints for agents:
+
+- `terminal_mode`
+- `editor_mode`
+- `status_line`
+- `content_rows`
+- `detectedPrompt`
+- `isInteractive`
+- `recommendedNextAction`
+- `idleMs`
+- `outputBytes`
+
 | Parameter | Type     | Description |
 | --------- | -------- | ----------- |
 | `id`      | `string` | Session ID  |
@@ -331,6 +343,21 @@ Closes a terminal session and frees its resources.
 | --------- | --------- | ------- | ------------------------------- |
 | `id`      | `string`  | —       | Session ID                      |
 | `force`   | `boolean` | `false` | Immediate termination (SIGKILL) |
+
+### 12. `terminal_session_diagnostics`
+
+Returns a structured diagnostics snapshot for a session.
+
+Use this when an interactive flow behaved unexpectedly and you need to know:
+
+- what the session metadata looks like
+- what recent reads/writes/timeouts happened
+- what the latest semantic screen state looks like
+
+| Parameter     | Type     | Default | Description                               |
+| ------------- | -------- | ------- | ----------------------------------------- |
+| `id`          | `string` | —       | Session ID                                |
+| `event_limit` | `number` | `50`    | Maximum number of recent events to return |
 
 ## Examples
 
@@ -357,6 +384,9 @@ Closes a terminal session and frees its resources.
 
 // 6. Accept default
 → terminal_write({ "id": "sess-1", "data": "\n" })
+
+// IMPORTANT: wait for the NEXT prompt before writing again
+// Do NOT send multiple Enters in a batch to "skip ahead"
 
 // ... repeat until done ...
 
@@ -431,7 +461,7 @@ graph TD
 | **OutputBuffer**   | `src/core/output-buffer.ts`   | Circular buffer with regex pattern matching. Accumulates PTY data and enables `readUntil()` with 50ms polling. |
 | **PTYSession**     | `src/core/pty-session.ts`     | Wraps `node-pty`. Connects the OutputBuffer to the real shell process.                                         |
 | **SessionManager** | `src/core/session-manager.ts` | Manages session lifecycle: creation, listing, closing, automatic TTL cleanup.                                  |
-| **MCPServer**      | `src/server.ts`               | Exposes 11 tools via the MCP protocol. Handles errors and input validation.                                    |
+| **MCPServer**      | `src/server.ts`               | Exposes 12 tools via the MCP protocol. Handles errors and input validation.                                    |
 | **ShellDetector**  | `src/lib/shell-detector.ts`   | Detects the preferred shell per platform (auto/bash/zsh/pwsh/cmd).                                             |
 | **AnsiStripper**   | `src/lib/ansi-stripper.ts`    | Strips ANSI escape codes from terminal output.                                                                 |
 
@@ -477,8 +507,8 @@ pnpm test
   ✓ test/integration/executables.int.test.ts     (8 tests)
   ✓ test/integration/mcp-server.int.test.ts      (11 tests)
 
- Test Files  14 passed (14)
-      Tests  235 passed (235)
+Test Files  14 passed (14)
+      Tests  308 passed (308)
 ```
 
 ## Coverage

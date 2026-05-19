@@ -8,6 +8,7 @@ import { PKG_VERSION } from "./version.js";
 import type {
   SessionConfig,
   SessionInfo,
+  SessionDiagnostics,
   WriteResult,
   ReadResult,
   ReadUntilResult,
@@ -178,13 +179,14 @@ async function handleReadUntilTool(
       ended: raw.ended,
       exit_code: raw.exit_code,
       timed_out: raw.timed_out,
+      debug: raw.debug,
     };
     return { content: [textContent(result)] };
   } catch (err) {
     if (err instanceof ReadTimeoutError) {
       const result: ReadUntilResult = {
         data: err.partialData,
-        full_output: "",
+        full_output: err.partialData,
         matched: null,
         ended: false,
         exit_code: null,
@@ -274,6 +276,23 @@ function handleScreenshotTool(
 function handleListSessionsTool(sm: SessionManager) {
   const sessions = sm.listSessions();
   return { content: [textContent({ sessions })] };
+}
+
+function handleSessionDiagnosticsTool(
+  sm: SessionManager,
+  args: Record<string, unknown>,
+): { content: Array<{ type: "text"; text: string }>; isError?: boolean } {
+  const id = args.id as string | undefined;
+  if (!id || typeof id !== "string") {
+    throw new McpError(ErrorCode.InvalidParams, "Missing required parameter: id");
+  }
+
+  const s = getSessionOrError(sm, id);
+  if (s.error) return toolError(s.error);
+
+  const eventLimit = typeof args.event_limit === "number" ? args.event_limit : 50;
+  const result: SessionDiagnostics = s.session.getDiagnostics(eventLimit);
+  return { content: [textContent(result)] };
 }
 
 function handleCloseSessionTool(
@@ -466,7 +485,8 @@ const TOOL_DEFINITIONS = [
       "with cursor position — no raw ANSI codes. The HIGH-LEVEL alternative to terminal_read " +
       "for understanding TUI state (menus, prompts, selections). " +
       "Also includes semantic fields: terminal_mode (shell|vim|nano|htop|lazygit|less|unknown), " +
-      "editor_mode (normal|insert|visual|replace|unknown), status_line, and content_rows.",
+      "editor_mode (normal|insert|visual|replace|unknown), status_line, content_rows, " +
+      "detectedPrompt, isInteractive, recommendedNextAction, idleMs, and outputBytes.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -487,6 +507,24 @@ const TOOL_DEFINITIONS = [
           description: "If true, includes last activity timestamps. Default: false.",
         },
       },
+    },
+  },
+  {
+    name: "terminal_session_diagnostics",
+    description:
+      "Return structured diagnostics for a session: session metadata, recent event timeline, " +
+      "and a fresh semantic screenshot. Use this to debug interactive failures and reconstruct " +
+      "what the agent likely saw and did.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        id: { type: "string", description: "Session ID." },
+        event_limit: {
+          type: "number",
+          description: "Maximum number of recent events to include (default: 50).",
+        },
+      },
+      required: ["id"],
     },
   },
   {
@@ -535,6 +573,12 @@ const RESOURCE_DEFINITIONS: Array<{
     description: "Status information for a specific terminal session.",
     mimeType: "application/json",
   },
+  {
+    uri: "terminal://sessions/{id}/events",
+    name: "Session Events",
+    description: "Recent timeline events for a specific terminal session.",
+    mimeType: "application/json",
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -568,6 +612,8 @@ export async function handleCallTool(
       return handleScreenshotTool(sm, args);
     case "terminal_list_sessions":
       return handleListSessionsTool(sm);
+    case "terminal_session_diagnostics":
+      return handleSessionDiagnosticsTool(sm, args);
     case "terminal_close_session":
       return handleCloseSessionTool(sm, args);
     default:
@@ -614,6 +660,22 @@ export async function handleReadResource(
     };
   }
 
+  const eventsMatch = /^terminal:\/\/sessions\/(.+)\/events$/.exec(uri);
+  if (eventsMatch) {
+    const id = eventsMatch[1];
+    const s = getSessionOrError(sm, id);
+    if (s.error) throw new McpError(ErrorCode.InvalidRequest, s.error);
+    return {
+      contents: [
+        {
+          uri,
+          mimeType: "application/json",
+          text: JSON.stringify({ events: s.session.getRecentEvents() }),
+        },
+      ],
+    };
+  }
+
   throw new McpError(ErrorCode.InvalidRequest, `Unknown resource: ${uri}`);
 }
 
@@ -639,6 +701,7 @@ export function createTerminalServer(sessionManager: SessionManager): McpServer 
     terminal_ping: () => handlePingTool(sessionManager),
     terminal_screenshot: (a) => handleScreenshotTool(sessionManager, a),
     terminal_list_sessions: () => handleListSessionsTool(sessionManager),
+    terminal_session_diagnostics: (a) => handleSessionDiagnosticsTool(sessionManager, a),
     terminal_close_session: (a) => handleCloseSessionTool(sessionManager, a),
   };
 
@@ -697,6 +760,17 @@ export function createTerminalServer(sessionManager: SessionManager): McpServer 
     (uri, variables) => handleStatusResource(sessionManager, uri, variables),
   );
 
+  // Resource template: session events
+  server.registerResource(
+    "Session Events",
+    new ResourceTemplate("terminal://sessions/{id}/events", { list: undefined }),
+    {
+      description: "Recent timeline events for a specific terminal session.",
+      mimeType: "application/json",
+    },
+    (uri, variables) => handleEventsResource(sessionManager, uri, variables),
+  );
+
   return server;
 }
 
@@ -739,6 +813,26 @@ export async function handleStatusResource(
         uri: uri.toString(),
         mimeType: "application/json",
         text: JSON.stringify(s.session.getInfo()),
+      },
+    ],
+  };
+}
+
+/** Respond to a read on a session events resource template. */
+export async function handleEventsResource(
+  sm: SessionManager,
+  uri: URL,
+  variables: Record<string, string | string[]>,
+): Promise<{ contents: Array<{ uri: string; mimeType: string; text: string }> }> {
+  const id = variables.id as string;
+  const s = getSessionOrError(sm, id);
+  if (s.error) throw new McpError(ErrorCode.InvalidRequest, s.error);
+  return {
+    contents: [
+      {
+        uri: uri.toString(),
+        mimeType: "application/json",
+        text: JSON.stringify({ events: s.session.getRecentEvents() }),
       },
     ],
   };

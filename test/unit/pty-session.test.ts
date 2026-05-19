@@ -226,6 +226,8 @@ describe("PTYSession", () => {
       const result = await session.readUntil("PROMPT_READY", 5000);
       expect(result.matched).toBe("PROMPT_READY");
       expect(result.ended).toBe(false);
+      expect(result.debug?.session_id).toBe("test-session");
+      expect(result.debug?.pattern).toBe("PROMPT_READY");
     });
   });
 
@@ -238,8 +240,10 @@ describe("PTYSession", () => {
 
   describe("close", () => {
     it("should kill the PTY process gracefully by default", () => {
+      const killSpy = vi.spyOn(process, "kill").mockImplementation(() => {});
       session.close();
-      expect(mockPtyInstance.kill).toHaveBeenCalled();
+      expect(killSpy).toHaveBeenCalled();
+      killSpy.mockRestore();
     });
 
     it("should force kill when force=true", () => {
@@ -265,7 +269,48 @@ describe("PTYSession", () => {
       expect(info.rows).toBe(24);
       expect(typeof info.created_at).toBe("string");
       expect(typeof info.last_activity).toBe("string");
+      expect(info.last_output_at).toBeNull();
+      expect(typeof info.idle_ms).toBe("number");
+      expect(info.output_bytes).toBe(0);
       expect(info.alive).toBe(true);
+    });
+  });
+
+  describe("screenshot", () => {
+    it("should return semantic interaction hints for prompts", () => {
+      if (onDataCallback) onDataCallback("package name: (demo)");
+
+      const result = session.screenshot();
+
+      expect(result.detectedPrompt).toContain("package name:");
+      expect(result.isInteractive).toBe(true);
+      expect(result.recommendedNextAction).toBe("input_required");
+      expect(result.outputBytes).toBeGreaterThan(0);
+      expect(result.lastOutputAt).not.toBeNull();
+      expect(typeof result.idleMs).toBe("number");
+    });
+  });
+
+  describe("diagnostics", () => {
+    it("should capture a recent event timeline", () => {
+      if (onDataCallback) onDataCallback("hello");
+      session.write("echo hi");
+      session.read();
+
+      const events = session.getRecentEvents();
+      expect(events.some((e) => e.type === "session_created")).toBe(true);
+      expect(events.some((e) => e.type === "output")).toBe(true);
+      expect(events.some((e) => e.type === "write")).toBe(true);
+      expect(events.some((e) => e.type === "read")).toBe(true);
+    });
+
+    it("should return structured diagnostics snapshot", () => {
+      if (onDataCallback) onDataCallback("package name: (demo)");
+
+      const diagnostics = session.getDiagnostics(10);
+      expect(diagnostics.session.id).toBe("test-session");
+      expect(diagnostics.recent_events.length).toBeGreaterThan(0);
+      expect(diagnostics.last_screenshot.detectedPrompt).toContain("package name:");
     });
   });
 
@@ -438,10 +483,7 @@ describe("PTYSession", () => {
 
       winSession.close();
 
-      // Windows: pty.kill() should be called first (triggers onExit)
-      expect(mockPtyInstance.kill).toHaveBeenCalled();
-
-      // Then taskkill should clean up the process tree
+      // Windows: taskkill should clean up the process tree directly
       expect(execSync).toHaveBeenCalledWith(
         "taskkill /PID 12345 /T /F",
         expect.objectContaining({ stdio: "ignore" }),
@@ -471,6 +513,19 @@ describe("PTYSession", () => {
     it("should force close on SIGKILL", () => {
       session.sendSignal("SIGKILL");
       expect(mockPtyInstance.kill).toHaveBeenCalledWith("SIGKILL");
+    });
+
+    it("should use taskkill for SIGKILL on Windows", () => {
+      (platform as ReturnType<typeof vi.fn>).mockReturnValue("win32");
+
+      session.sendSignal("SIGKILL");
+
+      expect(execSync).toHaveBeenCalledWith(
+        "taskkill /PID 12345 /T /F",
+        expect.objectContaining({ stdio: "ignore" }),
+      );
+
+      (platform as ReturnType<typeof vi.fn>).mockReturnValue("linux");
     });
 
     it("should throw on unknown signal", () => {

@@ -6,7 +6,13 @@ import { OutputBuffer } from "./output-buffer.js";
 import { normalizeEscapeSequences } from "../lib/utils.js";
 import { renderScreen, analyzeScreen } from "./screen.js";
 import { SessionEndedError } from "../types.js";
-import type { SessionInfo, ScreenshotResult } from "../types.js";
+import type {
+  ReadUntilDebugInfo,
+  SessionDiagnostics,
+  SessionEvent,
+  SessionInfo,
+  ScreenshotResult,
+} from "../types.js";
 
 /**
  * Environment variables merged into every PTY session to disable pagers.
@@ -21,6 +27,7 @@ const pagerEnv: Record<string, string> = {
 
 /** Windows shells that benefit from progress suppression. */
 const windowsShells = new Set(["cmd.exe", "pwsh.exe", "pwsh"]);
+const maxSessionEvents = 200;
 
 /**
  * Options for creating a PTYSession.
@@ -50,10 +57,12 @@ export class PTYSession {
   readonly createdAt: Date;
   readonly cwd: string;
   lastActivity: Date;
+  lastOutputAt: Date | null;
   shellName: string;
 
   private isEnded = false;
   private processExitCode: number | null = null;
+  private readonly events: SessionEvent[] = [];
 
   /**
    * Create a new PTY session.
@@ -67,6 +76,7 @@ export class PTYSession {
     this.cwd = options.cwd;
     this.createdAt = new Date();
     this.lastActivity = new Date();
+    this.lastOutputAt = null;
     this.buffer = new OutputBuffer();
     this.shellName = options.shell;
 
@@ -99,13 +109,21 @@ export class PTYSession {
     // Capture all data events into the buffer
     this.pty.onData((data: string) => {
       this.buffer.append(data);
+      this.lastOutputAt = new Date();
+      this.recordEvent("output", {
+        bytes: Buffer.byteLength(data, "utf-8"),
+        preview: PTYSession.preview(data),
+      });
     });
 
     // Track process exit
     this.pty.onExit((exitInfo: { exitCode: number; signal?: number }) => {
       this.isEnded = true;
       this.processExitCode = exitInfo.exitCode;
+      this.recordEvent("exit", { exit_code: exitInfo.exitCode });
     });
+
+    this.recordEvent("session_created");
   }
 
   /**
@@ -136,7 +154,9 @@ export class PTYSession {
     }
     this.pty.write(processed);
     this.lastActivity = new Date();
-    return Buffer.byteLength(processed);
+    const bytes = Buffer.byteLength(processed);
+    this.recordEvent("write", { bytes, preview: PTYSession.preview(processed) });
+    return bytes;
   }
 
   /**
@@ -192,6 +212,7 @@ export class PTYSession {
     if (this.isEnded) return;
     try {
       this.pty.resize(cols, rows);
+      this.recordEvent("resize", { cols, rows });
     } catch {
       // Ignore resize errors on closed PTYs (common on Windows ConPTY)
     }
@@ -213,6 +234,10 @@ export class PTYSession {
   } {
     if (typeof flushOrSince === "number") {
       const result = this.buffer.readAll(flushOrSince) as { data: string; position: number };
+      this.recordEvent("read", {
+        bytes: Buffer.byteLength(result.data, "utf-8"),
+        preview: PTYSession.preview(result.data),
+      });
       return {
         data: result.data,
         position: result.position,
@@ -226,6 +251,10 @@ export class PTYSession {
     if (flush) {
       this.buffer.clear();
     }
+    this.recordEvent("read", {
+      bytes: Buffer.byteLength(data, "utf-8"),
+      preview: PTYSession.preview(data),
+    });
     return {
       data,
       position: this.buffer.position,
@@ -245,6 +274,7 @@ export class PTYSession {
     const raw = this.buffer.getFullBuffer();
     const screen = renderScreen(raw, this.pty.cols, this.pty.rows);
     const analysis = analyzeScreen(screen.rows);
+    const idleMs = this.lastOutputAt ? Math.max(0, Date.now() - this.lastOutputAt.getTime()) : 0;
     return {
       rows: screen.rows,
       cursorRow: screen.cursorRow,
@@ -252,6 +282,19 @@ export class PTYSession {
       cols: screen.cols,
       rowsCount: screen.rowsCount,
       text: screen.text,
+      outputBytes: this.buffer.position,
+      lastOutputAt: this.lastOutputAt?.toISOString() ?? null,
+      idleMs,
+      isInteractive: analysis.is_interactive,
+      detectedPrompt: analysis.prompt_detected,
+      recommendedNextAction:
+        analysis.prompt_detected !== null
+          ? "input_required"
+          : analysis.recommended_next_action === "inspect_screen"
+            ? "inspect_screen"
+            : idleMs < 1000
+              ? "wait"
+              : "read",
       terminal_mode: analysis.terminal_mode,
       editor_mode: analysis.editor_mode,
       status_line: analysis.status_line,
@@ -294,25 +337,44 @@ export class PTYSession {
     ended: boolean;
     exit_code: number | null;
     timed_out: boolean;
+    debug: ReadUntilDebugInfo;
   }> {
     try {
       const result = await this.buffer.readUntil(pattern, timeoutMs, stripAnsiColors);
+      this.recordEvent("read_until_match", {
+        pattern,
+        timeout_ms: timeoutMs ?? 30000,
+        matched: result.matched,
+        bytes: Buffer.byteLength(result.data, "utf-8"),
+        preview: PTYSession.preview(result.data),
+      });
       return {
-        ...result,
+        data: result.data,
+        fullOutput: result.fullOutput,
+        matched: result.matched,
         ended: this.isEnded,
         exit_code: this.processExitCode,
         timed_out: false,
+        debug: this.buildReadUntilDebug(pattern, timeoutMs ?? 30000),
       };
     } catch (err) {
       // Check if it's a ReadTimeoutError
       if (err instanceof Error && "timedOut" in err) {
+        const partialData = (err as { partialData?: string }).partialData ?? "";
+        this.recordEvent("read_until_timeout", {
+          pattern,
+          timeout_ms: timeoutMs ?? 30000,
+          bytes: Buffer.byteLength(partialData, "utf-8"),
+          preview: PTYSession.preview(partialData),
+        });
         return {
-          data: (err as { partialData?: string }).partialData ?? "",
+          data: partialData,
           fullOutput: this.buffer.getFullBuffer(),
           matched: "",
           ended: this.isEnded,
           exit_code: this.processExitCode,
           timed_out: true,
+          debug: this.buildReadUntilDebug(pattern, timeoutMs ?? 30000),
         };
       }
       throw err;
@@ -334,14 +396,20 @@ export class PTYSession {
     }
 
     const pid = this.pty.pid;
+    this.recordEvent("close", {
+      preview: force ? "force" : "graceful",
+    });
 
     if (platform() === "win32") {
-      // Windows: kill the process tree via taskkill (signals not supported)
-      this.pty.kill();
+      // Windows/ConPTY: prefer taskkill directly.
+      // Calling node-pty's kill() first can spawn its console-list helper, which
+      // is known to emit noisy "AttachConsole failed" errors on some machines.
       try {
         execSync(`taskkill /PID ${pid} /T /F`, { stdio: "ignore" });
+        this.isEnded = true;
       } catch {
-        // taskkill may fail if process already terminated — ignore
+        // Fallback: ask node-pty to tear down the session if taskkill failed.
+        this.pty.kill();
       }
     } else {
       // POSIX: kill the entire process group (negative PID)
@@ -378,7 +446,12 @@ export class PTYSession {
         break;
       case "SIGKILL":
         if (platform() === "win32") {
-          this.pty.kill();
+          try {
+            execSync(`taskkill /PID ${this.pty.pid} /T /F`, { stdio: "ignore" });
+            this.isEnded = true;
+          } catch {
+            this.pty.kill();
+          }
         } else {
           this.pty.kill("SIGKILL");
         }
@@ -387,12 +460,15 @@ export class PTYSession {
         throw new Error(`Unknown signal: ${signal}`);
     }
     this.lastActivity = new Date();
+    this.recordEvent("signal", { signal });
   }
 
   /**
    * Get session info for listing.
    */
   getInfo(): SessionInfo {
+    const latestSignalAt = this.lastOutputAt ?? this.lastActivity;
+    const idleMs = Math.max(0, Date.now() - latestSignalAt.getTime());
     return {
       id: this.id,
       label: this.label,
@@ -402,6 +478,9 @@ export class PTYSession {
       rows: this.pty.rows,
       created_at: this.createdAt.toISOString(),
       last_activity: this.lastActivity.toISOString(),
+      last_output_at: this.lastOutputAt?.toISOString() ?? null,
+      idle_ms: idleMs,
+      output_bytes: this.buffer.position,
       alive: !this.isEnded,
     };
   }
@@ -418,5 +497,58 @@ export class PTYSession {
    */
   get exitCode(): number | null {
     return this.processExitCode;
+  }
+
+  /**
+   * Return recent session events for diagnostics and replay-like debugging.
+   */
+  getRecentEvents(limit: number = 50): SessionEvent[] {
+    return this.events.slice(-limit);
+  }
+
+  /**
+   * Return a structured diagnostics snapshot for the current session.
+   */
+  getDiagnostics(limit: number = 50): SessionDiagnostics {
+    return {
+      session: this.getInfo(),
+      recent_events: this.getRecentEvents(limit),
+      last_screenshot: this.screenshot(),
+    };
+  }
+
+  private recordEvent(
+    type: SessionEvent["type"],
+    data: Omit<SessionEvent, "at" | "type"> = {},
+  ): void {
+    this.events.push({
+      at: new Date().toISOString(),
+      type,
+      ...data,
+    });
+
+    if (this.events.length > maxSessionEvents) {
+      this.events.splice(0, this.events.length - maxSessionEvents);
+    }
+  }
+
+  private buildReadUntilDebug(pattern: string, timeoutMs: number): ReadUntilDebugInfo {
+    const screenshot = this.screenshot();
+    return {
+      session_id: this.id,
+      pattern,
+      timeout_ms: timeoutMs,
+      idle_ms: screenshot.idleMs,
+      last_output_at: screenshot.lastOutputAt,
+      output_bytes: screenshot.outputBytes,
+      detected_prompt: screenshot.detectedPrompt,
+      recommended_next_action: screenshot.recommendedNextAction,
+    };
+  }
+
+  private static preview(text: string, maxChars: number = 120): string {
+    const normalized = text.replaceAll(/\s+/g, " ").trim();
+    if (normalized.length <= maxChars) return normalized;
+    return normalized.slice(0, maxChars - 1) + "…";
   }
 }

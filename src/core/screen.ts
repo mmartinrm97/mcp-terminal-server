@@ -29,6 +29,9 @@ export interface ScreenAnalysis {
   editor_mode?: EditorMode;
   status_line: string | null;
   content_rows: string[];
+  prompt_detected: string | null;
+  is_interactive: boolean;
+  recommended_next_action: "input_required" | "inspect_screen" | "wait" | "read";
 }
 
 // ---------------------------------------------------------------------------
@@ -404,10 +407,18 @@ export function analyzeScreen(rows: string[]): ScreenAnalysis {
 
   // Build content rows: all rows except the status line (if present)
   const contentRows: string[] = rows.filter((_, i) => i !== statusIdx);
+  const promptDetected = detectPrompt(rows);
 
   // If no non-empty rows → unknown
   if (nonEmptyCount === 0) {
-    return { terminal_mode: "unknown", status_line: null, content_rows: [] };
+    return {
+      terminal_mode: "unknown",
+      status_line: null,
+      content_rows: [],
+      prompt_detected: null,
+      is_interactive: false,
+      recommended_next_action: "wait",
+    };
   }
 
   // ----- Vim detection (≥2 signals) -----
@@ -418,31 +429,69 @@ export function analyzeScreen(rows: string[]): ScreenAnalysis {
       editor_mode: vimResult.editorMode,
       status_line: statusLine,
       content_rows: contentRows,
+      prompt_detected: promptDetected,
+      is_interactive: true,
+      recommended_next_action: "inspect_screen",
     };
   }
 
   // ----- Nano detection (≥2 signals) -----
   if (detectNano(rows)) {
-    return { terminal_mode: "nano", status_line: statusLine, content_rows: contentRows };
+    return {
+      terminal_mode: "nano",
+      status_line: statusLine,
+      content_rows: contentRows,
+      prompt_detected: promptDetected,
+      is_interactive: true,
+      recommended_next_action: "inspect_screen",
+    };
   }
 
   // ----- Htop detection (≥2 signals) -----
   if (detectHtop(rows)) {
-    return { terminal_mode: "htop", status_line: statusLine, content_rows: contentRows };
+    return {
+      terminal_mode: "htop",
+      status_line: statusLine,
+      content_rows: contentRows,
+      prompt_detected: promptDetected,
+      is_interactive: true,
+      recommended_next_action: "inspect_screen",
+    };
   }
 
   // ----- Lazygit detection (≥2 signals) -----
   if (detectLazygit(rows)) {
-    return { terminal_mode: "lazygit", status_line: statusLine, content_rows: contentRows };
+    return {
+      terminal_mode: "lazygit",
+      status_line: statusLine,
+      content_rows: contentRows,
+      prompt_detected: promptDetected,
+      is_interactive: true,
+      recommended_next_action: "inspect_screen",
+    };
   }
 
   // ----- Less detection (≥2 signals, but NOT if vim/nano matched) -----
   if (detectLess(rows, statusLine)) {
-    return { terminal_mode: "less", status_line: statusLine, content_rows: contentRows };
+    return {
+      terminal_mode: "less",
+      status_line: statusLine,
+      content_rows: contentRows,
+      prompt_detected: promptDetected,
+      is_interactive: true,
+      recommended_next_action: "inspect_screen",
+    };
   }
 
   // Default: shell
-  return { terminal_mode: "shell", status_line: statusLine, content_rows: contentRows };
+  return {
+    terminal_mode: "shell",
+    status_line: statusLine,
+    content_rows: contentRows,
+    prompt_detected: promptDetected,
+    is_interactive: promptDetected !== null,
+    recommended_next_action: promptDetected !== null ? "input_required" : "read",
+  };
 }
 
 /** Find the last non-empty row index and count of non-empty rows. */
@@ -598,4 +647,36 @@ function detectLess(rows: string[], statusLine: string | null): boolean {
     (statusLine !== null && isVimStatusLine(statusLine));
 
   return hasBottomPrompt && hasContent && !hasEditorSignatures;
+}
+
+/**
+ * Best-effort prompt detector for common interactive CLIs.
+ *
+ * The goal is NOT to hardcode one CLI, but to identify generic
+ * "this terminal is asking for input" states from already-rendered text.
+ */
+function detectPrompt(rows: string[]): string | null {
+  const promptPatterns = [
+    /:\s*(\([^)]*\))?\s*$/,
+    /\?\s*$/,
+    /\[[YyNn]\/[YyNn]\]/,
+    /\(([Yy]\/[Nn]|[Nn]\/[Yy])\)/,
+    /press any key/i,
+    /select .*:/i,
+    /enter .*:/i,
+    /password:/i,
+  ];
+
+  for (let i = rows.length - 1; i >= 0; i--) {
+    const row = rows[i]?.trim();
+    if (!row) continue;
+
+    for (const pattern of promptPatterns) {
+      if (pattern.test(row)) {
+        return row;
+      }
+    }
+  }
+
+  return null;
 }

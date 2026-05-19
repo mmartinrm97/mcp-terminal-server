@@ -135,6 +135,8 @@ describe("analyzeScreen", () => {
     expect(result.terminal_mode).toBe("shell");
     expect(result.editor_mode).toBeUndefined();
     expect(result.status_line).toBe("martin@terminalize:~$ ");
+    expect(result.prompt_detected).toBeNull();
+    expect(result.is_interactive).toBe(false);
     expect(result.content_rows).toEqual([
       "martin@terminalize:~$ ls",
       "src/",
@@ -149,6 +151,19 @@ describe("analyzeScreen", () => {
     const result = analyzeScreen(rows);
     expect(result.terminal_mode).toBe("shell");
     expect(result.editor_mode).toBeUndefined();
+  });
+
+  it("should detect generic field prompt as interactive shell state", () => {
+    const rows = [
+      "This utility will walk you through creating a package.json file.",
+      "Press ^C at any time to quit.",
+      "package name: (demo-app)",
+    ];
+    const result = analyzeScreen(rows);
+    expect(result.terminal_mode).toBe("shell");
+    expect(result.prompt_detected).toBe("package name: (demo-app)");
+    expect(result.is_interactive).toBe(true);
+    expect(result.recommended_next_action).toBe("input_required");
   });
 
   // --- Vim INSERT ---
