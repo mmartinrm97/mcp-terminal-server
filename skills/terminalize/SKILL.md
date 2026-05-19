@@ -27,21 +27,22 @@ waits for input or shows a TUI menu, `bash` will time out or return truncated ou
 - Running `shadcn-vue add`, `prisma init` — CLI tools with questions
 - Any command that shows a menu with `↑↓` arrows or `[y/N]` prompts
 
-## Tools Overview (11 tools)
+## Tools Overview (12 tools)
 
-| Tool                      | Purpose                                           | When to Use                         |
-| ------------------------- | ------------------------------------------------- | ----------------------------------- |
-| `terminal_create_session` | Create a persistent PTY session                   | Always first                        |
-| `terminal_write`          | Write keystrokes/commands to the session          | ⭐ Your main input tool             |
-| `terminal_read`           | Read raw buffer (non-blocking)                    | Quick peek at latest output         |
-| `terminal_read_until`     | Wait for a pattern, then return output            | Wait for prompts/questions          |
-| **`terminal_screenshot`** | **Get clean screen state with cursor position**   | **⭐ TUI navigation**               |
-| `terminal_tail`           | Read last N lines (like `tail -n N`)              | ⭐ Logs from long-running processes |
-| `terminal_resize`         | Change terminal dimensions                        | When output is clipped              |
-| `terminal_send_signal`    | Send SIGINT/SIGTSTP/SIGQUIT to foreground process | Interrupt stuck processes           |
-| `terminal_ping`           | Health check — server status + uptime             | Verify server is alive              |
-| `terminal_list_sessions`  | List all active sessions                          | Debugging                           |
-| `terminal_close_session`  | Close and cleanup a session                       | Always last                         |
+| Tool                           | Purpose                                           | When to Use                         |
+| ------------------------------ | ------------------------------------------------- | ----------------------------------- |
+| `terminal_create_session`      | Create a persistent PTY session                   | Always first                        |
+| `terminal_write`               | Write keystrokes/commands to the session          | ⭐ Your main input tool             |
+| `terminal_read`                | Read raw buffer (non-blocking)                    | Quick peek at latest output         |
+| `terminal_read_until`          | Wait for a pattern, then return output            | Wait for prompts/questions          |
+| **`terminal_screenshot`**      | **Get clean screen state with cursor position**   | **⭐ TUI navigation**               |
+| `terminal_tail`                | Read last N lines (like `tail -n N`)              | ⭐ Logs from long-running processes |
+| `terminal_resize`              | Change terminal dimensions                        | When output is clipped              |
+| `terminal_send_signal`         | Send SIGINT/SIGTSTP/SIGQUIT to foreground process | Interrupt stuck processes           |
+| `terminal_ping`                | Health check — server status + uptime             | Verify server is alive              |
+| `terminal_list_sessions`       | List all active sessions                          | Debugging                           |
+| `terminal_session_diagnostics` | Structured debug snapshot for a session           | Diagnose desync / timeouts          |
+| `terminal_close_session`       | Close and cleanup a session                       | Always last                         |
 
 ## Labels for Multi-Agent Flows
 
@@ -189,6 +190,17 @@ Always use `terminal_screenshot` BEFORE `terminal_write` when navigating TUIs:
 
 The `terminal_screenshot` returns clean text rows — you can search for `●` or
 `○` to find selected/unselected items without parsing ANSI codes.
+
+It also returns semantic guidance fields:
+
+- `detectedPrompt`
+- `promptCategory`
+- `shouldAskUser`
+- `askUserReason`
+- `canAcceptDefault`
+- `recommendedNextAction`
+
+Use them as hints, not as an excuse to skip reading the actual screen.
 
 ## User Consultation Protocol (⭐ CRITICAL)
 

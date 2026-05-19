@@ -288,6 +288,21 @@ describe("PTYSession", () => {
       expect(result.outputBytes).toBeGreaterThan(0);
       expect(result.lastOutputAt).not.toBeNull();
       expect(typeof result.idleMs).toBe("number");
+      expect(result.promptCategory).toBe("text");
+      expect(result.shouldAskUser).toBe(false);
+      expect(result.canAcceptDefault).toBe(true);
+    });
+
+    it("should surface ask-user guidance for sensitive prompts", () => {
+      if (onDataCallback) onDataCallback("Password:");
+
+      const result = session.screenshot();
+
+      expect(result.detectedPrompt).toBe("Password:");
+      expect(result.promptCategory).toBe("secret");
+      expect(result.shouldAskUser).toBe(true);
+      expect(result.askUserReason).toBe("secret_required");
+      expect(result.recommendedNextAction).toBe("ask_user");
     });
   });
 

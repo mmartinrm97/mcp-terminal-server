@@ -74,6 +74,10 @@ function createMockSession(overrides?: Partial<MockPTYSession>): MockPTYSession 
       isInteractive: true,
       detectedPrompt: "package name: (demo)",
       recommendedNextAction: "input_required",
+      promptCategory: "text",
+      shouldAskUser: false,
+      askUserReason: null,
+      canAcceptDefault: true,
       terminal_mode: "shell",
     }),
     sendSignal: vi.fn(),
@@ -112,6 +116,10 @@ function createMockSession(overrides?: Partial<MockPTYSession>): MockPTYSession 
         isInteractive: true,
         detectedPrompt: "package name: (demo)",
         recommendedNextAction: "input_required",
+        promptCategory: "text",
+        shouldAskUser: false,
+        askUserReason: null,
+        canAcceptDefault: true,
         terminal_mode: "shell",
       },
     }),
@@ -610,6 +618,9 @@ describe("Server Handler Functions", () => {
         expect(parsed.terminal_mode).toBe("shell");
         expect(parsed.detectedPrompt).toBe("package name: (demo)");
         expect(parsed.recommendedNextAction).toBe("input_required");
+        expect(parsed.promptCategory).toBe("text");
+        expect(parsed.shouldAskUser).toBe(false);
+        expect(parsed.canAcceptDefault).toBe(true);
         expect(mockSession.screenshot).toHaveBeenCalled();
       });
 

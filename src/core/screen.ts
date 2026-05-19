@@ -22,6 +22,13 @@ export type TerminalMode = "shell" | "vim" | "nano" | "htop" | "lazygit" | "less
 
 /** Vim-specific editor submode. Only present when terminal_mode is "vim". */
 export type EditorMode = "normal" | "insert" | "visual" | "replace" | "unknown";
+export type PromptCategory = "text" | "confirm" | "choice" | "secret" | "license" | "unknown";
+export type AskUserReason =
+  | "destructive_confirmation"
+  | "secret_required"
+  | "license_choice"
+  | "ambiguous_choice"
+  | "unknown_text_without_default";
 
 /** Result of heuristic screen classification. */
 export interface ScreenAnalysis {
@@ -30,8 +37,12 @@ export interface ScreenAnalysis {
   status_line: string | null;
   content_rows: string[];
   prompt_detected: string | null;
+  prompt_category: PromptCategory | null;
   is_interactive: boolean;
-  recommended_next_action: "input_required" | "inspect_screen" | "wait" | "read";
+  should_ask_user: boolean;
+  ask_user_reason: AskUserReason | null;
+  can_accept_default: boolean;
+  recommended_next_action: "input_required" | "inspect_screen" | "wait" | "read" | "ask_user";
 }
 
 // ---------------------------------------------------------------------------
@@ -408,6 +419,7 @@ export function analyzeScreen(rows: string[]): ScreenAnalysis {
   // Build content rows: all rows except the status line (if present)
   const contentRows: string[] = rows.filter((_, i) => i !== statusIdx);
   const promptDetected = detectPrompt(rows);
+  const promptGuidance = classifyPrompt(promptDetected);
 
   // If no non-empty rows → unknown
   if (nonEmptyCount === 0) {
@@ -416,7 +428,11 @@ export function analyzeScreen(rows: string[]): ScreenAnalysis {
       status_line: null,
       content_rows: [],
       prompt_detected: null,
+      prompt_category: null,
       is_interactive: false,
+      should_ask_user: false,
+      ask_user_reason: null,
+      can_accept_default: false,
       recommended_next_action: "wait",
     };
   }
@@ -430,7 +446,11 @@ export function analyzeScreen(rows: string[]): ScreenAnalysis {
       status_line: statusLine,
       content_rows: contentRows,
       prompt_detected: promptDetected,
+      prompt_category: promptGuidance.category,
       is_interactive: true,
+      should_ask_user: false,
+      ask_user_reason: null,
+      can_accept_default: false,
       recommended_next_action: "inspect_screen",
     };
   }
@@ -442,7 +462,11 @@ export function analyzeScreen(rows: string[]): ScreenAnalysis {
       status_line: statusLine,
       content_rows: contentRows,
       prompt_detected: promptDetected,
+      prompt_category: promptGuidance.category,
       is_interactive: true,
+      should_ask_user: false,
+      ask_user_reason: null,
+      can_accept_default: false,
       recommended_next_action: "inspect_screen",
     };
   }
@@ -454,7 +478,11 @@ export function analyzeScreen(rows: string[]): ScreenAnalysis {
       status_line: statusLine,
       content_rows: contentRows,
       prompt_detected: promptDetected,
+      prompt_category: promptGuidance.category,
       is_interactive: true,
+      should_ask_user: false,
+      ask_user_reason: null,
+      can_accept_default: false,
       recommended_next_action: "inspect_screen",
     };
   }
@@ -466,7 +494,11 @@ export function analyzeScreen(rows: string[]): ScreenAnalysis {
       status_line: statusLine,
       content_rows: contentRows,
       prompt_detected: promptDetected,
+      prompt_category: promptGuidance.category,
       is_interactive: true,
+      should_ask_user: false,
+      ask_user_reason: null,
+      can_accept_default: false,
       recommended_next_action: "inspect_screen",
     };
   }
@@ -478,7 +510,11 @@ export function analyzeScreen(rows: string[]): ScreenAnalysis {
       status_line: statusLine,
       content_rows: contentRows,
       prompt_detected: promptDetected,
+      prompt_category: promptGuidance.category,
       is_interactive: true,
+      should_ask_user: false,
+      ask_user_reason: null,
+      can_accept_default: false,
       recommended_next_action: "inspect_screen",
     };
   }
@@ -489,8 +525,17 @@ export function analyzeScreen(rows: string[]): ScreenAnalysis {
     status_line: statusLine,
     content_rows: contentRows,
     prompt_detected: promptDetected,
+    prompt_category: promptGuidance.category,
     is_interactive: promptDetected !== null,
-    recommended_next_action: promptDetected !== null ? "input_required" : "read",
+    should_ask_user: promptGuidance.shouldAskUser,
+    ask_user_reason: promptGuidance.askUserReason,
+    can_accept_default: promptGuidance.canAcceptDefault,
+    recommended_next_action:
+      promptDetected === null
+        ? "read"
+        : promptGuidance.shouldAskUser
+          ? "ask_user"
+          : "input_required",
   };
 }
 
@@ -679,4 +724,79 @@ function detectPrompt(rows: string[]): string | null {
   }
 
   return null;
+}
+
+function classifyPrompt(prompt: string | null): {
+  category: PromptCategory | null;
+  shouldAskUser: boolean;
+  askUserReason: AskUserReason | null;
+  canAcceptDefault: boolean;
+} {
+  if (prompt === null) {
+    return {
+      category: null,
+      shouldAskUser: false,
+      askUserReason: null,
+      canAcceptDefault: false,
+    };
+  }
+
+  const lower = prompt.toLowerCase();
+  const hasDefault = /\([^)]*\)/.test(prompt) || /\[[^\]]*\]/.test(prompt);
+
+  if (/(password|passphrase|token|api key|secret|otp|one-time code)/i.test(prompt)) {
+    return {
+      category: "secret",
+      shouldAskUser: true,
+      askUserReason: "secret_required",
+      canAcceptDefault: false,
+    };
+  }
+
+  if (/\blicen[sc]e\b/i.test(prompt)) {
+    return {
+      category: "license",
+      shouldAskUser: true,
+      askUserReason: "license_choice",
+      canAcceptDefault: hasDefault,
+    };
+  }
+
+  if (/(select|choose|pick|which|option)/i.test(prompt)) {
+    return {
+      category: "choice",
+      shouldAskUser: true,
+      askUserReason: "ambiguous_choice",
+      canAcceptDefault: false,
+    };
+  }
+
+  if (/\[[yn]\/[yn]\]|\([yn]\/[yn]\)|\?$/.test(lower)) {
+    const isDestructive =
+      /(delete|drop|destroy|reset|remove|prune|overwrite|truncate|wipe|kill|terminate|force)/i.test(
+        prompt,
+      );
+    return {
+      category: "confirm",
+      shouldAskUser: isDestructive,
+      askUserReason: isDestructive ? "destructive_confirmation" : null,
+      canAcceptDefault: hasDefault,
+    };
+  }
+
+  if (/:/.test(prompt)) {
+    return {
+      category: "text",
+      shouldAskUser: !hasDefault,
+      askUserReason: hasDefault ? null : "unknown_text_without_default",
+      canAcceptDefault: hasDefault,
+    };
+  }
+
+  return {
+    category: "unknown",
+    shouldAskUser: false,
+    askUserReason: null,
+    canAcceptDefault: false,
+  };
 }

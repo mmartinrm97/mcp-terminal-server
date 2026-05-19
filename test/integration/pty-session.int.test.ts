@@ -1,4 +1,6 @@
 // @integration — requires real shell
+import { rmSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, it, expect, afterEach } from "vitest";
 import { PTYSession } from "../../src/core/pty-session.js";
 
@@ -237,6 +239,68 @@ describe("PTYSession Integration", () => {
       expect(result.fullOutput).toContain("LINE-DOG");
       expect(result.fullOutput).toContain("LINE-CAT");
     }, 15000);
+  });
+
+  // ---------------------------------------------------------------------------
+  // 5b. Prompt-by-prompt interaction guidance
+  // ---------------------------------------------------------------------------
+  describe("prompt-by-prompt interaction guidance", () => {
+    it("should complete a prompt-by-prompt interactive flow without batching input", async () => {
+      if (IS_WINDOWS) {
+        console.warn(
+          "[INTEGRATION] Skipping prompt-by-prompt node flow on Windows — ConPTY interactive output remains less stable here.",
+        );
+        return;
+      }
+
+      const session = createSession("int-guidance-8b");
+      sessions.push(session);
+      await sleep(500);
+      const scriptPath = join(process.cwd(), `tmp-terminalize-guidance-${Date.now()}.cjs`);
+      writeFileSync(
+        scriptPath,
+        [
+          "process.stdin.setEncoding('utf8');",
+          "let step = 0;",
+          "process.stdout.write('package name: (demo)\\n');",
+          "process.stdin.on('data', (chunk) => {",
+          "  const value = chunk.trim();",
+          "  if (step === 0) {",
+          "    console.log('NAME=' + value);",
+          "    process.stdout.write('Password:\\n');",
+          "    step = 1;",
+          "    return;",
+          "  }",
+          "  console.log('PWLEN=' + value.length);",
+          "  process.exit(0);",
+          "});",
+        ].join("\n"),
+        "utf8",
+      );
+
+      try {
+        session.write(cmd(`node "${scriptPath}"\n`));
+
+        const packagePrompt = await session.readUntil("package name: \\(demo\\)", 10000);
+        expect(packagePrompt.timed_out).toBe(false);
+        expect(packagePrompt.matched).toBe("package name: (demo)");
+        expect(packagePrompt.data).toContain("package name: (demo)");
+
+        session.write("\n");
+
+        const passwordPrompt = await session.readUntil("Password:", 10000);
+        expect(passwordPrompt.timed_out).toBe(false);
+        expect(passwordPrompt.matched).toBe("Password:");
+        expect(passwordPrompt.data).toContain("Password:");
+
+        session.write("dummy-secret\n");
+        const completed = await session.readUntil("PWLEN=12", 10000);
+        expect(completed.timed_out).toBe(false);
+        expect(completed.matched).toBe("PWLEN=12");
+      } finally {
+        rmSync(scriptPath, { force: true });
+      }
+    }, 20000);
   });
 
   // ---------------------------------------------------------------------------

@@ -287,9 +287,15 @@ export class PTYSession {
       idleMs,
       isInteractive: analysis.is_interactive,
       detectedPrompt: analysis.prompt_detected,
+      promptCategory: analysis.prompt_category,
+      shouldAskUser: analysis.should_ask_user,
+      askUserReason: analysis.ask_user_reason,
+      canAcceptDefault: analysis.can_accept_default,
       recommendedNextAction:
         analysis.prompt_detected !== null
-          ? "input_required"
+          ? analysis.should_ask_user
+            ? "ask_user"
+            : "input_required"
           : analysis.recommended_next_action === "inspect_screen"
             ? "inspect_screen"
             : idleMs < 1000
@@ -542,6 +548,10 @@ export class PTYSession {
       last_output_at: screenshot.lastOutputAt,
       output_bytes: screenshot.outputBytes,
       detected_prompt: screenshot.detectedPrompt,
+      prompt_category: screenshot.promptCategory,
+      should_ask_user: screenshot.shouldAskUser,
+      ask_user_reason: screenshot.askUserReason,
+      can_accept_default: screenshot.canAcceptDefault,
       recommended_next_action: screenshot.recommendedNextAction,
     };
   }

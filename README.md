@@ -326,10 +326,20 @@ Also includes best-effort semantic hints for agents:
 - `status_line`
 - `content_rows`
 - `detectedPrompt`
+- `promptCategory`
+- `shouldAskUser`
+- `askUserReason`
+- `canAcceptDefault`
 - `isInteractive`
 - `recommendedNextAction`
 - `idleMs`
 - `outputBytes`
+
+Typical interpretation:
+
+- `recommendedNextAction = "input_required"` → the terminal is waiting for an answer
+- `recommendedNextAction = "ask_user"` → do **not** guess; escalate to the user
+- `canAcceptDefault = true` → pressing Enter is likely safe for this prompt
 
 | Parameter | Type     | Description |
 | --------- | -------- | ----------- |
@@ -387,6 +397,9 @@ Use this when an interactive flow behaved unexpectedly and you need to know:
 
 // IMPORTANT: wait for the NEXT prompt before writing again
 // Do NOT send multiple Enters in a batch to "skip ahead"
+
+// If screenshot/recommendedNextAction says "ask_user",
+// stop and ask the human instead of guessing.
 
 // ... repeat until done ...
 

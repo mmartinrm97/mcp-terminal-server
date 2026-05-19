@@ -71,7 +71,17 @@ export interface ReadUntilDebugInfo {
   last_output_at: string | null;
   output_bytes: number;
   detected_prompt: string | null;
-  recommended_next_action: "input_required" | "inspect_screen" | "wait" | "read";
+  prompt_category: "text" | "confirm" | "choice" | "secret" | "license" | "unknown" | null;
+  should_ask_user: boolean;
+  ask_user_reason:
+    | "destructive_confirmation"
+    | "secret_required"
+    | "license_choice"
+    | "ambiguous_choice"
+    | "unknown_text_without_default"
+    | null;
+  can_accept_default: boolean;
+  recommended_next_action: "input_required" | "inspect_screen" | "wait" | "read" | "ask_user";
 }
 
 /**
@@ -150,8 +160,22 @@ export interface ScreenshotResult {
   isInteractive: boolean;
   /** Best-effort extracted prompt or question visible on screen */
   detectedPrompt: string | null;
+  /** Heuristic prompt kind, if a prompt/question is currently visible */
+  promptCategory: "text" | "confirm" | "choice" | "secret" | "license" | "unknown" | null;
+  /** Whether the agent should ask the user instead of guessing the answer */
+  shouldAskUser: boolean;
+  /** Why the prompt should be escalated to the user */
+  askUserReason:
+    | "destructive_confirmation"
+    | "secret_required"
+    | "license_choice"
+    | "ambiguous_choice"
+    | "unknown_text_without_default"
+    | null;
+  /** Whether pressing Enter to accept the default looks safe/reasonable */
+  canAcceptDefault: boolean;
   /** Suggested next step for agents based on current screen state */
-  recommendedNextAction: "input_required" | "inspect_screen" | "wait" | "read";
+  recommendedNextAction: "input_required" | "inspect_screen" | "wait" | "read" | "ask_user";
   /** Semantic classification of the foreground application (optional, v0.3+) */
   terminal_mode?: string;
   /** Vim-specific editor submode: "normal" | "insert" | "visual" | "replace" | "unknown" */

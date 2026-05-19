@@ -164,6 +164,49 @@ describe("analyzeScreen", () => {
     expect(result.prompt_detected).toBe("package name: (demo-app)");
     expect(result.is_interactive).toBe(true);
     expect(result.recommended_next_action).toBe("input_required");
+    expect(result.prompt_category).toBe("text");
+    expect(result.should_ask_user).toBe(false);
+    expect(result.can_accept_default).toBe(true);
+  });
+
+  it("should ask the user for destructive confirmations", () => {
+    const rows = ["Database will be reset.", "Are you sure you want to drop all tables? [y/N]"];
+    const result = analyzeScreen(rows);
+    expect(result.prompt_detected).toBe("Are you sure you want to drop all tables? [y/N]");
+    expect(result.prompt_category).toBe("confirm");
+    expect(result.should_ask_user).toBe(true);
+    expect(result.ask_user_reason).toBe("destructive_confirmation");
+    expect(result.recommended_next_action).toBe("ask_user");
+  });
+
+  it("should ask the user for secret prompts", () => {
+    const rows = ["GitHub authentication", "Password:"];
+    const result = analyzeScreen(rows);
+    expect(result.prompt_detected).toBe("Password:");
+    expect(result.prompt_category).toBe("secret");
+    expect(result.should_ask_user).toBe(true);
+    expect(result.ask_user_reason).toBe("secret_required");
+    expect(result.recommended_next_action).toBe("ask_user");
+  });
+
+  it("should ask the user for license selection prompts", () => {
+    const rows = ["package name: (demo-app)", "license: (ISC)"];
+    const result = analyzeScreen(rows);
+    expect(result.prompt_detected).toBe("license: (ISC)");
+    expect(result.prompt_category).toBe("license");
+    expect(result.should_ask_user).toBe(true);
+    expect(result.ask_user_reason).toBe("license_choice");
+    expect(result.recommended_next_action).toBe("ask_user");
+  });
+
+  it("should ask the user for ambiguous selection prompts", () => {
+    const rows = ["Select an option:", "  1) React", "  2) Vue"];
+    const result = analyzeScreen(rows);
+    expect(result.prompt_detected).toBe("Select an option:");
+    expect(result.prompt_category).toBe("choice");
+    expect(result.should_ask_user).toBe(true);
+    expect(result.ask_user_reason).toBe("ambiguous_choice");
+    expect(result.recommended_next_action).toBe("ask_user");
   });
 
   // --- Vim INSERT ---
