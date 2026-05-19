@@ -3,7 +3,12 @@ import { McpError, ErrorCode } from "@modelcontextprotocol/sdk/types.js";
 import * as z from "zod";
 
 import type { SessionManager } from "./core/session-manager.js";
-import { SessionNotFoundError, SessionLimitError, ReadTimeoutError } from "./types.js";
+import {
+  SessionNotFoundError,
+  SessionLimitError,
+  SessionPolicyError,
+  ReadTimeoutError,
+} from "./types.js";
 import { PKG_VERSION } from "./version.js";
 import type {
   SessionConfig,
@@ -81,7 +86,7 @@ async function handleCreateSessionTool(
     });
     return { content: [textContent(info)] };
   } catch (err) {
-    if (err instanceof SessionLimitError) {
+    if (err instanceof SessionLimitError || err instanceof SessionPolicyError) {
       return toolError(err.message);
     }
     throw err;
@@ -102,12 +107,16 @@ function handleWriteTool(
     throw new McpError(ErrorCode.InvalidParams, "Missing required parameter: data");
   }
 
-  const s = getSessionOrError(sm, id);
-  if (s.error) return toolError(s.error);
-
-  const bytesWritten = s.session.write(data);
-  const result: WriteResult = { ok: true, bytes_written: bytesWritten };
-  return { content: [textContent(result)] };
+  try {
+    const bytesWritten = sm.writeToSession(id, data);
+    const result: WriteResult = { ok: true, bytes_written: bytesWritten };
+    return { content: [textContent(result)] };
+  } catch (err) {
+    if (err instanceof SessionNotFoundError || err instanceof SessionPolicyError) {
+      return toolError(err.message);
+    }
+    throw err;
+  }
 }
 
 function handleReadTool(

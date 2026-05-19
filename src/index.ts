@@ -39,8 +39,17 @@ const DEFAULT_CONFIG: SessionManagerConfig = {
 export function parseEnvConfig(): SessionManagerConfig {
   const max = parseEnvInt("MCP_TERMINAL_MAX_SESSIONS", DEFAULT_CONFIG.max_sessions);
   const ttl = parseEnvInt("MCP_TERMINAL_SESSION_TTL_MS", DEFAULT_CONFIG.session_ttl_ms);
+  const allowedRoots = parseEnvList("MCP_TERMINAL_ALLOWED_CWD_ROOTS", ";");
+  const allowPatterns = parseEnvList("MCP_TERMINAL_COMMAND_ALLOW_PATTERNS", ";;");
+  const denyPatterns = parseEnvList("MCP_TERMINAL_COMMAND_DENY_PATTERNS", ";;");
 
-  return { max_sessions: max, session_ttl_ms: ttl };
+  return {
+    max_sessions: max,
+    session_ttl_ms: ttl,
+    allowed_cwd_roots: allowedRoots,
+    command_allow_patterns: allowPatterns,
+    command_deny_patterns: denyPatterns,
+  };
 }
 
 /** Parse an environment variable as an integer with a fallback default. */
@@ -49,6 +58,16 @@ function parseEnvInt(envKey: string, defaultVal: number): number {
   if (raw === undefined || raw === "") return defaultVal;
   const parsed = Number.parseInt(raw, 10);
   return Number.isNaN(parsed) ? defaultVal : parsed;
+}
+
+/** Parse an env var as a filtered string list. */
+function parseEnvList(envKey: string, separator: string): string[] {
+  const raw = process.env[envKey];
+  if (raw === undefined || raw.trim() === "") return [];
+  return raw
+    .split(separator)
+    .map((value) => value.trim())
+    .filter((value) => value.length > 0);
 }
 
 // ---------------------------------------------------------------------------

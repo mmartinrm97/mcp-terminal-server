@@ -16,7 +16,12 @@ import {
 
 import type { SessionManager } from "../../src/core/session-manager.js";
 
-import { SessionNotFoundError, SessionLimitError, ReadTimeoutError } from "../../src/types.js";
+import {
+  SessionNotFoundError,
+  SessionLimitError,
+  SessionPolicyError,
+  ReadTimeoutError,
+} from "../../src/types.js";
 
 // ---------------------------------------------------------------------------
 // Mock factories
@@ -41,6 +46,7 @@ interface MockPTYSession {
 interface MockSessionManager {
   createSession: ReturnType<typeof vi.fn>;
   getSession: ReturnType<typeof vi.fn>;
+  writeToSession: ReturnType<typeof vi.fn>;
   listSessions: ReturnType<typeof vi.fn>;
   closeSession: ReturnType<typeof vi.fn>;
   activeCount: number;
@@ -201,6 +207,7 @@ function createMockSessionManager(overrides?: Partial<MockSessionManager>): Mock
       alive: true,
     }),
     getSession: vi.fn().mockReturnValue(createMockSession()),
+    writeToSession: vi.fn().mockReturnValue(8),
     listSessions: vi.fn().mockReturnValue([
       {
         id: "session-1",
@@ -348,7 +355,7 @@ describe("Server Handler Functions", () => {
 
     describe("terminal_write", () => {
       it("should write data and return WriteResult", async () => {
-        mockSession.write.mockReturnValue(5);
+        mockSm.writeToSession.mockReturnValue(5);
         const result = await handleCallTool(mockSm as unknown as SessionManager, {
           name: "terminal_write",
           arguments: { id: "session-1", data: "echo hello" },
@@ -360,7 +367,7 @@ describe("Server Handler Functions", () => {
       });
 
       it("should handle SessionNotFoundError", async () => {
-        mockSm.getSession.mockImplementation(() => {
+        mockSm.writeToSession.mockImplementation(() => {
           throw new SessionNotFoundError("missing");
         });
         const result = await handleCallTool(mockSm as unknown as SessionManager, {
@@ -369,6 +376,18 @@ describe("Server Handler Functions", () => {
         });
         expect(result.isError).toBe(true);
         expect(result.content[0].text).toContain("Session not found");
+      });
+
+      it("should handle SessionPolicyError", async () => {
+        mockSm.writeToSession.mockImplementation(() => {
+          throw new SessionPolicyError("Command blocked by configured deny pattern");
+        });
+        const result = await handleCallTool(mockSm as unknown as SessionManager, {
+          name: "terminal_write",
+          arguments: { id: "session-1", data: "rm -rf dist" },
+        });
+        expect(result.isError).toBe(true);
+        expect(result.content[0].text).toContain("Command blocked");
       });
     });
 

@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
+import { dirname, join, resolve } from "node:path";
 
 // Mock node-pty
 vi.mock("node-pty", () => ({
@@ -20,7 +21,7 @@ vi.mock("node-pty", () => ({
 }));
 import { SessionManager } from "../../src/core/session-manager.js";
 
-import { SessionNotFoundError, SessionLimitError } from "../../src/types.js";
+import { SessionNotFoundError, SessionLimitError, SessionPolicyError } from "../../src/types.js";
 
 describe("SessionManager", () => {
   let manager: SessionManager;
@@ -90,6 +91,29 @@ describe("SessionManager", () => {
       await manager.createSession({ shell: "cmd" });
       await expect(manager.createSession({ shell: "cmd" })).rejects.toThrow(SessionLimitError);
     });
+
+    it("should reject session cwd outside allowed roots", async () => {
+      const allowedRoot = resolve(process.cwd(), "sandbox");
+      const blockedCwd = dirname(process.cwd());
+      manager = new SessionManager({
+        max_sessions: 10,
+        session_ttl_ms: 999999,
+        allowed_cwd_roots: [allowedRoot],
+      });
+      await expect(manager.createSession({ cwd: blockedCwd })).rejects.toThrow(SessionPolicyError);
+    });
+
+    it("should allow session cwd inside allowed roots", async () => {
+      const allowedRoot = resolve(process.cwd(), "sandbox");
+      const nestedCwd = join(allowedRoot, "project-a");
+      manager = new SessionManager({
+        max_sessions: 10,
+        session_ttl_ms: 999999,
+        allowed_cwd_roots: [allowedRoot],
+      });
+      const info = await manager.createSession({ cwd: nestedCwd });
+      expect(info.cwd).toBe(nestedCwd);
+    });
   });
 
   describe("getSession", () => {
@@ -134,6 +158,46 @@ describe("SessionManager", () => {
     it("should throw SessionNotFoundError for unknown id", () => {
       manager = new SessionManager();
       expect(() => manager.closeSession("nonexistent")).toThrow(SessionNotFoundError);
+    });
+  });
+
+  describe("writeToSession", () => {
+    it("should write when no command policy is configured", async () => {
+      manager = new SessionManager({ max_sessions: 10, session_ttl_ms: 999999 });
+      const info = await manager.createSession({ shell: "cmd" });
+      const bytes = manager.writeToSession(info.id, "echo hello");
+      expect(bytes).toBeGreaterThan(0);
+    });
+
+    it("should reject commands that match deny patterns", async () => {
+      manager = new SessionManager({
+        max_sessions: 10,
+        session_ttl_ms: 999999,
+        command_deny_patterns: ["rm\\s+-rf", "git\\s+reset\\s+--hard"],
+      });
+      const info = await manager.createSession({ shell: "cmd" });
+      expect(() => manager.writeToSession(info.id, "rm -rf dist")).toThrow(SessionPolicyError);
+    });
+
+    it("should reject commands not matched by allow patterns when allowlist is active", async () => {
+      manager = new SessionManager({
+        max_sessions: 10,
+        session_ttl_ms: 999999,
+        command_allow_patterns: ["^echo\\b", "^pwd\\b"],
+      });
+      const info = await manager.createSession({ shell: "cmd" });
+      expect(() => manager.writeToSession(info.id, "npm init")).toThrow(SessionPolicyError);
+    });
+
+    it("should allow commands matched by allow patterns", async () => {
+      manager = new SessionManager({
+        max_sessions: 10,
+        session_ttl_ms: 999999,
+        command_allow_patterns: ["^echo\\b", "^pwd\\b"],
+      });
+      const info = await manager.createSession({ shell: "cmd" });
+      const bytes = manager.writeToSession(info.id, "echo hello");
+      expect(bytes).toBeGreaterThan(0);
     });
   });
 

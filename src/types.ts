@@ -285,6 +285,9 @@ export interface SessionExport {
 export interface SessionManagerConfig {
   max_sessions: number;
   session_ttl_ms: number;
+  allowed_cwd_roots?: string[];
+  command_allow_patterns?: string[];
+  command_deny_patterns?: string[];
 }
 
 /**
@@ -304,6 +307,16 @@ export class SessionLimitError extends Error {
   constructor(max: number) {
     super(`Maximum session limit reached (${max})`);
     this.name = "SessionLimitError";
+  }
+}
+
+/**
+ * Error thrown when a configured safety policy blocks a session or command.
+ */
+export class SessionPolicyError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "SessionPolicyError";
   }
 }
 
