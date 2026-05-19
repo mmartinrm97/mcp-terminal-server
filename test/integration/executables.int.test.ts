@@ -80,7 +80,7 @@ describe("Executables Integration", () => {
       // Use encoded markers via String.fromCharCode so the marker text
       // NEVER appears in the echoed command input on the PTY output.
       session.write(
-        `node -e "process.stdout.write(String.fromCharCode(65,83,75,95,79,75)+': ');process.stdin.once('data',function(d){process.stdout.write(String.fromCharCode(71,79,84,95,79,75)+': '+d.trim());process.exit(0);})"\n`,
+        `node -e "process.stdout.write(String.fromCharCode(65,83,75,95,79,75)+': ');process.stdin.once('data',function(d){process.stdout.write(String.fromCharCode(71,79,84,95,79,75)+': '+d.toString().trim());process.exit(0);})"\n`,
       );
 
       // Wait for the node process to start and output "ASK_OK: "
