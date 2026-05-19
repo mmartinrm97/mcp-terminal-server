@@ -30,6 +30,7 @@ import { PKG_VERSION } from "./version.js";
 const DEFAULT_CONFIG: SessionManagerConfig = {
   max_sessions: 10,
   session_ttl_ms: 30 * 60 * 1000, // 30 minutes
+  output_buffer_max_bytes: 1024 * 1024, // 1MB
 };
 
 /**
@@ -39,6 +40,11 @@ const DEFAULT_CONFIG: SessionManagerConfig = {
 export function parseEnvConfig(): SessionManagerConfig {
   const max = parseEnvInt("MCP_TERMINAL_MAX_SESSIONS", DEFAULT_CONFIG.max_sessions);
   const ttl = parseEnvInt("MCP_TERMINAL_SESSION_TTL_MS", DEFAULT_CONFIG.session_ttl_ms);
+  const maxDuration = parseOptionalEnvInt("MCP_TERMINAL_SESSION_MAX_DURATION_MS");
+  const outputBufferMaxBytes = parseEnvInt(
+    "MCP_TERMINAL_OUTPUT_BUFFER_MAX_BYTES",
+    DEFAULT_CONFIG.output_buffer_max_bytes ?? 1024 * 1024,
+  );
   const allowedRoots = parseEnvList("MCP_TERMINAL_ALLOWED_CWD_ROOTS", ";");
   const allowPatterns = parseEnvList("MCP_TERMINAL_COMMAND_ALLOW_PATTERNS", ";;");
   const denyPatterns = parseEnvList("MCP_TERMINAL_COMMAND_DENY_PATTERNS", ";;");
@@ -46,6 +52,8 @@ export function parseEnvConfig(): SessionManagerConfig {
   return {
     max_sessions: max,
     session_ttl_ms: ttl,
+    session_max_duration_ms: maxDuration,
+    output_buffer_max_bytes: outputBufferMaxBytes,
     allowed_cwd_roots: allowedRoots,
     command_allow_patterns: allowPatterns,
     command_deny_patterns: denyPatterns,
@@ -58,6 +66,14 @@ function parseEnvInt(envKey: string, defaultVal: number): number {
   if (raw === undefined || raw === "") return defaultVal;
   const parsed = Number.parseInt(raw, 10);
   return Number.isNaN(parsed) ? defaultVal : parsed;
+}
+
+/** Parse an env var as an optional integer (undefined when unset/invalid). */
+function parseOptionalEnvInt(envKey: string): number | undefined {
+  const raw = process.env[envKey];
+  if (raw === undefined || raw === "") return undefined;
+  const parsed = Number.parseInt(raw, 10);
+  return Number.isNaN(parsed) ? undefined : parsed;
 }
 
 /** Parse an env var as a filtered string list. */

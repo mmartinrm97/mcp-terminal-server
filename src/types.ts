@@ -285,6 +285,8 @@ export interface SessionExport {
 export interface SessionManagerConfig {
   max_sessions: number;
   session_ttl_ms: number;
+  session_max_duration_ms?: number;
+  output_buffer_max_bytes?: number;
   allowed_cwd_roots?: string[];
   command_allow_patterns?: string[];
   command_deny_patterns?: string[];

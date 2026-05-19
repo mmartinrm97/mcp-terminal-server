@@ -28,6 +28,8 @@ export class SessionManager {
     this.config = {
       max_sessions: config?.max_sessions ?? 10,
       session_ttl_ms: config?.session_ttl_ms ?? 30 * 60 * 1000,
+      session_max_duration_ms: config?.session_max_duration_ms,
+      output_buffer_max_bytes: config?.output_buffer_max_bytes ?? 1024 * 1024,
       allowed_cwd_roots: config?.allowed_cwd_roots ?? [],
       command_allow_patterns: config?.command_allow_patterns ?? [],
       command_deny_patterns: config?.command_deny_patterns ?? [],
@@ -82,6 +84,7 @@ export class SessionManager {
       cols,
       rows,
       env: config.env,
+      outputBufferMaxBytes: this.config.output_buffer_max_bytes,
     });
 
     this.sessions.set(id, session);
@@ -147,11 +150,16 @@ export class SessionManager {
    */
   private cleanupExpiredSessions(): void {
     const now = Date.now();
-    const ttl = this.config.session_ttl_ms;
+    const idleTtl = this.config.session_ttl_ms;
+    const maxDuration = this.config.session_max_duration_ms;
 
     for (const [id, session] of this.sessions) {
-      const inactiveTime = now - session.lastActivity.getTime();
-      if (inactiveTime >= ttl) {
+      const inactiveTime = now - session.latestActivityAt.getTime();
+      const totalAge = now - session.createdAt.getTime();
+      const exceededIdleTtl = inactiveTime >= idleTtl;
+      const exceededMaxDuration = maxDuration !== undefined && totalAge >= maxDuration;
+
+      if (exceededIdleTtl || exceededMaxDuration) {
         session.close(true); // Force close
         this.sessions.delete(id);
       }

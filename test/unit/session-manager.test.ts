@@ -28,6 +28,7 @@ describe("SessionManager", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.useRealTimers();
   });
 
   afterEach(() => {
@@ -208,6 +209,37 @@ describe("SessionManager", () => {
       await manager.createSession({ shell: "cmd" });
       expect(manager.activeCount).toBe(2);
       manager.dispose();
+      expect(manager.activeCount).toBe(0);
+    });
+  });
+
+  describe("cleanup policies", () => {
+    it("should not treat recent output as idle", async () => {
+      vi.useFakeTimers();
+      manager = new SessionManager({ max_sessions: 10, session_ttl_ms: 1000 });
+      const info = await manager.createSession({ shell: "cmd" });
+      const session = manager.getSession(info.id);
+
+      session.lastActivity = new Date(Date.now() - 5_000);
+      session.lastOutputAt = new Date(Date.now() - 100);
+
+      (manager as any).cleanupExpiredSessions();
+      expect(manager.activeCount).toBe(1);
+    });
+
+    it("should force close when max session duration is exceeded", async () => {
+      vi.useFakeTimers();
+      manager = new SessionManager({
+        max_sessions: 10,
+        session_ttl_ms: 999999,
+        session_max_duration_ms: 1000,
+      });
+      const info = await manager.createSession({ shell: "cmd" });
+      const session = manager.getSession(info.id);
+
+      session.createdAt.setTime(Date.now() - 5_000);
+
+      (manager as any).cleanupExpiredSessions();
       expect(manager.activeCount).toBe(0);
     });
   });

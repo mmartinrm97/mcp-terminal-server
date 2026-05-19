@@ -36,6 +36,8 @@ describe("SessionManager Integration", () => {
   function createManager(config?: {
     max_sessions?: number;
     session_ttl_ms?: number;
+    session_max_duration_ms?: number;
+    output_buffer_max_bytes?: number;
     allowed_cwd_roots?: string[];
     command_allow_patterns?: string[];
     command_deny_patterns?: string[];
@@ -43,6 +45,8 @@ describe("SessionManager Integration", () => {
     const sm = new SessionManager({
       max_sessions: config?.max_sessions ?? 10,
       session_ttl_ms: config?.session_ttl_ms ?? 30 * 60 * 1000,
+      session_max_duration_ms: config?.session_max_duration_ms,
+      output_buffer_max_bytes: config?.output_buffer_max_bytes,
       allowed_cwd_roots: config?.allowed_cwd_roots ?? [],
       command_allow_patterns: config?.command_allow_patterns ?? [],
       command_deny_patterns: config?.command_deny_patterns ?? [],
@@ -203,6 +207,17 @@ describe("SessionManager Integration", () => {
       const info = await createTestSession(sm);
 
       expect(() => sm.writeToSession(info.id, "rm -rf dist")).toThrow(SessionPolicyError);
+    });
+
+    it("should honor configured output buffer max bytes", async () => {
+      const sm = createManager({
+        output_buffer_max_bytes: 10,
+      });
+      const info = await createTestSession(sm);
+      const session = sm.getSession(info.id);
+
+      session.buffer.append("1234567890ABC");
+      expect(session.buffer.size).toBe(10);
     });
   });
 });

@@ -218,13 +218,15 @@ codex mcp add terminalize -- npx terminalize
 
 ### Environment Variables
 
-| Variable                              | Default           | Description                                        |
-| ------------------------------------- | ----------------- | -------------------------------------------------- |
-| `MCP_TERMINAL_MAX_SESSIONS`           | `10`              | Maximum number of simultaneous sessions            |
-| `MCP_TERMINAL_SESSION_TTL_MS`         | `1800000` (30min) | Session inactivity TTL                             |
-| `MCP_TERMINAL_ALLOWED_CWD_ROOTS`      | empty             | Optional `;`-separated allowed cwd roots           |
-| `MCP_TERMINAL_COMMAND_ALLOW_PATTERNS` | empty             | Optional `;;`-separated regex allowlist for writes |
-| `MCP_TERMINAL_COMMAND_DENY_PATTERNS`  | empty             | Optional `;;`-separated regex denylist for writes  |
+| Variable                               | Default           | Description                                        |
+| -------------------------------------- | ----------------- | -------------------------------------------------- |
+| `MCP_TERMINAL_MAX_SESSIONS`            | `10`              | Maximum number of simultaneous sessions            |
+| `MCP_TERMINAL_SESSION_TTL_MS`          | `1800000` (30min) | Session inactivity TTL                             |
+| `MCP_TERMINAL_SESSION_MAX_DURATION_MS` | unset             | Optional hard cap for total session lifetime       |
+| `MCP_TERMINAL_OUTPUT_BUFFER_MAX_BYTES` | `1048576` (1MB)   | Maximum retained PTY output bytes per session      |
+| `MCP_TERMINAL_ALLOWED_CWD_ROOTS`       | empty             | Optional `;`-separated allowed cwd roots           |
+| `MCP_TERMINAL_COMMAND_ALLOW_PATTERNS`  | empty             | Optional `;;`-separated regex allowlist for writes |
+| `MCP_TERMINAL_COMMAND_DENY_PATTERNS`   | empty             | Optional `;;`-separated regex denylist for writes  |
 
 ## MCP Tools
 
@@ -614,11 +616,11 @@ If you test on any of these combinations, open an issue or PR with your results.
 ## Security
 
 1. **Agent input**: By default, the agent writes directly to the PTY. If you leave safety policy unset and the agent issues `rm -rf /`, the command executes.
-2. **Global timeout**: Each session has a maximum TTL (default: 30 minutes of inactivity).
+2. **Idle timeout**: Each session has an inactivity TTL (default: 30 minutes). Cleanup now uses the latest observable activity, including recent PTY output, not only agent writes.
 3. **Session limit**: Maximum N simultaneous sessions (configurable, default: 10).
 4. **Orphan cleanup**: If the MCP server process dies, child PTY processes are cleaned up automatically.
 5. **No secrets**: The server MUST NOT be used for sensitive input (passwords, tokens) because the intermediary agent sees everything.
-6. **Optional safety policy**: Teams can restrict allowed cwd roots and block/allow commands with regex-based policy hooks.
+6. **Optional safety policy**: Teams can restrict allowed cwd roots, block/allow commands with regex-based policy hooks, set a hard max session duration, and cap retained PTY output size.
 
 ### Safety policy examples
 
@@ -638,6 +640,18 @@ Block dangerous commands:
 
 ```bash
 MCP_TERMINAL_COMMAND_DENY_PATTERNS="rm\\s+-rf;;git\\s+reset\\s+--hard;;docker\\s+system\\s+prune"
+```
+
+Force-close sessions after 15 minutes total lifetime:
+
+```bash
+MCP_TERMINAL_SESSION_MAX_DURATION_MS="900000"
+```
+
+Cap retained PTY output to 256KB per session:
+
+```bash
+MCP_TERMINAL_OUTPUT_BUFFER_MAX_BYTES="262144"
 ```
 
 Design rule:

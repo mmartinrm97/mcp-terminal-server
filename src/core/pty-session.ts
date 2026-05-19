@@ -43,6 +43,7 @@ export interface PTYSessionOptions {
   cols: number;
   rows: number;
   env?: Record<string, string>;
+  outputBufferMaxBytes?: number;
 }
 
 /**
@@ -79,7 +80,7 @@ export class PTYSession {
     this.createdAt = new Date();
     this.lastActivity = new Date();
     this.lastOutputAt = null;
-    this.buffer = new OutputBuffer();
+    this.buffer = new OutputBuffer(options.outputBufferMaxBytes);
     this.shellName = options.shell;
 
     // Build env with pager-blocking defaults.
@@ -505,6 +506,15 @@ export class PTYSession {
    */
   get exitCode(): number | null {
     return this.processExitCode;
+  }
+
+  /**
+   * Most recent observable activity time, including PTY output.
+   */
+  get latestActivityAt(): Date {
+    return this.lastOutputAt && this.lastOutputAt > this.lastActivity
+      ? this.lastOutputAt
+      : this.lastActivity;
   }
 
   /**

@@ -99,6 +99,20 @@ describe("PTYSession", () => {
     it("should have null exit code initially", () => {
       expect(session.exitCode).toBeNull();
     });
+
+    it("should honor a custom output buffer max size", () => {
+      const limitedSession = new PTYSession({
+        id: "limited-session",
+        shell: "bash",
+        args: [],
+        cwd: "/tmp",
+        cols: 80,
+        rows: 24,
+        outputBufferMaxBytes: 10,
+      });
+      if (onDataCallback) onDataCallback("1234567890ABC");
+      expect(limitedSession.buffer.size).toBe(10);
+    });
   });
 
   describe("write", () => {

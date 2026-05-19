@@ -17,6 +17,8 @@ describe("index — parseEnvConfig", () => {
     expect(config).toEqual({
       max_sessions: 10,
       session_ttl_ms: 30 * 60 * 1000,
+      session_max_duration_ms: undefined,
+      output_buffer_max_bytes: 1024 * 1024,
       allowed_cwd_roots: [],
       command_allow_patterns: [],
       command_deny_patterns: [],
@@ -49,6 +51,8 @@ describe("index — parseEnvConfig", () => {
     expect(config).toEqual({
       max_sessions: 3,
       session_ttl_ms: 120000,
+      session_max_duration_ms: undefined,
+      output_buffer_max_bytes: 1024 * 1024,
       allowed_cwd_roots: [],
       command_allow_patterns: [],
       command_deny_patterns: [],
@@ -77,10 +81,14 @@ describe("index — parseEnvConfig", () => {
     process.env.MCP_TERMINAL_ALLOWED_CWD_ROOTS = "/workspace;/safe";
     process.env.MCP_TERMINAL_COMMAND_ALLOW_PATTERNS = "^echo\\b;;^pwd\\b";
     process.env.MCP_TERMINAL_COMMAND_DENY_PATTERNS = "rm\\s+-rf;;git\\s+reset\\s+--hard";
+    process.env.MCP_TERMINAL_SESSION_MAX_DURATION_MS = "900000";
+    process.env.MCP_TERMINAL_OUTPUT_BUFFER_MAX_BYTES = "4096";
 
     const config = parseEnvConfig();
     expect(config.allowed_cwd_roots).toEqual(["/workspace", "/safe"]);
     expect(config.command_allow_patterns).toEqual(["^echo\\b", "^pwd\\b"]);
     expect(config.command_deny_patterns).toEqual(["rm\\s+-rf", "git\\s+reset\\s+--hard"]);
+    expect(config.session_max_duration_ms).toBe(900000);
+    expect(config.output_buffer_max_bytes).toBe(4096);
   });
 });

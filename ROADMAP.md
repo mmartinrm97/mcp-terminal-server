@@ -155,12 +155,12 @@ Goal: reduce risk in real team/company environments without making the tool usel
 
 ### Priorities
 
-- [ ] Optional cwd restrictions
-- [ ] Optional command policy hooks (allow/deny patterns)
-- [ ] Configurable max session duration
-- [ ] Configurable max output size
-- [ ] Idle session auto-kill improvements
-- [ ] Safer defaults for destructive confirmations in agent guidance
+- [x] Optional cwd restrictions
+- [x] Optional command policy hooks (allow/deny patterns)
+- [x] Configurable max session duration
+- [x] Configurable max output size
+- [x] Idle session auto-kill improvements
+- [x] Safer defaults for destructive confirmations in agent guidance
 
 ### Design rule
 
