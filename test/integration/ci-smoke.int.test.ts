@@ -48,6 +48,33 @@ describe("CI smoke matrix", () => {
     expect(info.alive).toBe(true);
     expect(typeof info.shell).toBe("string");
     expect(info.shell.length).toBeGreaterThan(0);
+
+    const screenshot = session.screenshot();
+    expect(screenshot.rows.length).toBeGreaterThan(0);
+    expect(screenshot.text.length).toBeGreaterThan(0);
+    expect(screenshot.outputBytes).toBeGreaterThan(0);
+  }, 20_000);
+
+  it("should recover the shell after SIGINT on a long-running command", async () => {
+    const sm = new SessionManager({ max_sessions: 2, session_ttl_ms: 60_000 });
+    managers.push(sm);
+
+    const created = await sm.createSession({ shell: "auto", cwd: process.cwd() });
+    const session = sm.getSession(created.id);
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
+    session.write(cmd('node -e "setTimeout(function(){},30000)"\n'));
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
+    session.sendSignal("SIGINT");
+    await new Promise((resolve) => setTimeout(resolve, 800));
+
+    const marker = `CI_RECOVER_${Date.now()}`;
+    session.write(cmd(`echo ${marker}\n`));
+    const result = await session.readUntil(marker, 10_000);
+
+    expect(result.timed_out).toBe(false);
+    expect(result.matched).toBe(marker);
   }, 20_000);
 
   it("should close a long-running session cleanly", async () => {

@@ -80,17 +80,17 @@ Goal: help agents understand terminal state better and debug failures earlier, w
 
 ### Priorities
 
-- [ ] Expand semantic screenshot hints:
+- [x] Expand semantic screenshot hints:
   - prompt detection
   - interactive state hints
   - recommended next action
-- [ ] Add cookbook guidance for prompt-by-prompt interaction patterns
-- [ ] Teach agents to prefer:
+- [x] Add cookbook guidance for prompt-by-prompt interaction patterns
+- [x] Teach agents to prefer:
   - read → decide → write
   - screenshot-first TUI navigation
   - one prompt → one answer → one wait
-- [ ] Add guidance for when the agent must ask the user instead of guessing
-- [ ] Add basic observability to session responses and diagnostics:
+- [x] Add guidance for when the agent must ask the user instead of guessing
+- [x] Add basic observability to session responses and diagnostics:
   - last output time
   - idle time
   - output volume
@@ -127,11 +127,11 @@ When an agent fails, maintainers need to know:
 
 ### Priorities
 
-- [ ] Session event timeline
-- [ ] Input/output history per session
-- [ ] Replay-oriented diagnostics for interactive flows
-- [ ] Clearer timeout/debug information in tool responses
-- [ ] Structured session export for issue reports and bug reproduction
+- [x] Session event timeline
+- [x] Input/output history per session
+- [x] Replay-oriented diagnostics for interactive flows
+- [x] Clearer timeout/debug information in tool responses
+- [x] Structured session export for issue reports and bug reproduction
 
 ### Why it matters
 
@@ -198,8 +198,8 @@ Goal: move from “works on my machine” to real platform confidence.
 
 Basic cross-platform smoke validation should begin before this milestone:
 
-- [ ] Add minimal CI smoke coverage for Windows / Linux / macOS as early as possible
-- [ ] Run a minimal create-session / write / read / close flow per OS
+- [x] Add minimal CI smoke coverage for Windows / Linux / macOS as early as possible
+- [x] Run a minimal create-session / write / read / close flow per OS
 
 This milestone is where that early validation becomes a full, credible compatibility story.
 

@@ -558,6 +558,8 @@ Current smoke scope:
 - create session with `shell: "auto"`
 - write a simple command
 - read output back from the PTY
+- verify `screenshot()` returns rendered terminal state
+- interrupt a long-running command and confirm shell recovery
 - close a long-running session cleanly
 
 Known caveat:
@@ -606,9 +608,9 @@ terminalize gives your agent a real **text-based** PTY. While powerful, there ar
 
 ### Tested platforms
 
-This has been tested primarily on **Windows (ConPTY)** with **OpenCode**. Not yet tested in production on:
+This has been tested primarily on **Windows (ConPTY)** for deeper interactive flows. CI now also verifies a cross-platform smoke matrix on Linux and macOS.
 
-- **Platforms**: ✅ Windows | ⬜ Linux | ⬜ macOS
+- **Platforms**: ✅ Windows (interactive + smoke) | ✅ Linux (CI smoke) | ✅ macOS (CI smoke)
 - **Agents**: ✅ OpenCode | ⬜ Claude Code | ⬜ Cursor | ⬜ Gemini CLI | ⬜ Windsurf | ⬜ Kiro CLI | ✅ Codex
 
 If you test on any of these combinations, open an issue or PR with your results.
