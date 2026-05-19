@@ -1,4 +1,7 @@
 // @integration — requires real shell
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, it, expect, afterEach } from "vitest";
 import { PTYSession } from "../../src/core/pty-session.js";
 
@@ -175,6 +178,64 @@ describe("Executables Integration", () => {
   // 3. npx tool test (guarded — requires npm/npx)
   // ---------------------------------------------------------------------------
   describe("npx availability", () => {
+    it("should complete an interactive npm init flow on Unix-like shells", async () => {
+      if (IS_WINDOWS) {
+        console.warn(
+          "[INTEGRATION] Skipping interactive npm init on Windows — npm prompt behavior differs here.",
+        );
+        return;
+      }
+
+      const tempDir = mkdtempSync(join(tmpdir(), "terminalize-npm-init-"));
+      const session = new PTYSession({
+        id: "int-exec-npm-init",
+        shell: "/bin/bash",
+        args: [],
+        cwd: tempDir,
+        cols: 80,
+        rows: 24,
+      });
+      sessions.push(session);
+      await sleep(500);
+
+      try {
+        session.write("npm init\n");
+
+        const packagePrompt = await session.readUntil("package name:", 20000);
+        expect(packagePrompt.timed_out).toBe(false);
+        session.write("terminalize-wsl-test\n");
+
+        for (const prompt of [
+          "version:",
+          "description:",
+          "entry point:",
+          "test command:",
+          "git repository:",
+          "keywords:",
+          "author:",
+          "license:",
+        ]) {
+          const step = await session.readUntil(prompt, 10000);
+          expect(step.timed_out).toBe(false);
+          session.write("\n");
+        }
+
+        const confirmPrompt = await session.readUntil("Is this OK\\?", 10000);
+        expect(confirmPrompt.timed_out).toBe(false);
+        session.write("yes\n");
+
+        const completion = await session.readUntil("package\\.json|\\$ ", 15000);
+        expect(completion.timed_out).toBe(false);
+
+        const packageJson = JSON.parse(readFileSync(join(tempDir, "package.json"), "utf8")) as {
+          name: string;
+        };
+        expect(packageJson.name).toBe("terminalize-wsl-test");
+      } finally {
+        rmSync(tempDir, { recursive: true, force: true });
+      }
+    }, 45000);
+
     it("should detect npx availability and print version", async () => {
       const session = createSession("int-exec-npx-4");
       sessions.push(session);
