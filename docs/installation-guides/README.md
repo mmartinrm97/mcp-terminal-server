@@ -17,11 +17,13 @@ The goal is simple:
 - [Kiro CLI](./install-kiro.md)
 - [OpenAI Codex](./install-codex.md)
 - [OpenCode](./install-opencode.md)
+- [Pi](./install-pi.md)
 
 ## Notes
 
 - Antigravity is plugin-first because it can bundle MCP config and skills together.
 - Cursor, Kiro, and Claude Code use direct MCP server configuration.
 - GitHub Copilot CLI uses `.mcp.json` in the repo or `~/.copilot/mcp-config.json` globally.
+- Pi works best with `pi-mcp-adapter` plus shared MCP config in `~/.config/mcp/mcp.json`.
 - OpenCode uses `opencode.json` plus its built-in `opencode mcp` commands.
 - If a guide is missing for your client, use the main [README](../../README.md) as the fallback reference.

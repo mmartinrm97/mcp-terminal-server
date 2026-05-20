@@ -93,7 +93,7 @@ npm install -g terminalize
 # 1. Install the terminalize skill for AI agents
 npx terminalize install-skills
 
-# 2. Add the MCP config to your agent (see below for examples)
+# 2. Follow your agent-specific installation guide
 
 # 3. Start the MCP server in your project
 npx terminalize
@@ -114,9 +114,9 @@ $ npx terminalize install-skills
 │  ◻ Kiro CLI
 ```
 
-### Add MCP config to your agent
+### Agent-specific setup
 
-Skip the generic wizard. Use the dedicated install guides or copy the relevant config block below:
+Use the dedicated install guides:
 
 - [Installation guides index](./docs/installation-guides/README.md)
 - [Antigravity CLI](./docs/installation-guides/install-antigravity.md)
@@ -126,95 +126,9 @@ Skip the generic wizard. Use the dedicated install guides or copy the relevant c
 - [Kiro CLI](./docs/installation-guides/install-kiro.md)
 - [OpenAI Codex](./docs/installation-guides/install-codex.md)
 - [OpenCode](./docs/installation-guides/install-opencode.md)
+- [Pi](./docs/installation-guides/install-pi.md)
 
-**OpenCode** (`~/.config/opencode/opencode.json` or project `opencode.json`):
-
-```json
-{
-  "mcp": {
-    "terminalize": {
-      "command": ["npx", "terminalize"],
-      "type": "local",
-      "enabled": true
-    }
-  }
-}
-```
-
-**Claude Code** (`~/.claude/settings.json`):
-
-```json
-{
-  "mcpServers": {
-    "terminalize": {
-      "command": "npx",
-      "args": ["terminalize"]
-    }
-  }
-}
-```
-
-**Cursor** → Settings → MCP Servers → Add:
-
-```json
-{
-  "mcpServers": {
-    "terminalize": {
-      "command": "npx",
-      "args": ["terminalize"]
-    }
-  }
-}
-```
-
-**Windsurf** (`~/.codeium/windsurf/settings.json`):
-
-```json
-{
-  "mcpServers": {
-    "terminalize": {
-      "command": "npx",
-      "args": ["terminalize"]
-    }
-  }
-}
-```
-
-**Antigravity CLI (AGY)**:
-
-Antigravity is best supported through a plugin bundle that ships both:
-
-- the `terminalize` skill
-- an `mcp_config.json` entry for `npx terminalize`
-
-See [docs/installation-guides/install-antigravity.md](./docs/installation-guides/install-antigravity.md).
-
-**Kiro CLI** (`~/.kiro/settings.json`):
-
-```json
-{
-  "mcpServers": {
-    "terminalize": {
-      "command": "npx",
-      "args": ["terminalize"]
-    }
-  }
-}
-```
-
-**Codex (OpenAI CLI)** (`~/.codex/config.toml` or project `.codex/config.toml`):
-
-```toml
-[mcp_servers.terminalize]
-command = "npx"
-args = ["terminalize"]
-```
-
-Or via Codex CLI:
-
-```bash
-codex mcp add terminalize -- npx terminalize
-```
+The root README intentionally does **not** duplicate every host-specific MCP block anymore. Those details live in the per-agent guides.
 
 ### Prerequisites
 
