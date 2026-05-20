@@ -105,6 +105,16 @@ After restarting AGY:
 Verify terminalize is configured, then use it to run npm init interactively.
 ```
 
+## Current validation status
+
+As of May 20, 2026:
+
+- the plugin layout validates successfully with `agy plugin validate`
+- AGY recognizes the local `terminalize` plugin/skill in-session
+- but live MCP tool invocation still reported `terminal_ping` as unavailable during end-to-end validation
+
+So the installation path is real, but compatibility should still be treated as **partial** until AGY exposes the terminalize MCP tools in-session.
+
 ## References
 
 - [Antigravity CLI usage docs](https://antigravity.google/docs/cli-using)
