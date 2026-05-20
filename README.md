@@ -1,7 +1,7 @@
 # terminalize
 
 <p align="center">
-  <img src="https://img.shields.io/badge/terminalize-v0.3.0-6C5CE7?style=for-the-badge&logo=window-terminal&logoColor=white" alt="terminalize" />
+  <img src="https://img.shields.io/badge/terminalize-v0.4.0-6C5CE7?style=for-the-badge&logo=window-terminal&logoColor=white" alt="terminalize" />
 </p>
 
 <p align="center">
@@ -9,20 +9,18 @@
   <img src="https://img.shields.io/badge/node.js-22%2B-339933?logo=node.js&logoColor=white&style=flat-square" />
   <img src="https://img.shields.io/badge/typescript-5.8%2B-3178C6?logo=typescript&logoColor=white&style=flat-square" />
   <img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" />
-  <img src="https://img.shields.io/badge/tests-334%20passing-brightgreen?style=flat-square" />
-  <a href="http://localhost:9000/dashboard?id=terminalize"><img src="https://img.shields.io/badge/quality%20gate-passing-brightgreen?style=flat-square" /></a>
-  <a href="http://localhost:9000/dashboard?id=terminalize"><img src="https://img.shields.io/badge/coverage-89%25-brightgreen?style=flat-square" /></a>
+  <img src="https://img.shields.io/badge/tests-360%20passing-brightgreen?style=flat-square" />
+  <img src="https://img.shields.io/badge/quality%20gate-passing-brightgreen?style=flat-square" />
+  <img src="https://img.shields.io/badge/coverage-92.6%25-brightgreen?style=flat-square" />
 </p>
 
-```text
- ╔══════════════════════════════════════════════════════╗
- ║  terminalize — Interactive Terminal for AI Agents   ║
- ║                                                      ║
- ║  Give your AI agents a persistent terminal they     ║
- ║  can actually talk to. npm init, gh pr create,      ║
- ║  psql — all interactive, all real PTY.              ║
- ╚══════════════════════════════════════════════════════╝
-```
+> **Interactive terminal sessions for AI agents over MCP.**
+>
+> Give your agents a persistent terminal they can actually talk to:
+>
+> - real PTY sessions
+> - prompt-aware reads and semantic screenshots
+> - verified interactive flows like `npm init`, `gh pr create`, `create-vite`, and `psql`
 
 [![MCP SDK](https://img.shields.io/badge/MCP%20SDK-1.29-blueviolet)](https://spec.modelcontextprotocol.io)
 [![node-pty](https://img.shields.io/badge/node--pty-1.2.0--beta.13-FF6C37)](https://github.com/microsoft/node-pty)
@@ -118,7 +116,7 @@ $ npx terminalize install-skills
 
 ### Add MCP config to your agent
 
-Delete the setup wizard. Instead, copy the relevant config block below or use the dedicated install guides:
+Skip the generic wizard. Use the dedicated install guides or copy the relevant config block below:
 
 - [Installation guides index](./docs/installation-guides/README.md)
 - [Antigravity CLI](./docs/installation-guides/install-antigravity.md)
@@ -500,14 +498,15 @@ graph TD
 
 ### Components
 
-| Component          | File                          | Responsibility                                                                                                 |
-| ------------------ | ----------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| **OutputBuffer**   | `src/core/output-buffer.ts`   | Circular buffer with regex pattern matching. Accumulates PTY data and enables `readUntil()` with 50ms polling. |
-| **PTYSession**     | `src/core/pty-session.ts`     | Wraps `node-pty`. Connects the OutputBuffer to the real shell process.                                         |
-| **SessionManager** | `src/core/session-manager.ts` | Manages session lifecycle: creation, listing, closing, automatic TTL cleanup.                                  |
-| **MCPServer**      | `src/server.ts`               | Exposes 13 tools via the MCP protocol. Handles errors and input validation.                                    |
-| **ShellDetector**  | `src/lib/shell-detector.ts`   | Detects the preferred shell per platform (auto/bash/zsh/pwsh/cmd).                                             |
-| **AnsiStripper**   | `src/lib/ansi-stripper.ts`    | Strips ANSI escape codes from terminal output.                                                                 |
+| Component          | File                                   | Responsibility                                                                                                 |
+| ------------------ | -------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| **OutputBuffer**   | `src/core/output-buffer.ts`            | Circular buffer with regex pattern matching. Accumulates PTY data and enables `readUntil()` with 50ms polling. |
+| **PTYSession**     | `src/core/pty-session.ts`              | Wraps `node-pty`. Connects the OutputBuffer to the real shell process.                                         |
+| **SessionManager** | `src/core/session-manager.ts`          | Manages session lifecycle: creation, listing, closing, automatic TTL cleanup.                                  |
+| **TerminalServer** | `src/server/create-terminal-server.ts` | Wires the MCP server, tool definitions, and resource handlers together.                                        |
+| **ServerFacade**   | `src/server.ts`                        | Stable public export surface for the modular server implementation.                                            |
+| **ShellDetector**  | `src/lib/shell-detector.ts`            | Detects the preferred shell per platform (auto/bash/zsh/pwsh/cmd).                                             |
+| **AnsiStripper**   | `src/lib/ansi-stripper.ts`             | Strips ANSI escape codes from terminal output.                                                                 |
 
 ## Development
 
@@ -651,32 +650,27 @@ When an interactive run fails in a confusing way:
 
 ## Coverage
 
-> **Current: 87% statements · 84% branches · 89% lines coverage**
+Current local baseline from `pnpm quality`:
 
-El estándar de la industria es **80%** de cobertura de línea — es el threshold por defecto de SonarQube. Para proyectos críticos (financieros, salud) se espera **90%+**. Con 77% estamos cerca pero no alcanzamos.
+- **360 passing tests**
+- **90.8% statements**
+- **82.0% branches**
+- **92.6% lines**
+- **SonarQube quality gate: passing**
 
-| Archivo                       | Cobertura | Líneas sin cubrir |
-| ----------------------------- | --------- | ----------------- |
-| `src/server.ts`               | 79% 🟡    | 37                |
-| `src/core/session-manager.ts` | 78% 🟡    | —                 |
-| `src/core/pty-session.ts`     | 89% 🟢    | —                 |
-| `src/core/output-buffer.ts`   | >90% 🟢   | —                 |
-| `src/lib/shell-detector.ts`   | 85% 🟢    | —                 |
-| `src/core/screen.ts`          | 91% 🟢    | —                 |
-
-El único archivo que impide cerrar el quality gate es `server.ts` (79%, 37 líneas sin cubrir en las resource templates de McpServer).
+The important point is not chasing vanity numbers. The point is that the core PTY/session/safety flow is covered enough to keep the quality gate honest while still leaving room for targeted regression tests where interactive behavior is subtle.
 
 ## Limitations
 
 terminalize gives your agent a real **text-based** PTY. While powerful, there are important limits:
 
-| Situation                                     | Funciona?   | Detalle                                                                                  |
-| --------------------------------------------- | ----------- | ---------------------------------------------------------------------------------------- |
-| `npm init`, `gh pr create`, `npx create-vite` | ✅ Perfecto | Prompts de texto, el agente responde                                                     |
-| `pnpm publish`, `npm test`                    | ✅ Perfecto | Comandos que muestran output                                                             |
-| `psql`, `sqlite3`                             | ✅ Perfecto | CLIs con prompts                                                                         |
-| `htop`, `top`                                 | ⚠️ Parcial  | Muestrea el output, no pantalla completa                                                 |
-| `vim`, `nano`, `helix`                        | ⚠️ Limited  | Agent sends keystrokes, but editing is slow and error-prone. `terminal_screenshot` helps |
+| Situation                                     | Works?     | Details                                                                                   |
+| --------------------------------------------- | ---------- | ----------------------------------------------------------------------------------------- |
+| `npm init`, `gh pr create`, `npx create-vite` | ✅ Yes     | Text prompts and TUIs can be handled through prompt-aware reads and keystrokes            |
+| `pnpm publish`, `npm test`                    | ✅ Yes     | Standard command output works well                                                        |
+| `psql`, `sqlite3`                             | ✅ Yes     | Interactive CLI prompts are supported                                                     |
+| `htop`, `top`                                 | ⚠️ Partial | Output can be sampled, but this is not a pixel-perfect full-screen terminal emulator      |
+| `vim`, `nano`, `helix`                        | ⚠️ Limited | Agents can send keys, but editor workflows are slower and more error-prone than shell UIs |
 
 ### Tested platforms
 

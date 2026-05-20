@@ -19,7 +19,7 @@ when one-shot shell tools are not enough.
 
 ## Current Status
 
-As of `v0.3.0`, terminalize already includes:
+As of `v0.4.0`, terminalize already includes:
 
 - 11 MCP tools for interactive PTY sessions
 - Stateful terminal sessions with TTL cleanup and session limits
