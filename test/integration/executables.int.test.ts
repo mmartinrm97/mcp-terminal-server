@@ -1,5 +1,5 @@
 // @integration — requires real shell
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, it, expect, afterEach } from "vitest";
@@ -281,6 +281,67 @@ describe("Executables Integration", () => {
 
       expect(helpResult.data.length).toBeGreaterThan(0);
     }, 60000);
+
+    it("should complete an interactive create-vite flow on Unix-like shells", async () => {
+      if (IS_WINDOWS) {
+        console.warn(
+          "[INTEGRATION] Skipping interactive create-vite on Windows — validating this TUI flow on Unix-like runners.",
+        );
+        return;
+      }
+
+      const tempDir = mkdtempSync(join(tmpdir(), "terminalize-create-vite-"));
+      const session = new PTYSession({
+        id: "int-exec-create-vite",
+        shell: "/bin/bash",
+        args: [],
+        cwd: tempDir,
+        cols: 100,
+        rows: 30,
+      });
+      sessions.push(session);
+      await sleep(500);
+
+      try {
+        session.write("npm_config_yes=true npm create vite@latest\n");
+
+        const projectPrompt = await session.readUntil("Project name:", 60000);
+        expect(projectPrompt.timed_out).toBe(false);
+        session.write("terminalize-vite-wsl\r");
+        await sleep(1000);
+
+        const frameworkScreen = session.screenshot();
+        expect(frameworkScreen.text).toContain("Select a framework:");
+        session.write("\x1b[B\r"); // Vue
+        await sleep(1000);
+
+        const variantScreen = session.screenshot();
+        expect(variantScreen.text).toContain("Select a variant:");
+        session.write("\x1b[B\r"); // JavaScript
+        await sleep(1000);
+
+        const installScreen = session.screenshot();
+        expect(installScreen.text).toMatch(/Install with (npm|pnpm) and start now\?/);
+        session.write("\x1b[C\r"); // No
+
+        const completion = await session.readUntil(
+          "Scaffolding project|Done\\. Now run:|cd terminalize-vite-wsl",
+          60000,
+        );
+        expect(completion.timed_out).toBe(false);
+
+        const packagePath = join(tempDir, "terminalize-vite-wsl", "package.json");
+        expect(existsSync(packagePath)).toBe(true);
+        const packageJson = JSON.parse(readFileSync(packagePath, "utf8")) as {
+          name: string;
+          dependencies?: Record<string, string>;
+        };
+        expect(packageJson.name).toBe("terminalize-vite-wsl");
+        expect(packageJson.dependencies?.vue).toBeDefined();
+      } finally {
+        rmSync(tempDir, { recursive: true, force: true });
+      }
+    }, 120000);
   });
 
   // ---------------------------------------------------------------------------
