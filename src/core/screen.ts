@@ -530,12 +530,7 @@ export function analyzeScreen(rows: string[]): ScreenAnalysis {
     should_ask_user: promptGuidance.shouldAskUser,
     ask_user_reason: promptGuidance.askUserReason,
     can_accept_default: promptGuidance.canAcceptDefault,
-    recommended_next_action:
-      promptDetected === null
-        ? "read"
-        : promptGuidance.shouldAskUser
-          ? "ask_user"
-          : "input_required",
+    recommended_next_action: resolvePromptAction(promptDetected, promptGuidance.shouldAskUser),
   };
 }
 
@@ -623,13 +618,14 @@ function detectHtop(rows: string[]): boolean {
   // Look at first 6 rows for htop/top header patterns
   const headerRows = rows.slice(0, Math.min(6, rows.length));
   const headerText = headerRows.join("\n").toUpperCase();
+  const compactRows = rows.slice(0, 3).join("");
 
   // Signal A: Contains CPU or memory percentage info
   const hasCpuMem =
     headerText.includes("%CPU") ||
     headerText.includes("CPU%") ||
     headerText.includes("MEM%") ||
-    /\[\s*\d+\.?\d*%\]/.test(rows.slice(0, 3).join(""));
+    hasBracketedPercent(compactRows);
 
   // Signal B: Contains "top -" or "htop" or memory/swap indicators
   const hasSystemInfo =
@@ -676,10 +672,7 @@ function detectLess(rows: string[], statusLine: string | null): boolean {
 
   // Signal A: Bottom row has less prompt indicators
   const hasBottomPrompt =
-    lastRowUpper === "(END)" ||
-    lastRowUpper === ":" ||
-    /^lines\s+\d+-\d+\/\d+/.test(firstRow.trim()) ||
-    /^lines\s+\d+-\d+/.test(firstRow.trim());
+    lastRowUpper === "(END)" || lastRowUpper === ":" || isLessLinesIndicator(firstRow.trim());
 
   // Signal B: Content rows exist (non-empty) AND no editor TUI signatures
   const nonEmptyRows = rows.filter((r) => r.trim() !== "");
@@ -701,25 +694,26 @@ function detectLess(rows: string[], statusLine: string | null): boolean {
  * "this terminal is asking for input" states from already-rendered text.
  */
 function detectPrompt(rows: string[]): string | null {
-  const promptPatterns = [
-    /:\s*(\([^)]*\))?\s*$/,
-    /\?\s*$/,
-    /\[[YyNn]\/[YyNn]\]/,
-    /\(([Yy]\/[Nn]|[Nn]\/[Yy])\)/,
-    /press any key/i,
-    /select .*:/i,
-    /enter .*:/i,
-    /password:/i,
-  ];
-
   for (let i = rows.length - 1; i >= 0; i--) {
     const row = rows[i]?.trim();
     if (!row) continue;
 
-    for (const pattern of promptPatterns) {
-      if (pattern.test(row)) {
-        return row;
-      }
+    const lower = row.toLowerCase();
+    if (
+      isFieldPrompt(row) ||
+      row.endsWith("?") ||
+      hasYesNoPrompt(lower) ||
+      lower.includes("press any key") ||
+      lower.includes("password:")
+    ) {
+      return row;
+    }
+
+    if (
+      (lower.startsWith("select ") || lower.startsWith("enter ") || lower.startsWith("choose ")) &&
+      row.includes(":")
+    ) {
+      return row;
     }
   }
 
@@ -742,7 +736,7 @@ function classifyPrompt(prompt: string | null): {
   }
 
   const lower = prompt.toLowerCase();
-  const hasDefault = /\([^)]*\)/.test(prompt) || /\[[^\]]*\]/.test(prompt);
+  const hasDefault = hasDelimitedSegment(prompt, "(", ")") || hasDelimitedSegment(prompt, "[", "]");
 
   if (/(password|passphrase|token|api key|secret|otp|one-time code)/i.test(prompt)) {
     return {
@@ -771,7 +765,7 @@ function classifyPrompt(prompt: string | null): {
     };
   }
 
-  if (/\[[yn]\/[yn]\]|\([yn]\/[yn]\)|\?$/.test(lower)) {
+  if (hasYesNoPrompt(lower) || lower.endsWith("?")) {
     const isDestructive =
       /(delete|drop|destroy|reset|remove|prune|overwrite|truncate|wipe|kill|terminate|force)/i.test(
         prompt,
@@ -799,4 +793,79 @@ function classifyPrompt(prompt: string | null): {
     askUserReason: null,
     canAcceptDefault: false,
   };
+}
+
+function hasBracketedPercent(text: string): boolean {
+  const percentIndex = text.indexOf("%");
+  if (percentIndex === -1) {
+    return false;
+  }
+
+  const openIndex = text.lastIndexOf("[", percentIndex);
+  const closeIndex = text.indexOf("]", percentIndex);
+  if (openIndex === -1 || closeIndex === -1 || openIndex >= closeIndex) {
+    return false;
+  }
+
+  const segment = text.slice(openIndex + 1, closeIndex).trim();
+  return segment.endsWith("%") && /[\d.]/.test(segment);
+}
+
+function hasDelimitedSegment(text: string, open: string, close: string): boolean {
+  const openIndex = text.indexOf(open);
+  if (openIndex === -1) {
+    return false;
+  }
+
+  const closeIndex = text.indexOf(close, openIndex + 1);
+  return closeIndex > openIndex + 1;
+}
+
+function hasYesNoPrompt(text: string): boolean {
+  const lower = text.toLowerCase();
+  return (
+    lower.includes("[y/n]") ||
+    lower.includes("[n/y]") ||
+    lower.includes("(y/n)") ||
+    lower.includes("(n/y)")
+  );
+}
+
+function isFieldPrompt(row: string): boolean {
+  const colonIndex = row.lastIndexOf(":");
+  if (colonIndex === -1) {
+    return false;
+  }
+
+  const suffix = row.slice(colonIndex + 1).trim();
+  if (suffix === "") {
+    return true;
+  }
+
+  return suffix.startsWith("(") && suffix.endsWith(")");
+}
+
+function resolvePromptAction(
+  promptDetected: string | null,
+  shouldAskUser: boolean,
+): "read" | "ask_user" | "input_required" {
+  if (promptDetected === null) {
+    return "read";
+  }
+
+  return shouldAskUser ? "ask_user" : "input_required";
+}
+
+/** Check if text looks like a `less` lines-range header (e.g. "Lines 1-24/100" or "Lines 1-24"). */
+function isLessLinesIndicator(text: string): boolean {
+  const lower = text.toLowerCase();
+  if (!lower.startsWith("lines ")) return false;
+  const rest = lower.slice(6).trimStart();
+  const dashIdx = rest.indexOf("-");
+  if (dashIdx <= 0) return false;
+  for (let i = 0; i < dashIdx; i++) {
+    const code = rest.codePointAt(i) ?? 0;
+    if (code < 48 || code > 57) return false;
+  }
+  return true;
 }

@@ -31,14 +31,14 @@ vi.mock("node:os", async () => {
   };
 });
 
-// Mock child_process.execSync for Windows taskkill tests
+// Mock child_process.execFileSync for Windows taskkill tests
 vi.mock("node:child_process", () => ({
-  execSync: vi.fn(),
+  execFileSync: vi.fn(),
 }));
 
 import { spawn } from "node-pty";
 import { platform } from "node:os";
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import { PTYSession } from "../../src/core/pty-session.js";
 
 describe("PTYSession", () => {
@@ -48,6 +48,7 @@ describe("PTYSession", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    (platform as ReturnType<typeof vi.fn>).mockReturnValue("linux");
     onDataCallback = null;
     onExitCallback = null;
 
@@ -524,8 +525,9 @@ describe("PTYSession", () => {
       winSession.close();
 
       // Windows: taskkill should clean up the process tree directly
-      expect(execSync).toHaveBeenCalledWith(
-        "taskkill /PID 12345 /T /F",
+      expect(execFileSync).toHaveBeenCalledWith(
+        expect.stringMatching(/taskkill\.exe$/i),
+        ["/PID", "12345", "/T", "/F"],
         expect.objectContaining({ stdio: "ignore" }),
       );
 
@@ -560,8 +562,9 @@ describe("PTYSession", () => {
 
       session.sendSignal("SIGKILL");
 
-      expect(execSync).toHaveBeenCalledWith(
-        "taskkill /PID 12345 /T /F",
+      expect(execFileSync).toHaveBeenCalledWith(
+        expect.stringMatching(/taskkill\.exe$/i),
+        ["/PID", "12345", "/T", "/F"],
         expect.objectContaining({ stdio: "ignore" }),
       );
 

@@ -1,6 +1,8 @@
 import { spawn } from "node-pty";
 import { platform } from "node:os";
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
+import { randomBytes } from "node:crypto";
+import { isAbsolute, win32 as pathWin32 } from "node:path";
 import type { IPty } from "node-pty";
 import { OutputBuffer } from "./output-buffer.js";
 import { normalizeEscapeSequences } from "../lib/utils.js";
@@ -30,6 +32,16 @@ const pagerEnv: Record<string, string> = {
 /** Windows shells that benefit from progress suppression. */
 const windowsShells = new Set(["cmd.exe", "pwsh.exe", "pwsh"]);
 const maxSessionEvents = 200;
+const fallbackTaskkillPath = String.raw`C:\Windows\System32\taskkill.exe`;
+
+function resolveTaskkillPath(): string {
+  const windowsRoot = process.env.SystemRoot ?? process.env.windir;
+  if (windowsRoot && isAbsolute(windowsRoot)) {
+    return pathWin32.join(windowsRoot, "System32", "taskkill.exe");
+  }
+
+  return fallbackTaskkillPath;
+}
 
 /**
  * Options for creating a PTYSession.
@@ -204,7 +216,7 @@ export class PTYSession {
 
   /** Generate a unique completion marker for writeMarked. */
   private generateMarker(): string {
-    const hex = Math.random().toString(16).slice(2, 8).padStart(6, "0");
+    const hex = randomBytes(3).toString("hex");
     return `__TERM_MARK_${hex}__`;
   }
 
@@ -294,16 +306,7 @@ export class PTYSession {
       shouldAskUser: analysis.should_ask_user,
       askUserReason: analysis.ask_user_reason,
       canAcceptDefault: analysis.can_accept_default,
-      recommendedNextAction:
-        analysis.prompt_detected !== null
-          ? analysis.should_ask_user
-            ? "ask_user"
-            : "input_required"
-          : analysis.recommended_next_action === "inspect_screen"
-            ? "inspect_screen"
-            : idleMs < 1000
-              ? "wait"
-              : "read",
+      recommendedNextAction: this.resolveRecommendedNextAction(analysis, idleMs),
       terminal_mode: analysis.terminal_mode,
       editor_mode: analysis.editor_mode,
       status_line: analysis.status_line,
@@ -414,7 +417,9 @@ export class PTYSession {
       // Calling node-pty's kill() first can spawn its console-list helper, which
       // is known to emit noisy "AttachConsole failed" errors on some machines.
       try {
-        execSync(`taskkill /PID ${pid} /T /F`, { stdio: "ignore" });
+        execFileSync(resolveTaskkillPath(), ["/PID", String(pid), "/T", "/F"], {
+          stdio: "ignore",
+        });
         this.isEnded = true;
       } catch {
         // Fallback: ask node-pty to tear down the session if taskkill failed.
@@ -456,7 +461,9 @@ export class PTYSession {
       case "SIGKILL":
         if (platform() === "win32") {
           try {
-            execSync(`taskkill /PID ${this.pty.pid} /T /F`, { stdio: "ignore" });
+            execFileSync(resolveTaskkillPath(), ["/PID", String(this.pty.pid), "/T", "/F"], {
+              stdio: "ignore",
+            });
             this.isEnded = true;
           } catch {
             this.pty.kill();
@@ -641,6 +648,21 @@ export class PTYSession {
           return [];
       }
     });
+  }
+
+  private resolveRecommendedNextAction(
+    analysis: ReturnType<typeof analyzeScreen>,
+    idleMs: number,
+  ): ScreenshotResult["recommendedNextAction"] {
+    if (analysis.prompt_detected !== null) {
+      return analysis.should_ask_user ? "ask_user" : "input_required";
+    }
+
+    if (analysis.recommended_next_action === "inspect_screen") {
+      return "inspect_screen";
+    }
+
+    return idleMs < 1000 ? "wait" : "read";
   }
 
   private describeLifecycleEvent(event: SessionEvent): string {

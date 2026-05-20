@@ -17,7 +17,15 @@ if (!token) {
   process.exit(1);
 }
 
-execSync(`npx sonarqube-scanner -Dsonar.token=${token}`, {
-  stdio: "inherit",
-  cwd: rootDir,
-});
+execSync(
+  [
+    "npx sonarqube-scanner",
+    `-Dsonar.token=${token}`,
+    "-Dsonar.qualitygate.wait=true",
+    "-Dsonar.qualitygate.timeout=300",
+  ].join(" "),
+  {
+    stdio: "inherit",
+    cwd: rootDir,
+  },
+);

@@ -58,6 +58,52 @@ function getSessionOrError(
   }
 }
 
+function requireStringArg(args: Record<string, unknown>, key: string): string {
+  const value = args[key];
+  if (typeof value !== "string" || value.length === 0) {
+    throw new McpError(ErrorCode.InvalidParams, `Missing required parameter: ${key}`);
+  }
+
+  return value;
+}
+
+function buildJsonResourceContents(uri: URL | string, data: unknown) {
+  return {
+    contents: [
+      {
+        uri: uri.toString(),
+        mimeType: "application/json",
+        text: JSON.stringify(data),
+      },
+    ],
+  };
+}
+
+function readSessionJsonResource<T>(
+  sm: SessionManager,
+  uri: URL,
+  variables: Record<string, string | string[]>,
+  reader: (session: ReturnType<SessionManager["getSession"]>) => T,
+) {
+  const id = variables.id as string;
+  const s = getSessionOrError(sm, id);
+  if (s.error) throw new McpError(ErrorCode.InvalidRequest, s.error);
+  return buildJsonResourceContents(uri, reader(s.session));
+}
+
+function handleSessionProjectionTool<T>(
+  sm: SessionManager,
+  args: Record<string, unknown>,
+  reader: (session: ReturnType<SessionManager["getSession"]>, eventLimit: number) => T,
+): { content: Array<{ type: "text"; text: string }>; isError?: boolean } {
+  const id = requireStringArg(args, "id");
+  const s = getSessionOrError(sm, id);
+  if (s.error) return toolError(s.error);
+
+  const eventLimit = typeof args.event_limit === "number" ? args.event_limit : 50;
+  return { content: [textContent(reader(s.session, eventLimit))] };
+}
+
 // ---------------------------------------------------------------------------
 // Exported handler functions (testable pure functions)
 // ---------------------------------------------------------------------------
@@ -97,12 +143,9 @@ function handleWriteTool(
   sm: SessionManager,
   args: Record<string, unknown>,
 ): { content: Array<{ type: "text"; text: string }>; isError?: boolean } {
-  const id = args.id as string | undefined;
+  const id = requireStringArg(args, "id");
   const data = args.data as string | undefined;
 
-  if (!id || typeof id !== "string") {
-    throw new McpError(ErrorCode.InvalidParams, "Missing required parameter: id");
-  }
   if (typeof data !== "string") {
     throw new McpError(ErrorCode.InvalidParams, "Missing required parameter: data");
   }
@@ -123,10 +166,7 @@ function handleReadTool(
   sm: SessionManager,
   args: Record<string, unknown>,
 ): { content: Array<{ type: "text"; text: string }>; isError?: boolean } {
-  const id = args.id as string | undefined;
-  if (!id || typeof id !== "string") {
-    throw new McpError(ErrorCode.InvalidParams, "Missing required parameter: id");
-  }
+  const id = requireStringArg(args, "id");
 
   const s = getSessionOrError(sm, id);
   if (s.error) return toolError(s.error);
@@ -147,10 +187,7 @@ function handleTailTool(
   sm: SessionManager,
   args: Record<string, unknown>,
 ): { content: Array<{ type: "text"; text: string }>; isError?: boolean } {
-  const id = args.id as string | undefined;
-  if (!id || typeof id !== "string") {
-    throw new McpError(ErrorCode.InvalidParams, "Missing required parameter: id");
-  }
+  const id = requireStringArg(args, "id");
 
   const s = getSessionOrError(sm, id);
   if (s.error) return toolError(s.error);
@@ -164,12 +201,8 @@ async function handleReadUntilTool(
   sm: SessionManager,
   args: Record<string, unknown>,
 ): Promise<{ content: Array<{ type: "text"; text: string }>; isError?: boolean }> {
-  const id = args.id as string | undefined;
+  const id = requireStringArg(args, "id");
   const pattern = args.pattern as string | undefined;
-
-  if (!id || typeof id !== "string") {
-    throw new McpError(ErrorCode.InvalidParams, "Missing required parameter: id");
-  }
   if (!pattern || typeof pattern !== "string") {
     throw new McpError(ErrorCode.InvalidParams, "Missing required parameter: pattern");
   }
@@ -212,13 +245,9 @@ function handleResizeTool(
   sm: SessionManager,
   args: Record<string, unknown>,
 ): { content: Array<{ type: "text"; text: string }>; isError?: boolean } {
-  const id = args.id as string | undefined;
+  const id = requireStringArg(args, "id");
   const cols = args.cols as number | undefined;
   const rows = args.rows as number | undefined;
-
-  if (!id || typeof id !== "string") {
-    throw new McpError(ErrorCode.InvalidParams, "Missing required parameter: id");
-  }
   if (typeof cols !== "number" || typeof rows !== "number") {
     throw new McpError(ErrorCode.InvalidParams, "Missing required parameters: cols and rows");
   }
@@ -234,12 +263,8 @@ function handleSendSignalTool(
   sm: SessionManager,
   args: Record<string, unknown>,
 ): { content: Array<{ type: "text"; text: string }>; isError?: boolean } {
-  const id = args.id as string | undefined;
+  const id = requireStringArg(args, "id");
   const signal = args.signal as string | undefined;
-
-  if (!id || typeof id !== "string") {
-    throw new McpError(ErrorCode.InvalidParams, "Missing required parameter: id");
-  }
   if (!signal || typeof signal !== "string") {
     throw new McpError(ErrorCode.InvalidParams, "Missing required parameter: signal");
   }
@@ -271,10 +296,7 @@ function handleScreenshotTool(
   sm: SessionManager,
   args: Record<string, unknown>,
 ): { content: Array<{ type: "text"; text: string }>; isError?: boolean } {
-  const id = args.id as string | undefined;
-  if (!id || typeof id !== "string") {
-    throw new McpError(ErrorCode.InvalidParams, "Missing required parameter: id");
-  }
+  const id = requireStringArg(args, "id");
 
   const s = getSessionOrError(sm, id);
   if (s.error) return toolError(s.error);
@@ -292,44 +314,29 @@ function handleSessionDiagnosticsTool(
   sm: SessionManager,
   args: Record<string, unknown>,
 ): { content: Array<{ type: "text"; text: string }>; isError?: boolean } {
-  const id = args.id as string | undefined;
-  if (!id || typeof id !== "string") {
-    throw new McpError(ErrorCode.InvalidParams, "Missing required parameter: id");
-  }
-
-  const s = getSessionOrError(sm, id);
-  if (s.error) return toolError(s.error);
-
-  const eventLimit = typeof args.event_limit === "number" ? args.event_limit : 50;
-  const result: SessionDiagnostics = s.session.getDiagnostics(eventLimit);
-  return { content: [textContent(result)] };
+  return handleSessionProjectionTool(
+    sm,
+    args,
+    (session, eventLimit): SessionDiagnostics => session.getDiagnostics(eventLimit),
+  );
 }
 
 function handleSessionExportTool(
   sm: SessionManager,
   args: Record<string, unknown>,
 ): { content: Array<{ type: "text"; text: string }>; isError?: boolean } {
-  const id = args.id as string | undefined;
-  if (!id || typeof id !== "string") {
-    throw new McpError(ErrorCode.InvalidParams, "Missing required parameter: id");
-  }
-
-  const s = getSessionOrError(sm, id);
-  if (s.error) return toolError(s.error);
-
-  const eventLimit = typeof args.event_limit === "number" ? args.event_limit : 50;
-  const result: SessionExport = s.session.exportSession(eventLimit);
-  return { content: [textContent(result)] };
+  return handleSessionProjectionTool(
+    sm,
+    args,
+    (session, eventLimit): SessionExport => session.exportSession(eventLimit),
+  );
 }
 
 function handleCloseSessionTool(
   sm: SessionManager,
   args: Record<string, unknown>,
 ): { content: Array<{ type: "text"; text: string }>; isError?: boolean } {
-  const id = args.id as string | undefined;
-  if (!id || typeof id !== "string") {
-    throw new McpError(ErrorCode.InvalidParams, "Missing required parameter: id");
-  }
+  const id = requireStringArg(args, "id");
 
   const force = typeof args.force === "boolean" ? args.force : false;
 
@@ -864,18 +871,7 @@ export async function handleBufferResource(
   uri: URL,
   variables: Record<string, string | string[]>,
 ): Promise<{ contents: Array<{ uri: string; mimeType: string; text: string }> }> {
-  const id = variables.id as string;
-  const s = getSessionOrError(sm, id);
-  if (s.error) throw new McpError(ErrorCode.InvalidRequest, s.error);
-  return {
-    contents: [
-      {
-        uri: uri.toString(),
-        mimeType: "application/json",
-        text: JSON.stringify(s.session.read(false)),
-      },
-    ],
-  };
+  return readSessionJsonResource(sm, uri, variables, (session) => session.read(false));
 }
 
 /** Respond to a read on a session status resource template. */
@@ -884,18 +880,7 @@ export async function handleStatusResource(
   uri: URL,
   variables: Record<string, string | string[]>,
 ): Promise<{ contents: Array<{ uri: string; mimeType: string; text: string }> }> {
-  const id = variables.id as string;
-  const s = getSessionOrError(sm, id);
-  if (s.error) throw new McpError(ErrorCode.InvalidRequest, s.error);
-  return {
-    contents: [
-      {
-        uri: uri.toString(),
-        mimeType: "application/json",
-        text: JSON.stringify(s.session.getInfo()),
-      },
-    ],
-  };
+  return readSessionJsonResource(sm, uri, variables, (session) => session.getInfo());
 }
 
 /** Respond to a read on a session events resource template. */
@@ -904,18 +889,9 @@ export async function handleEventsResource(
   uri: URL,
   variables: Record<string, string | string[]>,
 ): Promise<{ contents: Array<{ uri: string; mimeType: string; text: string }> }> {
-  const id = variables.id as string;
-  const s = getSessionOrError(sm, id);
-  if (s.error) throw new McpError(ErrorCode.InvalidRequest, s.error);
-  return {
-    contents: [
-      {
-        uri: uri.toString(),
-        mimeType: "application/json",
-        text: JSON.stringify({ events: s.session.getRecentEvents() }),
-      },
-    ],
-  };
+  return readSessionJsonResource(sm, uri, variables, (session) => ({
+    events: session.getRecentEvents(),
+  }));
 }
 
 /** Respond to a read on a session export resource template. */
@@ -924,16 +900,5 @@ export async function handleExportResource(
   uri: URL,
   variables: Record<string, string | string[]>,
 ): Promise<{ contents: Array<{ uri: string; mimeType: string; text: string }> }> {
-  const id = variables.id as string;
-  const s = getSessionOrError(sm, id);
-  if (s.error) throw new McpError(ErrorCode.InvalidRequest, s.error);
-  return {
-    contents: [
-      {
-        uri: uri.toString(),
-        mimeType: "application/json",
-        text: JSON.stringify(s.session.exportSession()),
-      },
-    ],
-  };
+  return readSessionJsonResource(sm, uri, variables, (session) => session.exportSession());
 }
