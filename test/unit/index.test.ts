@@ -1,5 +1,11 @@
 import { describe, it, expect, afterEach } from "vitest";
-import { parseEnvConfig } from "../../src/index.js";
+import { join } from "node:path";
+import {
+  agentInstallDirs,
+  buildAntigravityPluginPayload,
+  parseEnvConfig,
+  type AgentDef,
+} from "../../src/index.js";
 
 describe("index — parseEnvConfig", () => {
   const OLD_ENV = { ...process.env };
@@ -90,5 +96,54 @@ describe("index — parseEnvConfig", () => {
     expect(config.command_deny_patterns).toEqual(["rm\\s+-rf", "git\\s+reset\\s+--hard"]);
     expect(config.session_max_duration_ms).toBe(900000);
     expect(config.output_buffer_max_bytes).toBe(4096);
+  });
+});
+
+describe("index — agent install helpers", () => {
+  it("should resolve Antigravity project install into a workspace plugin", () => {
+    const antigravity: AgentDef = {
+      value: "antigravity",
+      name: "Antigravity CLI (AGY)",
+      configSubdir: ".gemini/antigravity-cli",
+      universal: false,
+      installKind: "plugin",
+    };
+
+    expect(agentInstallDirs(antigravity, false, "D:/repo")).toEqual([
+      join("D:/repo", ".agents", "plugins", "terminalize"),
+    ]);
+  });
+
+  it("should resolve Antigravity global install into both documented plugin locations", () => {
+    const antigravity: AgentDef = {
+      value: "antigravity",
+      name: "Antigravity CLI (AGY)",
+      configSubdir: ".gemini/antigravity-cli",
+      universal: false,
+      installKind: "plugin",
+    };
+
+    expect(agentInstallDirs(antigravity, true, "C:/Users/marti")).toEqual([
+      join("C:/Users/marti", ".gemini", "config", "plugins", "terminalize"),
+      join("C:/Users/marti", ".gemini", "antigravity-cli", "plugins", "terminalize"),
+    ]);
+  });
+
+  it("should build Antigravity plugin payload with mcp and plugin metadata", () => {
+    const payload = buildAntigravityPluginPayload();
+    const pluginJson = JSON.parse(payload.pluginJson) as { name: string };
+    const mcpJson = JSON.parse(payload.mcpConfigJson) as {
+      mcpServers: Record<string, { command: string; args: string[] }>;
+    };
+
+    expect(pluginJson).toEqual({ name: "terminalize" });
+    expect(mcpJson).toEqual({
+      mcpServers: {
+        terminalize: {
+          command: "npx",
+          args: ["terminalize"],
+        },
+      },
+    });
   });
 });

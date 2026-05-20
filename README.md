@@ -168,18 +168,14 @@ Delete the setup wizard. Instead, copy the relevant config block below:
 }
 ```
 
-**Gemini CLI** (`~/.gemini/settings.json`):
+**Antigravity CLI (AGY)**:
 
-```json
-{
-  "mcpServers": {
-    "terminalize": {
-      "command": "npx",
-      "args": ["terminalize"]
-    }
-  }
-}
-```
+Antigravity is best supported through a plugin bundle that ships both:
+
+- the `terminalize` skill
+- an `mcp_config.json` entry for `npx terminalize`
+
+See [docs/installation-guides/install-antigravity.md](./docs/installation-guides/install-antigravity.md).
 
 **Kiro CLI** (`~/.kiro/settings.json`):
 

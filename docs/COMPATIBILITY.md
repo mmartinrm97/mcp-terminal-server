@@ -20,14 +20,14 @@ The key rule is simple:
 
 ## Client Matrix
 
-| Client      | Status     | What was verified                                                                                       | Caveats                                                                                           | Classification                                      |
-| ----------- | ---------- | ------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
-| Claude Code | Verified   | MCP reachable, session tools work, real `npm init` flow completed                                       | A burst of input can desynchronize prompts on Windows if the agent does not wait prompt-by-prompt | Agent usage caveat, not MCP failure                 |
-| Cursor      | Verified   | MCP reachable, session lifecycle works, interactive prompt/response loop verified, `npm` flow validated | `npm 10` may skip the classic `npm init` questionnaire; use another interactive flow when needed  | Environment/tool behavior caveat                    |
-| Codex       | Verified   | MCP configured, skill present, real interactive `npm init` flow completed                               | PowerShell profile noise from missing `oh-my-posh` can dirty startup output                       | Local shell/profile caveat                          |
-| Kiro CLI    | Verified   | MCP configured, skill present, full interactive `npm init` flow completed                               | Windows ConPTY can briefly echo prior input in the version field before recovery                  | Runtime caveat, flow still succeeds                 |
-| Gemini CLI  | Partial    | MCP configured, session creation works, prompts were detected and answered initially                    | The client spammed Enter instead of waiting prompt-by-prompt, so the flow desynchronized mid-run  | **Agent orchestration issue**, not core MCP failure |
-| Windsurf    | Unverified | No evidence published yet                                                                               | —                                                                                                 | Needs validation                                    |
+| Client                | Status     | What was verified                                                                                       | Caveats                                                                                           | Classification                      |
+| --------------------- | ---------- | ------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- | ----------------------------------- |
+| Claude Code           | Verified   | MCP reachable, session tools work, real `npm init` flow completed                                       | A burst of input can desynchronize prompts on Windows if the agent does not wait prompt-by-prompt | Agent usage caveat, not MCP failure |
+| Cursor                | Verified   | MCP reachable, session lifecycle works, interactive prompt/response loop verified, `npm` flow validated | `npm 10` may skip the classic `npm init` questionnaire; use another interactive flow when needed  | Environment/tool behavior caveat    |
+| Codex                 | Verified   | MCP configured, skill present, real interactive `npm init` flow completed                               | PowerShell profile noise from missing `oh-my-posh` can dirty startup output                       | Local shell/profile caveat          |
+| Kiro CLI              | Verified   | MCP configured, skill present, full interactive `npm init` flow completed                               | Windows ConPTY can briefly echo prior input in the version field before recovery                  | Runtime caveat, flow still succeeds |
+| Antigravity CLI (AGY) | Unverified | Support is being migrated from legacy Gemini CLI setup toward an Antigravity plugin-based install path  | Needs validation against the new plugin + MCP layout before claiming compatibility                | Pending migration validation        |
+| Windsurf              | Unverified | No evidence published yet                                                                               | —                                                                                                 | Needs validation                    |
 
 ---
 
@@ -77,6 +77,7 @@ If a client reaches prompts correctly and then fails because it guessed badly, t
 - `npm init` behavior depends on the installed `npm` version; some versions skip the older questionnaire.
 - TUI flows like `create-vite` require navigation semantics, not plain line-prompt logic.
 - PowerShell startup profiles can inject unrelated noise into PTY output.
+- Google has transitioned consumer Gemini CLI users toward Antigravity CLI as of May 19, 2026; compatibility claims should now target Antigravity, not legacy Gemini consumer installs.
 
 ---
 

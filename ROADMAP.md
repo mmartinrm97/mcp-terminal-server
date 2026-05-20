@@ -277,7 +277,7 @@ Goal: prove terminalize works with real agent clients.
 
 - Claude Code
 - Cursor
-- Gemini CLI
+- Antigravity CLI
 - Codex
 - Kiro CLI
 - Windsurf
