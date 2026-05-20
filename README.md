@@ -118,7 +118,11 @@ Delete the setup wizard. Instead, copy the relevant config block below or use th
 - [Installation guides index](./docs/installation-guides/README.md)
 - [Antigravity CLI](./docs/installation-guides/install-antigravity.md)
 - [Claude Code](./docs/installation-guides/install-claude.md)
+- [Cursor](./docs/installation-guides/install-cursor.md)
+- [GitHub Copilot CLI](./docs/installation-guides/install-copilot.md)
+- [Kiro CLI](./docs/installation-guides/install-kiro.md)
 - [OpenAI Codex](./docs/installation-guides/install-codex.md)
+- [OpenCode](./docs/installation-guides/install-opencode.md)
 
 **OpenCode** (`~/.config/opencode/opencode.json` or project `opencode.json`):
 
