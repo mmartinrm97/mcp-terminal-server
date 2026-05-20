@@ -1,12 +1,22 @@
-import { spawn } from "node-pty";
-import { platform } from "node:os";
-import { execSync } from "node:child_process";
 import type { IPty } from "node-pty";
-import { OutputBuffer } from "./output-buffer.js";
+import { spawn } from "node-pty";
+import { execFileSync } from "node:child_process";
+import { randomBytes } from "node:crypto";
+import { platform } from "node:os";
+import { isAbsolute, win32 as pathWin32 } from "node:path";
 import { normalizeEscapeSequences } from "../lib/utils.js";
-import { renderScreen, analyzeScreen } from "./screen.js";
+import type {
+  ReadUntilDebugInfo,
+  ScreenshotResult,
+  SessionDiagnostics,
+  SessionEvent,
+  SessionExport,
+  SessionInfo,
+  SessionTranscriptEntry,
+} from "../types.js";
 import { SessionEndedError } from "../types.js";
-import type { SessionInfo, ScreenshotResult } from "../types.js";
+import { OutputBuffer } from "./output-buffer.js";
+import { analyzeScreen, renderScreen } from "./screen.js";
 
 /**
  * Environment variables merged into every PTY session to disable pagers.
@@ -21,6 +31,17 @@ const pagerEnv: Record<string, string> = {
 
 /** Windows shells that benefit from progress suppression. */
 const windowsShells = new Set(["cmd.exe", "pwsh.exe", "pwsh"]);
+const maxSessionEvents = 200;
+const fallbackTaskkillPath = String.raw`C:\Windows\System32\taskkill.exe`;
+
+function resolveTaskkillPath(): string {
+  const windowsRoot = process.env.SystemRoot ?? process.env.windir;
+  if (windowsRoot && isAbsolute(windowsRoot)) {
+    return pathWin32.join(windowsRoot, "System32", "taskkill.exe");
+  }
+
+  return fallbackTaskkillPath;
+}
 
 /**
  * Options for creating a PTYSession.
@@ -34,6 +55,7 @@ export interface PTYSessionOptions {
   cols: number;
   rows: number;
   env?: Record<string, string>;
+  outputBufferMaxBytes?: number;
 }
 
 /**
@@ -50,10 +72,12 @@ export class PTYSession {
   readonly createdAt: Date;
   readonly cwd: string;
   lastActivity: Date;
+  lastOutputAt: Date | null;
   shellName: string;
 
   private isEnded = false;
   private processExitCode: number | null = null;
+  private readonly events: SessionEvent[] = [];
 
   /**
    * Create a new PTY session.
@@ -67,7 +91,8 @@ export class PTYSession {
     this.cwd = options.cwd;
     this.createdAt = new Date();
     this.lastActivity = new Date();
-    this.buffer = new OutputBuffer();
+    this.lastOutputAt = null;
+    this.buffer = new OutputBuffer(options.outputBufferMaxBytes);
     this.shellName = options.shell;
 
     // Build env with pager-blocking defaults.
@@ -99,13 +124,21 @@ export class PTYSession {
     // Capture all data events into the buffer
     this.pty.onData((data: string) => {
       this.buffer.append(data);
+      this.lastOutputAt = new Date();
+      this.recordEvent("output", {
+        bytes: Buffer.byteLength(data, "utf-8"),
+        preview: PTYSession.preview(data),
+      });
     });
 
     // Track process exit
     this.pty.onExit((exitInfo: { exitCode: number; signal?: number }) => {
       this.isEnded = true;
       this.processExitCode = exitInfo.exitCode;
+      this.recordEvent("exit", { exit_code: exitInfo.exitCode });
     });
+
+    this.recordEvent("session_created");
   }
 
   /**
@@ -136,7 +169,9 @@ export class PTYSession {
     }
     this.pty.write(processed);
     this.lastActivity = new Date();
-    return Buffer.byteLength(processed);
+    const bytes = Buffer.byteLength(processed);
+    this.recordEvent("write", { bytes, preview: PTYSession.preview(processed) });
+    return bytes;
   }
 
   /**
@@ -181,7 +216,7 @@ export class PTYSession {
 
   /** Generate a unique completion marker for writeMarked. */
   private generateMarker(): string {
-    const hex = Math.random().toString(16).slice(2, 8).padStart(6, "0");
+    const hex = randomBytes(3).toString("hex");
     return `__TERM_MARK_${hex}__`;
   }
 
@@ -192,6 +227,7 @@ export class PTYSession {
     if (this.isEnded) return;
     try {
       this.pty.resize(cols, rows);
+      this.recordEvent("resize", { cols, rows });
     } catch {
       // Ignore resize errors on closed PTYs (common on Windows ConPTY)
     }
@@ -212,7 +248,11 @@ export class PTYSession {
     position: number;
   } {
     if (typeof flushOrSince === "number") {
-      const result = this.buffer.readAll(flushOrSince) as { data: string; position: number };
+      const result = this.buffer.readAll(flushOrSince);
+      this.recordEvent("read", {
+        bytes: Buffer.byteLength(result.data, "utf-8"),
+        preview: PTYSession.preview(result.data),
+      });
       return {
         data: result.data,
         position: result.position,
@@ -226,6 +266,10 @@ export class PTYSession {
     if (flush) {
       this.buffer.clear();
     }
+    this.recordEvent("read", {
+      bytes: Buffer.byteLength(data, "utf-8"),
+      preview: PTYSession.preview(data),
+    });
     return {
       data,
       position: this.buffer.position,
@@ -245,6 +289,7 @@ export class PTYSession {
     const raw = this.buffer.getFullBuffer();
     const screen = renderScreen(raw, this.pty.cols, this.pty.rows);
     const analysis = analyzeScreen(screen.rows);
+    const idleMs = this.lastOutputAt ? Math.max(0, Date.now() - this.lastOutputAt.getTime()) : 0;
     return {
       rows: screen.rows,
       cursorRow: screen.cursorRow,
@@ -252,6 +297,16 @@ export class PTYSession {
       cols: screen.cols,
       rowsCount: screen.rowsCount,
       text: screen.text,
+      outputBytes: this.buffer.position,
+      lastOutputAt: this.lastOutputAt?.toISOString() ?? null,
+      idleMs,
+      isInteractive: analysis.is_interactive,
+      detectedPrompt: analysis.prompt_detected,
+      promptCategory: analysis.prompt_category,
+      shouldAskUser: analysis.should_ask_user,
+      askUserReason: analysis.ask_user_reason,
+      canAcceptDefault: analysis.can_accept_default,
+      recommendedNextAction: this.resolveRecommendedNextAction(analysis, idleMs),
       terminal_mode: analysis.terminal_mode,
       editor_mode: analysis.editor_mode,
       status_line: analysis.status_line,
@@ -294,25 +349,44 @@ export class PTYSession {
     ended: boolean;
     exit_code: number | null;
     timed_out: boolean;
+    debug: ReadUntilDebugInfo;
   }> {
     try {
       const result = await this.buffer.readUntil(pattern, timeoutMs, stripAnsiColors);
+      this.recordEvent("read_until_match", {
+        pattern,
+        timeout_ms: timeoutMs ?? 30000,
+        matched: result.matched,
+        bytes: Buffer.byteLength(result.data, "utf-8"),
+        preview: PTYSession.preview(result.data),
+      });
       return {
-        ...result,
+        data: result.data,
+        fullOutput: result.fullOutput,
+        matched: result.matched,
         ended: this.isEnded,
         exit_code: this.processExitCode,
         timed_out: false,
+        debug: this.buildReadUntilDebug(pattern, timeoutMs ?? 30000),
       };
     } catch (err) {
       // Check if it's a ReadTimeoutError
       if (err instanceof Error && "timedOut" in err) {
+        const partialData = (err as { partialData?: string }).partialData ?? "";
+        this.recordEvent("read_until_timeout", {
+          pattern,
+          timeout_ms: timeoutMs ?? 30000,
+          bytes: Buffer.byteLength(partialData, "utf-8"),
+          preview: PTYSession.preview(partialData),
+        });
         return {
-          data: (err as { partialData?: string }).partialData ?? "",
+          data: partialData,
           fullOutput: this.buffer.getFullBuffer(),
           matched: "",
           ended: this.isEnded,
           exit_code: this.processExitCode,
           timed_out: true,
+          debug: this.buildReadUntilDebug(pattern, timeoutMs ?? 30000),
         };
       }
       throw err;
@@ -334,14 +408,22 @@ export class PTYSession {
     }
 
     const pid = this.pty.pid;
+    this.recordEvent("close", {
+      preview: force ? "force" : "graceful",
+    });
 
     if (platform() === "win32") {
-      // Windows: kill the process tree via taskkill (signals not supported)
-      this.pty.kill();
+      // Windows/ConPTY: prefer taskkill directly.
+      // Calling node-pty's kill() first can spawn its console-list helper, which
+      // is known to emit noisy "AttachConsole failed" errors on some machines.
       try {
-        execSync(`taskkill /PID ${pid} /T /F`, { stdio: "ignore" });
+        execFileSync(resolveTaskkillPath(), ["/PID", String(pid), "/T", "/F"], {
+          stdio: "ignore",
+        });
+        this.isEnded = true;
       } catch {
-        // taskkill may fail if process already terminated — ignore
+        // Fallback: ask node-pty to tear down the session if taskkill failed.
+        this.pty.kill();
       }
     } else {
       // POSIX: kill the entire process group (negative PID)
@@ -378,7 +460,14 @@ export class PTYSession {
         break;
       case "SIGKILL":
         if (platform() === "win32") {
-          this.pty.kill();
+          try {
+            execFileSync(resolveTaskkillPath(), ["/PID", String(this.pty.pid), "/T", "/F"], {
+              stdio: "ignore",
+            });
+            this.isEnded = true;
+          } catch {
+            this.pty.kill();
+          }
         } else {
           this.pty.kill("SIGKILL");
         }
@@ -387,12 +476,15 @@ export class PTYSession {
         throw new Error(`Unknown signal: ${signal}`);
     }
     this.lastActivity = new Date();
+    this.recordEvent("signal", { signal });
   }
 
   /**
    * Get session info for listing.
    */
   getInfo(): SessionInfo {
+    const latestSignalAt = this.lastOutputAt ?? this.lastActivity;
+    const idleMs = Math.max(0, Date.now() - latestSignalAt.getTime());
     return {
       id: this.id,
       label: this.label,
@@ -402,6 +494,9 @@ export class PTYSession {
       rows: this.pty.rows,
       created_at: this.createdAt.toISOString(),
       last_activity: this.lastActivity.toISOString(),
+      last_output_at: this.lastOutputAt?.toISOString() ?? null,
+      idle_ms: idleMs,
+      output_bytes: this.buffer.position,
       alive: !this.isEnded,
     };
   }
@@ -418,5 +513,176 @@ export class PTYSession {
    */
   get exitCode(): number | null {
     return this.processExitCode;
+  }
+
+  /**
+   * Most recent observable activity time, including PTY output.
+   */
+  get latestActivityAt(): Date {
+    return this.lastOutputAt && this.lastOutputAt > this.lastActivity
+      ? this.lastOutputAt
+      : this.lastActivity;
+  }
+
+  /**
+   * Return recent session events for diagnostics and replay-like debugging.
+   */
+  getRecentEvents(limit: number = 50): SessionEvent[] {
+    return this.events.slice(-limit);
+  }
+
+  /**
+   * Return a structured diagnostics snapshot for the current session.
+   */
+  getDiagnostics(limit: number = 50): SessionDiagnostics {
+    return {
+      session: this.getInfo(),
+      recent_events: this.getRecentEvents(limit),
+      last_screenshot: this.screenshot(),
+    };
+  }
+
+  /**
+   * Export a structured snapshot suitable for issue reports and replay-like debugging.
+   */
+  exportSession(limit: number = 50): SessionExport {
+    const recentEvents = this.getRecentEvents(limit);
+    return {
+      session: this.getInfo(),
+      recent_events: recentEvents,
+      last_screenshot: this.screenshot(),
+      transcript: this.buildTranscript(recentEvents),
+    };
+  }
+
+  private recordEvent(
+    type: SessionEvent["type"],
+    data: Omit<SessionEvent, "at" | "type"> = {},
+  ): void {
+    this.events.push({
+      at: new Date().toISOString(),
+      type,
+      ...data,
+    });
+
+    if (this.events.length > maxSessionEvents) {
+      this.events.splice(0, this.events.length - maxSessionEvents);
+    }
+  }
+
+  private buildReadUntilDebug(pattern: string, timeoutMs: number): ReadUntilDebugInfo {
+    const screenshot = this.screenshot();
+    return {
+      session_id: this.id,
+      pattern,
+      timeout_ms: timeoutMs,
+      idle_ms: screenshot.idleMs,
+      last_output_at: screenshot.lastOutputAt,
+      output_bytes: screenshot.outputBytes,
+      detected_prompt: screenshot.detectedPrompt,
+      prompt_category: screenshot.promptCategory,
+      should_ask_user: screenshot.shouldAskUser,
+      ask_user_reason: screenshot.askUserReason,
+      can_accept_default: screenshot.canAcceptDefault,
+      recommended_next_action: screenshot.recommendedNextAction,
+    };
+  }
+
+  private buildTranscript(events: SessionEvent[]): SessionTranscriptEntry[] {
+    return events.flatMap<SessionTranscriptEntry>((event) => {
+      switch (event.type) {
+        case "write":
+          return [
+            {
+              at: event.at,
+              kind: "input",
+              summary: event.preview ?? "",
+              bytes: event.bytes,
+            },
+          ];
+        case "output":
+        case "read":
+          return [
+            {
+              at: event.at,
+              kind: "output",
+              summary: event.preview ?? "",
+              bytes: event.bytes,
+            },
+          ];
+        case "read_until_match":
+        case "read_until_timeout":
+          return [
+            {
+              at: event.at,
+              kind: "wait",
+              summary:
+                event.type === "read_until_timeout"
+                  ? `waited for pattern: ${event.pattern ?? ""} (timed out)`
+                  : `matched pattern: ${event.pattern ?? ""}`,
+              pattern: event.pattern,
+              timeout_ms: event.timeout_ms,
+              bytes: event.bytes,
+            },
+          ];
+        case "signal":
+          return [
+            {
+              at: event.at,
+              kind: "signal",
+              summary: event.signal ?? "signal",
+            },
+          ];
+        case "session_created":
+        case "resize":
+        case "close":
+        case "exit":
+          return [
+            {
+              at: event.at,
+              kind: "lifecycle",
+              summary: this.describeLifecycleEvent(event),
+            },
+          ];
+        default:
+          return [];
+      }
+    });
+  }
+
+  private resolveRecommendedNextAction(
+    analysis: ReturnType<typeof analyzeScreen>,
+    idleMs: number,
+  ): ScreenshotResult["recommendedNextAction"] {
+    if (analysis.prompt_detected !== null) {
+      return analysis.should_ask_user ? "ask_user" : "input_required";
+    }
+
+    if (analysis.recommended_next_action === "inspect_screen") {
+      return "inspect_screen";
+    }
+
+    return idleMs < 1000 ? "wait" : "read";
+  }
+
+  private describeLifecycleEvent(event: SessionEvent): string {
+    switch (event.type) {
+      case "session_created":
+        return "session created";
+      case "resize":
+        return `resized to ${event.cols ?? "?"}x${event.rows ?? "?"}`;
+      case "close":
+        return `session close requested (${event.preview ?? "graceful"})`;
+      case "exit":
+        return `process exited with code ${event.exit_code ?? "unknown"}`;
+      default:
+        return event.type;
+    }
+  }
+
+  private static preview(text: string, maxChars: number = 120): string {
+    const normalized = text.replaceAll(/\s+/g, " ").trim();
+    if (normalized.length <= maxChars) return normalized;
+    return normalized.slice(0, maxChars - 1) + "…";
   }
 }

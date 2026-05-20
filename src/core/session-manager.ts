@@ -1,7 +1,8 @@
 import { PTYSession } from "./pty-session.js";
 import { detectShell } from "../lib/shell-detector.js";
 import { generateSessionId } from "../lib/utils.js";
-import { SessionNotFoundError, SessionLimitError } from "../types.js";
+import { relative, resolve } from "node:path";
+import { SessionNotFoundError, SessionLimitError, SessionPolicyError } from "../types.js";
 import type { SessionConfig, SessionInfo, SessionManagerConfig } from "../types.js";
 
 /**
@@ -27,6 +28,11 @@ export class SessionManager {
     this.config = {
       max_sessions: config?.max_sessions ?? 10,
       session_ttl_ms: config?.session_ttl_ms ?? 30 * 60 * 1000,
+      session_max_duration_ms: config?.session_max_duration_ms,
+      output_buffer_max_bytes: config?.output_buffer_max_bytes ?? 1024 * 1024,
+      allowed_cwd_roots: config?.allowed_cwd_roots ?? [],
+      command_allow_patterns: config?.command_allow_patterns ?? [],
+      command_deny_patterns: config?.command_deny_patterns ?? [],
     };
 
     // Start cleanup timer — runs every 60 seconds
@@ -62,6 +68,7 @@ export class SessionManager {
 
     // Resolve cwd
     const cwd = config.cwd ?? process.cwd();
+    this.assertCwdAllowed(cwd);
 
     // Default terminal size
     const cols = config.cols ?? 80;
@@ -77,6 +84,7 @@ export class SessionManager {
       cols,
       rows,
       env: config.env,
+      outputBufferMaxBytes: this.config.output_buffer_max_bytes,
     });
 
     this.sessions.set(id, session);
@@ -119,6 +127,15 @@ export class SessionManager {
   }
 
   /**
+   * Write to a session after applying configured safety policies.
+   */
+  writeToSession(id: string, data: string): number {
+    this.assertCommandAllowed(data);
+    const session = this.getSession(id);
+    return session.write(data);
+  }
+
+  /**
    * Get the number of active sessions.
    * @returns The number of currently open sessions.
    */
@@ -133,11 +150,16 @@ export class SessionManager {
    */
   private cleanupExpiredSessions(): void {
     const now = Date.now();
-    const ttl = this.config.session_ttl_ms;
+    const idleTtl = this.config.session_ttl_ms;
+    const maxDuration = this.config.session_max_duration_ms;
 
     for (const [id, session] of this.sessions) {
-      const inactiveTime = now - session.lastActivity.getTime();
-      if (inactiveTime >= ttl) {
+      const inactiveTime = now - session.latestActivityAt.getTime();
+      const totalAge = now - session.createdAt.getTime();
+      const exceededIdleTtl = inactiveTime >= idleTtl;
+      const exceededMaxDuration = maxDuration !== undefined && totalAge >= maxDuration;
+
+      if (exceededIdleTtl || exceededMaxDuration) {
         session.close(true); // Force close
         this.sessions.delete(id);
       }
@@ -154,5 +176,43 @@ export class SessionManager {
       session.close(true);
     }
     this.sessions.clear();
+  }
+
+  private assertCwdAllowed(cwd: string): void {
+    const allowedRoots = this.config.allowed_cwd_roots ?? [];
+    if (allowedRoots.length === 0) return;
+
+    const resolvedCwd = resolve(cwd);
+    const isAllowed = allowedRoots.some((root) => this.isWithinRoot(resolvedCwd, resolve(root)));
+    if (!isAllowed) {
+      throw new SessionPolicyError(
+        `Session cwd is outside configured allowed roots: ${resolvedCwd}`,
+      );
+    }
+  }
+
+  private assertCommandAllowed(data: string): void {
+    const normalized = data.trim();
+    if (normalized === "") return;
+
+    const denyPatterns = this.config.command_deny_patterns ?? [];
+    for (const pattern of denyPatterns) {
+      if (new RegExp(pattern, "i").test(normalized)) {
+        throw new SessionPolicyError(`Command blocked by configured deny pattern: ${pattern}`);
+      }
+    }
+
+    const allowPatterns = this.config.command_allow_patterns ?? [];
+    if (allowPatterns.length === 0) return;
+
+    const matchedAllow = allowPatterns.some((pattern) => new RegExp(pattern, "i").test(normalized));
+    if (!matchedAllow) {
+      throw new SessionPolicyError("Command not allowed by configured allow patterns");
+    }
+  }
+
+  private isWithinRoot(target: string, root: string): boolean {
+    const rel = relative(root, target);
+    return rel === "" || (!rel.startsWith("..") && !rel.startsWith("/") && !rel.startsWith("\\"));
   }
 }

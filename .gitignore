@@ -1,33 +1,13 @@
 # Dependencies
 node_modules/
-
-# Build output
 dist/
-*.tsbuildinfo
-
-# Environment
-.env
-.env.local
-.env.*.local
-
-# OS files
-.DS_Store
-Thumbs.db
-*.swp
-*.swo
-
-# IDE
-.vscode/settings.json
-.idea/
-*.sublime-project
-*.sublime-workspace
-
-# Logs
-*.log
-npm-debug.log*
-
-# Testing
+.scannerwork
 coverage/
+
+# Landing page
+landing/node_modules/
+landing/dist/
+landing/.astro/
 
 # Temp
 tmp/
@@ -41,6 +21,7 @@ prisma.config.ts
 
 
 .agents/*
+.atl/
 vite-project
 
 /src/generated/prisma

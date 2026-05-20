@@ -1,32 +1,35 @@
 # terminalize
 
 <p align="center">
-  <img src="https://img.shields.io/badge/terminalize-v0.3.0-6C5CE7?style=for-the-badge&logo=window-terminal&logoColor=white" alt="terminalize" />
+  <img src="https://img.shields.io/badge/terminalize-v0.4.0-6C5CE7?style=for-the-badge&logo=window-terminal&logoColor=white" alt="terminalize" />
 </p>
 
 <p align="center">
   <a href="https://www.npmjs.com/package/terminalize"><img src="https://img.shields.io/npm/v/terminalize?color=red&logo=npm&style=flat-square" /></a>
   <img src="https://img.shields.io/badge/node.js-22%2B-339933?logo=node.js&logoColor=white&style=flat-square" />
   <img src="https://img.shields.io/badge/typescript-5.8%2B-3178C6?logo=typescript&logoColor=white&style=flat-square" />
-  <img src="https://img.shields.io/badge/license-MIT&style=flat-square" />
-  <img src="https://img.shields.io/badge/tests-305%20passing-brightgreen?style=flat-square" />
-  <a href="http://localhost:9000/dashboard?id=terminalize"><img src="https://img.shields.io/badge/quality%20gate-passing-brightgreen?style=flat-square" /></a>
-  <a href="http://localhost:9000/dashboard?id=terminalize"><img src="https://img.shields.io/badge/coverage-89%25-brightgreen?style=flat-square" /></a>
+  <img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" />
+  <img src="https://img.shields.io/badge/tests-360%20passing-brightgreen?style=flat-square" />
+  <img src="https://img.shields.io/badge/quality%20gate-passing-brightgreen?style=flat-square" />
+  <img src="https://img.shields.io/badge/coverage-92.6%25-brightgreen?style=flat-square" />
 </p>
 
-```text
- ╔══════════════════════════════════════════════════════╗
- ║  terminalize — Interactive Terminal for AI Agents   ║
- ║                                                      ║
- ║  Give your AI agents a persistent terminal they     ║
- ║  can actually talk to. npm init, gh pr create,      ║
- ║  psql — all interactive, all real PTY.              ║
- ╚══════════════════════════════════════════════════════╝
-```
+> **Interactive terminal sessions for AI agents over MCP.**
+>
+> Give your agents a persistent terminal they can actually talk to:
+>
+> - real PTY sessions
+> - prompt-aware reads and semantic screenshots
+> - verified interactive flows like `npm init`, `gh pr create`, `create-vite`, and `psql`
 
 [![MCP SDK](https://img.shields.io/badge/MCP%20SDK-1.29-blueviolet)](https://spec.modelcontextprotocol.io)
-[![node-pty](https://img.shields.io/badge/node--pty-1.0-FF6C37)](https://github.com/microsoft/node-pty)
+[![node-pty](https://img.shields.io/badge/node--pty-1.2.0--beta.13-FF6C37)](https://github.com/microsoft/node-pty)
 [![npm](https://img.shields.io/npm/v/terminalize?color=red)](https://www.npmjs.com/package/terminalize)
+[![Claude Code](https://img.shields.io/badge/Claude%20Code-verified-2EA043?style=flat-square)](./docs/COMPATIBILITY.md)
+[![Cursor](https://img.shields.io/badge/Cursor-verified-2EA043?style=flat-square)](./docs/COMPATIBILITY.md)
+[![Codex](https://img.shields.io/badge/Codex-verified-2EA043?style=flat-square)](./docs/COMPATIBILITY.md)
+[![Kiro CLI](https://img.shields.io/badge/Kiro%20CLI-verified-2EA043?style=flat-square)](./docs/COMPATIBILITY.md)
+[![Antigravity CLI](https://img.shields.io/badge/Antigravity-partial-F2C94C?style=flat-square)](./docs/COMPATIBILITY.md)
 
 > **Stop the "one-shot" guessing game. Give your AI agents a persistent terminal they can actually talk to.**
 
@@ -90,7 +93,7 @@ npm install -g terminalize
 # 1. Install the terminalize skill for AI agents
 npx terminalize install-skills
 
-# 2. Add the MCP config to your agent (see below for examples)
+# 2. Follow your agent-specific installation guide
 
 # 3. Start the MCP server in your project
 npx terminalize
@@ -111,102 +114,21 @@ $ npx terminalize install-skills
 │  ◻ Kiro CLI
 ```
 
-### Add MCP config to your agent
+### Agent-specific setup
 
-Delete the setup wizard. Instead, copy the relevant config block below:
+Use the dedicated install guides:
 
-**OpenCode** (`~/.config/opencode/opencode.json` or project `opencode.json`):
+- [Installation guides index](./docs/installation-guides/README.md)
+- [Antigravity CLI](./docs/installation-guides/install-antigravity.md)
+- [Claude Code](./docs/installation-guides/install-claude.md)
+- [Cursor](./docs/installation-guides/install-cursor.md)
+- [GitHub Copilot CLI](./docs/installation-guides/install-copilot.md)
+- [Kiro CLI](./docs/installation-guides/install-kiro.md)
+- [OpenAI Codex](./docs/installation-guides/install-codex.md)
+- [OpenCode](./docs/installation-guides/install-opencode.md)
+- [Pi](./docs/installation-guides/install-pi.md)
 
-```json
-{
-  "mcp": {
-    "terminalize": {
-      "command": ["npx", "terminalize"],
-      "type": "local",
-      "enabled": true
-    }
-  }
-}
-```
-
-**Claude Code** (`~/.claude/settings.json`):
-
-```json
-{
-  "mcpServers": {
-    "terminalize": {
-      "command": "npx",
-      "args": ["terminalize"]
-    }
-  }
-}
-```
-
-**Cursor** → Settings → MCP Servers → Add:
-
-```json
-{
-  "mcpServers": {
-    "terminalize": {
-      "command": "npx",
-      "args": ["terminalize"]
-    }
-  }
-}
-```
-
-**Windsurf** (`~/.codeium/windsurf/settings.json`):
-
-```json
-{
-  "mcpServers": {
-    "terminalize": {
-      "command": "npx",
-      "args": ["terminalize"]
-    }
-  }
-}
-```
-
-**Gemini CLI** (`~/.gemini/settings.json`):
-
-```json
-{
-  "mcpServers": {
-    "terminalize": {
-      "command": "npx",
-      "args": ["terminalize"]
-    }
-  }
-}
-```
-
-**Kiro CLI** (`~/.kiro/settings.json`):
-
-```json
-{
-  "mcpServers": {
-    "terminalize": {
-      "command": "npx",
-      "args": ["terminalize"]
-    }
-  }
-}
-```
-
-**Codex (OpenAI CLI)** (`~/.codex/config.toml` or project `.codex/config.toml`):
-
-```toml
-[mcp_servers.terminalize]
-command = "npx"
-args = ["terminalize"]
-```
-
-Or via Codex CLI:
-
-```bash
-codex mcp add terminalize -- npx terminalize
-```
+The root README intentionally does **not** duplicate every host-specific MCP block anymore. Those details live in the per-agent guides.
 
 ### Prerequisites
 
@@ -218,10 +140,15 @@ codex mcp add terminalize -- npx terminalize
 
 ### Environment Variables
 
-| Variable                      | Default           | Description                             |
-| ----------------------------- | ----------------- | --------------------------------------- |
-| `MCP_TERMINAL_MAX_SESSIONS`   | `10`              | Maximum number of simultaneous sessions |
-| `MCP_TERMINAL_SESSION_TTL_MS` | `1800000` (30min) | Session inactivity TTL                  |
+| Variable                               | Default           | Description                                        |
+| -------------------------------------- | ----------------- | -------------------------------------------------- |
+| `MCP_TERMINAL_MAX_SESSIONS`            | `10`              | Maximum number of simultaneous sessions            |
+| `MCP_TERMINAL_SESSION_TTL_MS`          | `1800000` (30min) | Session inactivity TTL                             |
+| `MCP_TERMINAL_SESSION_MAX_DURATION_MS` | unset             | Optional hard cap for total session lifetime       |
+| `MCP_TERMINAL_OUTPUT_BUFFER_MAX_BYTES` | `1048576` (1MB)   | Maximum retained PTY output bytes per session      |
+| `MCP_TERMINAL_ALLOWED_CWD_ROOTS`       | empty             | Optional `;`-separated allowed cwd roots           |
+| `MCP_TERMINAL_COMMAND_ALLOW_PATTERNS`  | empty             | Optional `;;`-separated regex allowlist for writes |
+| `MCP_TERMINAL_COMMAND_DENY_PATTERNS`   | empty             | Optional `;;`-separated regex denylist for writes  |
 
 ## MCP Tools
 
@@ -319,6 +246,28 @@ Reads the last N lines of the terminal buffer (like `tail -n N`). Token-efficien
 
 Takes a screenshot of the current terminal screen. Returns clean, rendered text rows with cursor position — no raw ANSI codes.
 
+Also includes best-effort semantic hints for agents:
+
+- `terminal_mode`
+- `editor_mode`
+- `status_line`
+- `content_rows`
+- `detectedPrompt`
+- `promptCategory`
+- `shouldAskUser`
+- `askUserReason`
+- `canAcceptDefault`
+- `isInteractive`
+- `recommendedNextAction`
+- `idleMs`
+- `outputBytes`
+
+Typical interpretation:
+
+- `recommendedNextAction = "input_required"` → the terminal is waiting for an answer
+- `recommendedNextAction = "ask_user"` → do **not** guess; escalate to the user
+- `canAcceptDefault = true` → pressing Enter is likely safe for this prompt
+
 | Parameter | Type     | Description |
 | --------- | -------- | ----------- |
 | `id`      | `string` | Session ID  |
@@ -331,6 +280,37 @@ Closes a terminal session and frees its resources.
 | --------- | --------- | ------- | ------------------------------- |
 | `id`      | `string`  | —       | Session ID                      |
 | `force`   | `boolean` | `false` | Immediate termination (SIGKILL) |
+
+### 12. `terminal_session_diagnostics`
+
+Returns a structured diagnostics snapshot for a session.
+
+Use this when an interactive flow behaved unexpectedly and you need to know:
+
+- what the session metadata looks like
+- what recent reads/writes/timeouts happened
+- what the latest semantic screen state looks like
+
+| Parameter     | Type     | Default | Description                               |
+| ------------- | -------- | ------- | ----------------------------------------- |
+| `id`          | `string` | —       | Session ID                                |
+| `event_limit` | `number` | `50`    | Maximum number of recent events to return |
+
+### 13. `terminal_session_export`
+
+Returns a structured export payload for issue reports and failure replay.
+
+This includes:
+
+- session metadata
+- recent timeline events
+- latest semantic screenshot
+- replay-friendly transcript derived from inputs, outputs, waits, signals, and lifecycle events
+
+| Parameter     | Type     | Default | Description                                      |
+| ------------- | -------- | ------- | ------------------------------------------------ |
+| `id`          | `string` | —       | Session ID                                       |
+| `event_limit` | `number` | `50`    | Maximum number of recent events/transcript items |
 
 ## Examples
 
@@ -357,6 +337,12 @@ Closes a terminal session and frees its resources.
 
 // 6. Accept default
 → terminal_write({ "id": "sess-1", "data": "\n" })
+
+// IMPORTANT: wait for the NEXT prompt before writing again
+// Do NOT send multiple Enters in a batch to "skip ahead"
+
+// If screenshot/recommendedNextAction says "ask_user",
+// stop and ask the human instead of guessing.
 
 // ... repeat until done ...
 
@@ -426,14 +412,15 @@ graph TD
 
 ### Components
 
-| Component          | File                          | Responsibility                                                                                                 |
-| ------------------ | ----------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| **OutputBuffer**   | `src/core/output-buffer.ts`   | Circular buffer with regex pattern matching. Accumulates PTY data and enables `readUntil()` with 50ms polling. |
-| **PTYSession**     | `src/core/pty-session.ts`     | Wraps `node-pty`. Connects the OutputBuffer to the real shell process.                                         |
-| **SessionManager** | `src/core/session-manager.ts` | Manages session lifecycle: creation, listing, closing, automatic TTL cleanup.                                  |
-| **MCPServer**      | `src/server.ts`               | Exposes 11 tools via the MCP protocol. Handles errors and input validation.                                    |
-| **ShellDetector**  | `src/lib/shell-detector.ts`   | Detects the preferred shell per platform (auto/bash/zsh/pwsh/cmd).                                             |
-| **AnsiStripper**   | `src/lib/ansi-stripper.ts`    | Strips ANSI escape codes from terminal output.                                                                 |
+| Component          | File                                   | Responsibility                                                                                                 |
+| ------------------ | -------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| **OutputBuffer**   | `src/core/output-buffer.ts`            | Circular buffer with regex pattern matching. Accumulates PTY data and enables `readUntil()` with 50ms polling. |
+| **PTYSession**     | `src/core/pty-session.ts`              | Wraps `node-pty`. Connects the OutputBuffer to the real shell process.                                         |
+| **SessionManager** | `src/core/session-manager.ts`          | Manages session lifecycle: creation, listing, closing, automatic TTL cleanup.                                  |
+| **TerminalServer** | `src/server/create-terminal-server.ts` | Wires the MCP server, tool definitions, and resource handlers together.                                        |
+| **ServerFacade**   | `src/server.ts`                        | Stable public export surface for the modular server implementation.                                            |
+| **ShellDetector**  | `src/lib/shell-detector.ts`            | Detects the preferred shell per platform (auto/bash/zsh/pwsh/cmd).                                             |
+| **AnsiStripper**   | `src/lib/ansi-stripper.ts`             | Strips ANSI escape codes from terminal output.                                                                 |
 
 ## Development
 
@@ -477,59 +464,209 @@ pnpm test
   ✓ test/integration/executables.int.test.ts     (8 tests)
   ✓ test/integration/mcp-server.int.test.ts      (11 tests)
 
- Test Files  14 passed (14)
-      Tests  235 passed (235)
+Test Files  15 passed (15)
+      Tests  334 passed (334)
 ```
+
+### Cross-platform smoke coverage
+
+The CI workflow runs a minimal PTY smoke check on:
+
+- Windows
+- Linux
+- macOS
+
+Current smoke scope:
+
+- create session with `shell: "auto"`
+- write a simple command
+- read output back from the PTY
+- verify `screenshot()` returns rendered terminal state
+- interrupt a long-running command and confirm shell recovery
+- close a long-running session cleanly
+
+Known caveat:
+
+- some interactive Node prompt flows remain less stable on Windows ConPTY, so the deeper prompt-by-prompt readline regression is guarded there and kept as a stronger Unix integration check for now.
+
+Additional shell/runtime caveats:
+
+- `create-vite` is a real TUI flow, not a line-based prompt; it needs screenshots plus arrow-key navigation.
+- On Unix-like TUIs, `\r` is often a more reliable confirmation key than plain `\n`.
+- `gh pr create` can be validated safely with `--dry-run`, but the exact prompt sequence depends on local template/auth state.
+- `psql` validation is easiest through Docker when `psql` is not installed locally.
+
+### Unix integration coverage
+
+The CI workflow also runs the full integration suite on:
+
+- Ubuntu
+- macOS
+
+This means prompt-by-prompt reads, signal recovery, long-output handling, executable checks, and PTY lifecycle behavior are now validated automatically on Unix-like runners.
+
+Additional manual validation was also run on:
+
+- WSL2 Ubuntu 22.04 on Windows 11
+
+### Core hardening status
+
+The original Windows `AttachConsole failed` teardown noise was mitigated in two layers:
+
+- `node-pty` was upgraded to `1.2.0-beta.13`, which already includes a safer ConPTY helper path
+- Windows session shutdown prefers direct `taskkill` before falling back to `node-pty` teardown
+
+The integration suite also now covers:
+
+- prompt-by-prompt interactive regression checks on Unix-like shells
+- long-output trimming against bounded session buffers
+- clean close semantics across the shells available on the host (`cmd`, `pwsh`, `bash`, `zsh`)
+
+### Deep interactive validation (opt-in)
+
+Some interactive flows depend on local credentials or local infrastructure, so they are kept as **opt-in integration checks** instead of always-on CI steps.
+
+Current opt-in flows:
+
+- `gh pr create --draft --dry-run`
+- Docker-backed `psql`
+
+PowerShell:
+
+```powershell
+$env:TERMINALIZE_RUN_GH_INTERACTIVE = "1"
+pnpm vitest run test/integration/executables.int.test.ts -t "gh pr create"
+```
+
+WSL / bash:
+
+```bash
+TERMINALIZE_RUN_DOCKER_PSQL=1 pnpm vitest run test/integration/executables.int.test.ts -t "docker-backed psql"
+```
+
+Why they are opt-in:
+
+- `gh pr create` needs a real authenticated GitHub CLI context
+- `psql` needs an accessible database client/server pair; the test uses Docker to provide that safely
+
+This keeps CI honest while still giving maintainers a reproducible path for the deepest interactive checks.
+
+### Using session exports in bug reports
+
+When an interactive run fails in a confusing way:
+
+1. call `terminal_session_export`
+2. attach the JSON payload to the issue
+3. inspect:
+   - `transcript` to see what the agent wrote, saw, and waited for
+   - `recent_events` for low-level sequencing and timeout context
+   - `last_screenshot` for the final semantic terminal state
 
 ## Coverage
 
-> **Current: 87% statements · 84% branches · 89% lines coverage**
+Current local baseline from `pnpm quality`:
 
-El estándar de la industria es **80%** de cobertura de línea — es el threshold por defecto de SonarQube. Para proyectos críticos (financieros, salud) se espera **90%+**. Con 77% estamos cerca pero no alcanzamos.
+- **360 passing tests**
+- **90.8% statements**
+- **82.0% branches**
+- **92.6% lines**
+- **SonarQube quality gate: passing**
 
-| Archivo                       | Cobertura | Líneas sin cubrir |
-| ----------------------------- | --------- | ----------------- |
-| `src/server.ts`               | 79% 🟡    | 37                |
-| `src/core/session-manager.ts` | 78% 🟡    | —                 |
-| `src/core/pty-session.ts`     | 89% 🟢    | —                 |
-| `src/core/output-buffer.ts`   | >90% 🟢   | —                 |
-| `src/lib/shell-detector.ts`   | 85% 🟢    | —                 |
-| `src/core/screen.ts`          | 91% 🟢    | —                 |
-
-El único archivo que impide cerrar el quality gate es `server.ts` (79%, 37 líneas sin cubrir en las resource templates de McpServer).
+The important point is not chasing vanity numbers. The point is that the core PTY/session/safety flow is covered enough to keep the quality gate honest while still leaving room for targeted regression tests where interactive behavior is subtle.
 
 ## Limitations
 
 terminalize gives your agent a real **text-based** PTY. While powerful, there are important limits:
 
-| Situation                                     | Funciona?   | Detalle                                                                                  |
-| --------------------------------------------- | ----------- | ---------------------------------------------------------------------------------------- |
-| `npm init`, `gh pr create`, `npx create-vite` | ✅ Perfecto | Prompts de texto, el agente responde                                                     |
-| `pnpm publish`, `npm test`                    | ✅ Perfecto | Comandos que muestran output                                                             |
-| `psql`, `sqlite3`                             | ✅ Perfecto | CLIs con prompts                                                                         |
-| `htop`, `top`                                 | ⚠️ Parcial  | Muestrea el output, no pantalla completa                                                 |
-| `vim`, `nano`, `helix`                        | ⚠️ Limited  | Agent sends keystrokes, but editing is slow and error-prone. `terminal_screenshot` helps |
+| Situation                                     | Works?     | Details                                                                                   |
+| --------------------------------------------- | ---------- | ----------------------------------------------------------------------------------------- |
+| `npm init`, `gh pr create`, `npx create-vite` | ✅ Yes     | Text prompts and TUIs can be handled through prompt-aware reads and keystrokes            |
+| `pnpm publish`, `npm test`                    | ✅ Yes     | Standard command output works well                                                        |
+| `psql`, `sqlite3`                             | ✅ Yes     | Interactive CLI prompts are supported                                                     |
+| `htop`, `top`                                 | ⚠️ Partial | Output can be sampled, but this is not a pixel-perfect full-screen terminal emulator      |
+| `vim`, `nano`, `helix`                        | ⚠️ Limited | Agents can send keys, but editor workflows are slower and more error-prone than shell UIs |
 
 ### Tested platforms
 
-This has been tested primarily on **Windows (ConPTY)** with **OpenCode**. Not yet tested in production on:
+This has been tested across the major target shells and runtimes, with different depth depending on what can run credibly in automation. CI verifies smoke on Windows/Linux/macOS, full integration on Unix-like runners, and maintainers can run the opt-in `gh` / `psql` checks locally when auth or Docker are available.
 
-- **Platforms**: ✅ Windows | ⬜ Linux | ⬜ macOS
-- **Agents**: ✅ OpenCode | ⬜ Claude Code | ⬜ Cursor | ⬜ Gemini CLI | ⬜ Windsurf | ⬜ Kiro CLI | ✅ Codex
+- **Platforms**: ✅ Windows (interactive + smoke + manual `gh --dry-run`) | ✅ Linux / WSL2 (manual full integration + Docker-backed `psql` + CI integration) | ✅ macOS (CI integration)
+- **Agents**: see [docs/COMPATIBILITY.md](./docs/COMPATIBILITY.md) for evidence-backed client status and caveats
 
 If you test on any of these combinations, open an issue or PR with your results.
 
 ## Security
 
-1. **Agent input**: The agent writes directly to the PTY. If the agent issues `rm -rf /`, the command executes — the server does not filter commands because the agent acts on behalf of the user.
-2. **Global timeout**: Each session has a maximum TTL (default: 30 minutes of inactivity).
+1. **Agent input**: By default, the agent writes directly to the PTY. If you leave safety policy unset and the agent issues `rm -rf /`, the command executes.
+2. **Idle timeout**: Each session has an inactivity TTL (default: 30 minutes). Cleanup now uses the latest observable activity, including recent PTY output, not only agent writes.
 3. **Session limit**: Maximum N simultaneous sessions (configurable, default: 10).
 4. **Orphan cleanup**: If the MCP server process dies, child PTY processes are cleaned up automatically.
 5. **No secrets**: The server MUST NOT be used for sensitive input (passwords, tokens) because the intermediary agent sees everything.
+6. **Optional safety policy**: Teams can restrict allowed cwd roots, block/allow commands with regex-based policy hooks, set a hard max session duration, and cap retained PTY output size.
+
+### Safety policy examples
+
+Allow sessions only under two roots:
+
+```bash
+MCP_TERMINAL_ALLOWED_CWD_ROOTS="/workspace;/safe-projects"
+```
+
+Allow only safe commands:
+
+```bash
+MCP_TERMINAL_COMMAND_ALLOW_PATTERNS="^echo\\b;;^pwd\\b;;^npm\\s+test\\b"
+```
+
+Block dangerous commands:
+
+```bash
+MCP_TERMINAL_COMMAND_DENY_PATTERNS="rm\\s+-rf;;git\\s+reset\\s+--hard;;docker\\s+system\\s+prune"
+```
+
+Force-close sessions after 15 minutes total lifetime:
+
+```bash
+MCP_TERMINAL_SESSION_MAX_DURATION_MS="900000"
+```
+
+Cap retained PTY output to 256KB per session:
+
+```bash
+MCP_TERMINAL_OUTPUT_BUFFER_MAX_BYTES="262144"
+```
+
+Design rule:
+
+- leave safety env vars unset for permissive default behavior
+- configure them when you need stronger enforcement in shared/team environments
 
 ## Roadmap
 
 See [ROADMAP.md](./ROADMAP.md) for planned features, platform support, and future milestones.
+
+## Cookbook
+
+See [docs/COOKBOOK.md](./docs/COOKBOOK.md) for example interactive flows covering:
+
+- `npm init`
+- `npx create-vite`
+- `gh pr create --dry-run`
+- `psql`
+- `git rebase -i`
+- auth/login prompts
+
+These are **examples**, not hardcoded built-in recipes.
+
+## Compatibility
+
+See [docs/COMPATIBILITY.md](./docs/COMPATIBILITY.md) for the verified client matrix.
+
+Important:
+
+- compatibility is reported per real client
+- MCP/server correctness is separated from agent-orchestration quality
+- no badge is published without evidence
 
 ## License
 

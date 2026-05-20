@@ -10,11 +10,18 @@ import {
   handleReadResource,
   handleBufferResource,
   handleStatusResource,
+  handleEventsResource,
+  handleExportResource,
 } from "../../src/server.js";
 
 import type { SessionManager } from "../../src/core/session-manager.js";
 
-import { SessionNotFoundError, SessionLimitError, ReadTimeoutError } from "../../src/types.js";
+import {
+  SessionNotFoundError,
+  SessionLimitError,
+  SessionPolicyError,
+  ReadTimeoutError,
+} from "../../src/types.js";
 
 // ---------------------------------------------------------------------------
 // Mock factories
@@ -31,11 +38,15 @@ interface MockPTYSession {
   tail: ReturnType<typeof vi.fn>;
   screenshot: ReturnType<typeof vi.fn>;
   sendSignal: ReturnType<typeof vi.fn>;
+  getDiagnostics: ReturnType<typeof vi.fn>;
+  getRecentEvents: ReturnType<typeof vi.fn>;
+  exportSession: ReturnType<typeof vi.fn>;
 }
 
 interface MockSessionManager {
   createSession: ReturnType<typeof vi.fn>;
   getSession: ReturnType<typeof vi.fn>;
+  writeToSession: ReturnType<typeof vi.fn>;
   listSessions: ReturnType<typeof vi.fn>;
   closeSession: ReturnType<typeof vi.fn>;
   activeCount: number;
@@ -65,9 +76,108 @@ function createMockSession(overrides?: Partial<MockPTYSession>): MockPTYSession 
       cols: 80,
       rowsCount: 24,
       text: "line1\nline2",
+      outputBytes: 42,
+      lastOutputAt: "2026-04-30T20:05:00.000Z",
+      idleMs: 120,
+      isInteractive: true,
+      detectedPrompt: "package name: (demo)",
+      recommendedNextAction: "input_required",
+      promptCategory: "text",
+      shouldAskUser: false,
+      askUserReason: null,
+      canAcceptDefault: true,
       terminal_mode: "shell",
     }),
     sendSignal: vi.fn(),
+    getRecentEvents: vi.fn().mockReturnValue([
+      { at: "2026-04-30T20:00:00.000Z", type: "session_created" },
+      { at: "2026-04-30T20:00:01.000Z", type: "write", preview: "npm init", bytes: 8 },
+    ]),
+    getDiagnostics: vi.fn().mockReturnValue({
+      session: {
+        id: "session-1",
+        shell: "/usr/bin/zsh",
+        cwd: "/test/workspace",
+        cols: 80,
+        rows: 24,
+        created_at: "2026-04-30T20:00:00.000Z",
+        last_activity: "2026-04-30T20:05:00.000Z",
+        last_output_at: "2026-04-30T20:05:00.000Z",
+        idle_ms: 120,
+        output_bytes: 42,
+        alive: true,
+      },
+      recent_events: [
+        { at: "2026-04-30T20:00:00.000Z", type: "session_created" },
+        { at: "2026-04-30T20:00:01.000Z", type: "write", preview: "npm init", bytes: 8 },
+      ],
+      last_screenshot: {
+        rows: ["line1", "line2"],
+        cursorRow: 1,
+        cursorCol: 5,
+        cols: 80,
+        rowsCount: 24,
+        text: "line1\nline2",
+        outputBytes: 42,
+        lastOutputAt: "2026-04-30T20:05:00.000Z",
+        idleMs: 120,
+        isInteractive: true,
+        detectedPrompt: "package name: (demo)",
+        recommendedNextAction: "input_required",
+        promptCategory: "text",
+        shouldAskUser: false,
+        askUserReason: null,
+        canAcceptDefault: true,
+        terminal_mode: "shell",
+      },
+    }),
+    exportSession: vi.fn().mockReturnValue({
+      session: {
+        id: "session-1",
+        shell: "/usr/bin/zsh",
+        cwd: "/test/workspace",
+        cols: 80,
+        rows: 24,
+        created_at: "2026-04-30T20:00:00.000Z",
+        last_activity: "2026-04-30T20:05:00.000Z",
+        last_output_at: "2026-04-30T20:05:00.000Z",
+        idle_ms: 120,
+        output_bytes: 42,
+        alive: true,
+      },
+      recent_events: [
+        { at: "2026-04-30T20:00:00.000Z", type: "session_created" },
+        { at: "2026-04-30T20:00:01.000Z", type: "write", preview: "npm init", bytes: 8 },
+      ],
+      last_screenshot: {
+        rows: ["line1", "line2"],
+        cursorRow: 1,
+        cursorCol: 5,
+        cols: 80,
+        rowsCount: 24,
+        text: "line1\nline2",
+        outputBytes: 42,
+        lastOutputAt: "2026-04-30T20:05:00.000Z",
+        idleMs: 120,
+        isInteractive: true,
+        detectedPrompt: "package name: (demo)",
+        promptCategory: "text",
+        shouldAskUser: false,
+        askUserReason: null,
+        canAcceptDefault: true,
+        recommendedNextAction: "input_required",
+        terminal_mode: "shell",
+      },
+      transcript: [
+        { at: "2026-04-30T20:00:01.000Z", kind: "input", summary: "npm init", bytes: 8 },
+        {
+          at: "2026-04-30T20:00:02.000Z",
+          kind: "output",
+          summary: "package name: (demo)",
+          bytes: 20,
+        },
+      ],
+    }),
     resize: vi.fn(),
     close: vi.fn().mockReturnValue(0),
     getInfo: vi.fn().mockReturnValue({
@@ -97,6 +207,7 @@ function createMockSessionManager(overrides?: Partial<MockSessionManager>): Mock
       alive: true,
     }),
     getSession: vi.fn().mockReturnValue(createMockSession()),
+    writeToSession: vi.fn().mockReturnValue(8),
     listSessions: vi.fn().mockReturnValue([
       {
         id: "session-1",
@@ -142,9 +253,9 @@ describe("Server Handler Functions", () => {
 
   // ---- handleListTools ----
   describe("handleListTools", () => {
-    it("should return 11 tools", async () => {
+    it("should return 13 tools", async () => {
       const result = await handleListTools();
-      expect(result.tools).toHaveLength(11);
+      expect(result.tools).toHaveLength(13);
     });
 
     it("should include terminal_create_session", async () => {
@@ -163,6 +274,18 @@ describe("Server Handler Functions", () => {
       const result = await handleListTools();
       const names = result.tools.map((t: any) => t.name);
       expect(names).toContain("terminal_read_until");
+    });
+
+    it("should include terminal_session_diagnostics", async () => {
+      const result = await handleListTools();
+      const names = result.tools.map((t: any) => t.name);
+      expect(names).toContain("terminal_session_diagnostics");
+    });
+
+    it("should include terminal_session_export", async () => {
+      const result = await handleListTools();
+      const names = result.tools.map((t: any) => t.name);
+      expect(names).toContain("terminal_session_export");
     });
 
     it("each tool should have name and description", async () => {
@@ -232,7 +355,7 @@ describe("Server Handler Functions", () => {
 
     describe("terminal_write", () => {
       it("should write data and return WriteResult", async () => {
-        mockSession.write.mockReturnValue(5);
+        mockSm.writeToSession.mockReturnValue(5);
         const result = await handleCallTool(mockSm as unknown as SessionManager, {
           name: "terminal_write",
           arguments: { id: "session-1", data: "echo hello" },
@@ -244,7 +367,7 @@ describe("Server Handler Functions", () => {
       });
 
       it("should handle SessionNotFoundError", async () => {
-        mockSm.getSession.mockImplementation(() => {
+        mockSm.writeToSession.mockImplementation(() => {
           throw new SessionNotFoundError("missing");
         });
         const result = await handleCallTool(mockSm as unknown as SessionManager, {
@@ -253,6 +376,18 @@ describe("Server Handler Functions", () => {
         });
         expect(result.isError).toBe(true);
         expect(result.content[0].text).toContain("Session not found");
+      });
+
+      it("should handle SessionPolicyError", async () => {
+        mockSm.writeToSession.mockImplementation(() => {
+          throw new SessionPolicyError("Command blocked by configured deny pattern");
+        });
+        const result = await handleCallTool(mockSm as unknown as SessionManager, {
+          name: "terminal_write",
+          arguments: { id: "session-1", data: "rm -rf dist" },
+        });
+        expect(result.isError).toBe(true);
+        expect(result.content[0].text).toContain("Command blocked");
       });
     });
 
@@ -399,6 +534,7 @@ describe("Server Handler Functions", () => {
         const parsed = JSON.parse(result.content[0].text);
         expect(parsed.timed_out).toBe(true);
         expect(parsed.data).toBe("partial-data");
+        expect(parsed.full_output).toBe("partial-data");
       });
 
       it("should handle SessionNotFoundError", async () => {
@@ -436,6 +572,34 @@ describe("Server Handler Functions", () => {
         });
         expect(result.isError).toBe(true);
         expect(result.content[0].text).toContain("Session not found");
+      });
+    });
+
+    describe("terminal_session_diagnostics", () => {
+      it("should return diagnostics with recent events and screenshot", async () => {
+        const result = await handleCallTool(mockSm as unknown as SessionManager, {
+          name: "terminal_session_diagnostics",
+          arguments: { id: "session-1", event_limit: 10 },
+        });
+        const parsed = JSON.parse(result.content[0].text);
+        expect(parsed.session.id).toBe("session-1");
+        expect(parsed.recent_events).toHaveLength(2);
+        expect(parsed.last_screenshot.detectedPrompt).toBe("package name: (demo)");
+        expect(mockSession.getDiagnostics).toHaveBeenCalledWith(10);
+      });
+    });
+
+    describe("terminal_session_export", () => {
+      it("should return export payload with transcript", async () => {
+        const result = await handleCallTool(mockSm as unknown as SessionManager, {
+          name: "terminal_session_export",
+          arguments: { id: "session-1", event_limit: 10 },
+        });
+        const parsed = JSON.parse(result.content[0].text);
+        expect(parsed.session.id).toBe("session-1");
+        expect(parsed.transcript).toHaveLength(2);
+        expect(parsed.transcript[0].kind).toBe("input");
+        expect(mockSession.exportSession).toHaveBeenCalledWith(10);
       });
     });
 
@@ -540,6 +704,11 @@ describe("Server Handler Functions", () => {
         const parsed = JSON.parse(result.content[0].text);
         expect(parsed.rows).toContain("line1");
         expect(parsed.terminal_mode).toBe("shell");
+        expect(parsed.detectedPrompt).toBe("package name: (demo)");
+        expect(parsed.recommendedNextAction).toBe("input_required");
+        expect(parsed.promptCategory).toBe("text");
+        expect(parsed.shouldAskUser).toBe(false);
+        expect(parsed.canAcceptDefault).toBe(true);
         expect(mockSession.screenshot).toHaveBeenCalled();
       });
 
@@ -647,9 +816,9 @@ describe("Server Handler Functions", () => {
 
   // ---- handleListResources ----
   describe("handleListResources", () => {
-    it("should return 3 resources", async () => {
+    it("should return 5 resources", async () => {
       const result = await handleListResources();
-      expect(result.resources).toHaveLength(3);
+      expect(result.resources).toHaveLength(5);
     });
 
     it("should include terminal://sessions resource", async () => {
@@ -668,6 +837,18 @@ describe("Server Handler Functions", () => {
       const result = await handleListResources();
       const uris = result.resources.map((r: any) => r.uri);
       expect(uris).toContain("terminal://sessions/{id}/status");
+    });
+
+    it("should include terminal://sessions/{id}/events resource", async () => {
+      const result = await handleListResources();
+      const uris = result.resources.map((r: any) => r.uri);
+      expect(uris).toContain("terminal://sessions/{id}/events");
+    });
+
+    it("should include terminal://sessions/{id}/export resource", async () => {
+      const result = await handleListResources();
+      const uris = result.resources.map((r: any) => r.uri);
+      expect(uris).toContain("terminal://sessions/{id}/export");
     });
   });
 
@@ -699,6 +880,24 @@ describe("Server Handler Functions", () => {
       const parsed = JSON.parse(result.contents[0].text);
       expect(parsed.id).toBe("session-1");
       expect(parsed.alive).toBe(true);
+    });
+
+    it("should return events for terminal://sessions/{id}/events", async () => {
+      const result = await handleReadResource(mockSm as unknown as SessionManager, {
+        uri: "terminal://sessions/session-1/events",
+      });
+      const parsed = JSON.parse(result.contents[0].text);
+      expect(parsed.events).toHaveLength(2);
+      expect(parsed.events[0].type).toBe("session_created");
+    });
+
+    it("should return export for terminal://sessions/{id}/export", async () => {
+      const result = await handleReadResource(mockSm as unknown as SessionManager, {
+        uri: "terminal://sessions/session-1/export",
+      });
+      const parsed = JSON.parse(result.contents[0].text);
+      expect(parsed.transcript).toHaveLength(2);
+      expect(parsed.transcript[0].kind).toBe("input");
     });
 
     it("should handle unknown URI", async () => {
@@ -773,6 +972,61 @@ describe("Server Handler Functions", () => {
         handleStatusResource(
           mockSm as unknown as SessionManager,
           new URL("http://localhost/terminal://sessions/missing/status"),
+          { id: "missing" },
+        ),
+      ).rejects.toThrow();
+    });
+  });
+
+  // ---- handleEventsResource ----
+  describe("handleEventsResource", () => {
+    it("should return recent session events", async () => {
+      const result = await handleEventsResource(
+        mockSm as unknown as SessionManager,
+        new URL("http://localhost/terminal://sessions/test-123/events"),
+        { id: "test-123" },
+      );
+      expect(result.contents).toHaveLength(1);
+      const parsed = JSON.parse(result.contents[0].text);
+      expect(parsed.events).toHaveLength(2);
+    });
+
+    it("should throw on session not found", async () => {
+      mockSm.getSession.mockImplementation(() => {
+        throw new SessionNotFoundError("missing");
+      });
+      await expect(
+        handleEventsResource(
+          mockSm as unknown as SessionManager,
+          new URL("http://localhost/terminal://sessions/missing/events"),
+          { id: "missing" },
+        ),
+      ).rejects.toThrow();
+    });
+  });
+
+  // ---- handleExportResource ----
+  describe("handleExportResource", () => {
+    it("should return session export payload", async () => {
+      const result = await handleExportResource(
+        mockSm as unknown as SessionManager,
+        new URL("http://localhost/terminal://sessions/test-123/export"),
+        { id: "test-123" },
+      );
+      expect(result.contents).toHaveLength(1);
+      const parsed = JSON.parse(result.contents[0].text);
+      expect(parsed.transcript).toHaveLength(2);
+      expect(parsed.transcript[1].kind).toBe("output");
+    });
+
+    it("should throw on session not found", async () => {
+      mockSm.getSession.mockImplementation(() => {
+        throw new SessionNotFoundError("missing");
+      });
+      await expect(
+        handleExportResource(
+          mockSm as unknown as SessionManager,
+          new URL("http://localhost/terminal://sessions/missing/export"),
           { id: "missing" },
         ),
       ).rejects.toThrow();

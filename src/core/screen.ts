@@ -22,6 +22,13 @@ export type TerminalMode = "shell" | "vim" | "nano" | "htop" | "lazygit" | "less
 
 /** Vim-specific editor submode. Only present when terminal_mode is "vim". */
 export type EditorMode = "normal" | "insert" | "visual" | "replace" | "unknown";
+export type PromptCategory = "text" | "confirm" | "choice" | "secret" | "license" | "unknown";
+export type AskUserReason =
+  | "destructive_confirmation"
+  | "secret_required"
+  | "license_choice"
+  | "ambiguous_choice"
+  | "unknown_text_without_default";
 
 /** Result of heuristic screen classification. */
 export interface ScreenAnalysis {
@@ -29,6 +36,13 @@ export interface ScreenAnalysis {
   editor_mode?: EditorMode;
   status_line: string | null;
   content_rows: string[];
+  prompt_detected: string | null;
+  prompt_category: PromptCategory | null;
+  is_interactive: boolean;
+  should_ask_user: boolean;
+  ask_user_reason: AskUserReason | null;
+  can_accept_default: boolean;
+  recommended_next_action: "input_required" | "inspect_screen" | "wait" | "read" | "ask_user";
 }
 
 // ---------------------------------------------------------------------------
@@ -404,10 +418,23 @@ export function analyzeScreen(rows: string[]): ScreenAnalysis {
 
   // Build content rows: all rows except the status line (if present)
   const contentRows: string[] = rows.filter((_, i) => i !== statusIdx);
+  const promptDetected = detectPrompt(rows);
+  const promptGuidance = classifyPrompt(promptDetected);
 
   // If no non-empty rows → unknown
   if (nonEmptyCount === 0) {
-    return { terminal_mode: "unknown", status_line: null, content_rows: [] };
+    return {
+      terminal_mode: "unknown",
+      status_line: null,
+      content_rows: [],
+      prompt_detected: null,
+      prompt_category: null,
+      is_interactive: false,
+      should_ask_user: false,
+      ask_user_reason: null,
+      can_accept_default: false,
+      recommended_next_action: "wait",
+    };
   }
 
   // ----- Vim detection (≥2 signals) -----
@@ -418,31 +445,93 @@ export function analyzeScreen(rows: string[]): ScreenAnalysis {
       editor_mode: vimResult.editorMode,
       status_line: statusLine,
       content_rows: contentRows,
+      prompt_detected: promptDetected,
+      prompt_category: promptGuidance.category,
+      is_interactive: true,
+      should_ask_user: false,
+      ask_user_reason: null,
+      can_accept_default: false,
+      recommended_next_action: "inspect_screen",
     };
   }
 
   // ----- Nano detection (≥2 signals) -----
   if (detectNano(rows)) {
-    return { terminal_mode: "nano", status_line: statusLine, content_rows: contentRows };
+    return {
+      terminal_mode: "nano",
+      status_line: statusLine,
+      content_rows: contentRows,
+      prompt_detected: promptDetected,
+      prompt_category: promptGuidance.category,
+      is_interactive: true,
+      should_ask_user: false,
+      ask_user_reason: null,
+      can_accept_default: false,
+      recommended_next_action: "inspect_screen",
+    };
   }
 
   // ----- Htop detection (≥2 signals) -----
   if (detectHtop(rows)) {
-    return { terminal_mode: "htop", status_line: statusLine, content_rows: contentRows };
+    return {
+      terminal_mode: "htop",
+      status_line: statusLine,
+      content_rows: contentRows,
+      prompt_detected: promptDetected,
+      prompt_category: promptGuidance.category,
+      is_interactive: true,
+      should_ask_user: false,
+      ask_user_reason: null,
+      can_accept_default: false,
+      recommended_next_action: "inspect_screen",
+    };
   }
 
   // ----- Lazygit detection (≥2 signals) -----
   if (detectLazygit(rows)) {
-    return { terminal_mode: "lazygit", status_line: statusLine, content_rows: contentRows };
+    return {
+      terminal_mode: "lazygit",
+      status_line: statusLine,
+      content_rows: contentRows,
+      prompt_detected: promptDetected,
+      prompt_category: promptGuidance.category,
+      is_interactive: true,
+      should_ask_user: false,
+      ask_user_reason: null,
+      can_accept_default: false,
+      recommended_next_action: "inspect_screen",
+    };
   }
 
   // ----- Less detection (≥2 signals, but NOT if vim/nano matched) -----
   if (detectLess(rows, statusLine)) {
-    return { terminal_mode: "less", status_line: statusLine, content_rows: contentRows };
+    return {
+      terminal_mode: "less",
+      status_line: statusLine,
+      content_rows: contentRows,
+      prompt_detected: promptDetected,
+      prompt_category: promptGuidance.category,
+      is_interactive: true,
+      should_ask_user: false,
+      ask_user_reason: null,
+      can_accept_default: false,
+      recommended_next_action: "inspect_screen",
+    };
   }
 
   // Default: shell
-  return { terminal_mode: "shell", status_line: statusLine, content_rows: contentRows };
+  return {
+    terminal_mode: "shell",
+    status_line: statusLine,
+    content_rows: contentRows,
+    prompt_detected: promptDetected,
+    prompt_category: promptGuidance.category,
+    is_interactive: promptDetected !== null,
+    should_ask_user: promptGuidance.shouldAskUser,
+    ask_user_reason: promptGuidance.askUserReason,
+    can_accept_default: promptGuidance.canAcceptDefault,
+    recommended_next_action: resolvePromptAction(promptDetected, promptGuidance.shouldAskUser),
+  };
 }
 
 /** Find the last non-empty row index and count of non-empty rows. */
@@ -529,13 +618,14 @@ function detectHtop(rows: string[]): boolean {
   // Look at first 6 rows for htop/top header patterns
   const headerRows = rows.slice(0, Math.min(6, rows.length));
   const headerText = headerRows.join("\n").toUpperCase();
+  const compactRows = rows.slice(0, 3).join("");
 
   // Signal A: Contains CPU or memory percentage info
   const hasCpuMem =
     headerText.includes("%CPU") ||
     headerText.includes("CPU%") ||
     headerText.includes("MEM%") ||
-    /\[\s*\d+\.?\d*%\]/.test(rows.slice(0, 3).join(""));
+    hasBracketedPercent(compactRows);
 
   // Signal B: Contains "top -" or "htop" or memory/swap indicators
   const hasSystemInfo =
@@ -582,10 +672,7 @@ function detectLess(rows: string[], statusLine: string | null): boolean {
 
   // Signal A: Bottom row has less prompt indicators
   const hasBottomPrompt =
-    lastRowUpper === "(END)" ||
-    lastRowUpper === ":" ||
-    /^lines\s+\d+-\d+\/\d+/.test(firstRow.trim()) ||
-    /^lines\s+\d+-\d+/.test(firstRow.trim());
+    lastRowUpper === "(END)" || lastRowUpper === ":" || isLessLinesIndicator(firstRow.trim());
 
   // Signal B: Content rows exist (non-empty) AND no editor TUI signatures
   const nonEmptyRows = rows.filter((r) => r.trim() !== "");
@@ -598,4 +685,187 @@ function detectLess(rows: string[], statusLine: string | null): boolean {
     (statusLine !== null && isVimStatusLine(statusLine));
 
   return hasBottomPrompt && hasContent && !hasEditorSignatures;
+}
+
+/**
+ * Best-effort prompt detector for common interactive CLIs.
+ *
+ * The goal is NOT to hardcode one CLI, but to identify generic
+ * "this terminal is asking for input" states from already-rendered text.
+ */
+function detectPrompt(rows: string[]): string | null {
+  for (let i = rows.length - 1; i >= 0; i--) {
+    const row = rows[i]?.trim();
+    if (!row) continue;
+
+    const lower = row.toLowerCase();
+    if (
+      isFieldPrompt(row) ||
+      row.endsWith("?") ||
+      hasYesNoPrompt(lower) ||
+      lower.includes("press any key") ||
+      lower.includes("password:")
+    ) {
+      return row;
+    }
+
+    if (
+      (lower.startsWith("select ") || lower.startsWith("enter ") || lower.startsWith("choose ")) &&
+      row.includes(":")
+    ) {
+      return row;
+    }
+  }
+
+  return null;
+}
+
+function classifyPrompt(prompt: string | null): {
+  category: PromptCategory | null;
+  shouldAskUser: boolean;
+  askUserReason: AskUserReason | null;
+  canAcceptDefault: boolean;
+} {
+  if (prompt === null) {
+    return {
+      category: null,
+      shouldAskUser: false,
+      askUserReason: null,
+      canAcceptDefault: false,
+    };
+  }
+
+  const lower = prompt.toLowerCase();
+  const hasDefault = hasDelimitedSegment(prompt, "(", ")") || hasDelimitedSegment(prompt, "[", "]");
+
+  if (/(password|passphrase|token|api key|secret|otp|one-time code)/i.test(prompt)) {
+    return {
+      category: "secret",
+      shouldAskUser: true,
+      askUserReason: "secret_required",
+      canAcceptDefault: false,
+    };
+  }
+
+  if (/\blicen[sc]e\b/i.test(prompt)) {
+    return {
+      category: "license",
+      shouldAskUser: true,
+      askUserReason: "license_choice",
+      canAcceptDefault: hasDefault,
+    };
+  }
+
+  if (/(select|choose|pick|which|option)/i.test(prompt)) {
+    return {
+      category: "choice",
+      shouldAskUser: true,
+      askUserReason: "ambiguous_choice",
+      canAcceptDefault: false,
+    };
+  }
+
+  if (hasYesNoPrompt(lower) || lower.endsWith("?")) {
+    const isDestructive =
+      /(delete|drop|destroy|reset|remove|prune|overwrite|truncate|wipe|kill|terminate|force)/i.test(
+        prompt,
+      );
+    return {
+      category: "confirm",
+      shouldAskUser: isDestructive,
+      askUserReason: isDestructive ? "destructive_confirmation" : null,
+      canAcceptDefault: hasDefault,
+    };
+  }
+
+  if (/:/.test(prompt)) {
+    return {
+      category: "text",
+      shouldAskUser: !hasDefault,
+      askUserReason: hasDefault ? null : "unknown_text_without_default",
+      canAcceptDefault: hasDefault,
+    };
+  }
+
+  return {
+    category: "unknown",
+    shouldAskUser: false,
+    askUserReason: null,
+    canAcceptDefault: false,
+  };
+}
+
+function hasBracketedPercent(text: string): boolean {
+  const percentIndex = text.indexOf("%");
+  if (percentIndex === -1) {
+    return false;
+  }
+
+  const openIndex = text.lastIndexOf("[", percentIndex);
+  const closeIndex = text.indexOf("]", percentIndex);
+  if (openIndex === -1 || closeIndex === -1 || openIndex >= closeIndex) {
+    return false;
+  }
+
+  const segment = text.slice(openIndex + 1, closeIndex).trim();
+  return segment.endsWith("%") && /[\d.]/.test(segment);
+}
+
+function hasDelimitedSegment(text: string, open: string, close: string): boolean {
+  const openIndex = text.indexOf(open);
+  if (openIndex === -1) {
+    return false;
+  }
+
+  const closeIndex = text.indexOf(close, openIndex + 1);
+  return closeIndex > openIndex + 1;
+}
+
+function hasYesNoPrompt(text: string): boolean {
+  const lower = text.toLowerCase();
+  return (
+    lower.includes("[y/n]") ||
+    lower.includes("[n/y]") ||
+    lower.includes("(y/n)") ||
+    lower.includes("(n/y)")
+  );
+}
+
+function isFieldPrompt(row: string): boolean {
+  const colonIndex = row.lastIndexOf(":");
+  if (colonIndex === -1) {
+    return false;
+  }
+
+  const suffix = row.slice(colonIndex + 1).trim();
+  if (suffix === "") {
+    return true;
+  }
+
+  return suffix.startsWith("(") && suffix.endsWith(")");
+}
+
+function resolvePromptAction(
+  promptDetected: string | null,
+  shouldAskUser: boolean,
+): "read" | "ask_user" | "input_required" {
+  if (promptDetected === null) {
+    return "read";
+  }
+
+  return shouldAskUser ? "ask_user" : "input_required";
+}
+
+/** Check if text looks like a `less` lines-range header (e.g. "Lines 1-24/100" or "Lines 1-24"). */
+function isLessLinesIndicator(text: string): boolean {
+  const lower = text.toLowerCase();
+  if (!lower.startsWith("lines ")) return false;
+  const rest = lower.slice(6).trimStart();
+  const dashIdx = rest.indexOf("-");
+  if (dashIdx <= 0) return false;
+  for (let i = 0; i < dashIdx; i++) {
+    const code = rest.codePointAt(i) ?? 0;
+    if (code < 48 || code > 57) return false;
+  }
+  return true;
 }

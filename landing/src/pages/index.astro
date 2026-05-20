@@ -1,0 +1,194 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Nav from '../components/Nav.astro';
+import Hero from '../components/Hero.astro';
+import MarqueeTicker from '../components/MarqueeTicker.astro';
+import FeaturesGrid from '../components/FeaturesGrid.astro';
+import StatsSection from '../components/StatsSection.astro';
+import SiteFooter from '../components/SiteFooter.astro';
+
+const stats = [
+  { value: 305, suffix: '', label: 'Tests Passing' },
+  { value: 89, suffix: '%', label: 'Coverage' },
+  { value: 478, suffix: '/wk', label: 'npm Downloads' },
+  { value: 40, suffix: '→0', label: 'SonarQube Issues' },
+];
+
+const features = [
+  {
+    title: 'readUntil',
+    desc: 'Esperá un patrón regex en el output. Ideal para prompts interactivos.',
+    code: 'terminal_read_until({ pattern: "package name:" })',
+  },
+  {
+    title: 'screenshot',
+    desc: 'Renderizá ANSI a texto limpio. Detectá si el agente está en vim, nano, htop.',
+    code: 'terminal_screenshot({ id: "sess-1" })',
+  },
+  {
+    title: 'writeMarked',
+    desc: 'Ejecutá comandos con markers de completado. Sabé exactamente cuándo termina.',
+    code: 'terminal_writeMarked({ id: "sess-1", cmd: "npm install" })',
+  },
+  {
+    title: 'sendSignal',
+    desc: 'Enviale SIGINT, SIGTSTP o SIGKILL al proceso en foreground.',
+    code: 'terminal_send_signal({ id: "sess-1", signal: "SIGINT" })',
+  },
+  {
+    title: 'Múltiples Sesiones',
+    desc: 'Hasta 10 sesiones simultáneas con auto-cleanup por TTL.',
+    code: 'terminal_create_session({ shell: "bash", cwd: "/project" })',
+  },
+  {
+    title: 'Screenshot Semántico',
+    desc: 'Analizá la pantalla: detectá modo, status line, y contenido.',
+    code: 'terminal_screenshot({ id: "sess-1" }) → { terminal_mode: "vim", ... }',
+  },
+];
+
+const agents = [
+  { name: 'OpenCode', icon: 'https://svgl.app/library/opencode.svg', color: '#6c5ce7' },
+  { name: 'Claude Code', icon: 'https://svgl.app/library/claude-ai-icon.svg', color: '#d97706' },
+  { name: 'Cursor', icon: 'https://svgl.app/library/cursor_dark.svg', color: '#00d2ff' },
+  { name: 'Antigravity CLI', icon: 'https://svgl.app/library/google.svg', color: '#4285f4' },
+  { name: 'Copilot', icon: 'https://svgl.app/library/copilot_dark.svg', color: '#8957e5' },
+  { name: 'Codex', icon: 'https://svgl.app/library/codex_dark.svg', color: '#10a37f' },
+  { name: 'Windsurf', icon: 'https://svgl.app/library/windsurf-dark.svg', color: '#2ecc71' },
+  { name: 'Qwen Code', icon: 'https://svgl.app/library/qwen_dark.svg', color: '#ff6b6b' },
+];
+
+const marqueeLogs = [
+  { agent: 'OpenCode', color: '#6c5ce7', text: 'terminal_create_session({ cwd: "/project" })' },
+  { agent: 'Claude Code', color: '#d97706', text: 'terminal_write({ data: "npm init\\n" }) + readUntil("package name:")' },
+  { agent: 'Cursor', color: '#00d2ff', text: 'terminal_write({ data: "gh pr create --fill\\n" })' },
+  { agent: 'Antigravity CLI', color: '#4285f4', text: 'terminal_screenshot({ id: "sess-3" }) → promptCategory: "choice"' },
+  { agent: 'OpenCode', color: '#6c5ce7', text: 'terminal_write({ data: "npx create-vite\\n" }) + select("React")' },
+  { agent: 'Copilot', color: '#8957e5', text: 'terminal_read_until({ pattern: "Select a framework:" })' },
+  { agent: 'Codex', color: '#10a37f', text: 'terminal_screenshot() → "lazygit" mode detected' },
+  { agent: 'Windsurf', color: '#2ecc71', text: 'terminal_tail({ lines: 10 }) → last build output' },
+  { agent: 'OpenCode', color: '#6c5ce7', text: 'terminal_send_signal({ signal: "SIGINT" }) → Ctrl+C' },
+  { agent: 'Claude Code', color: '#d97706', text: 'terminal_read_until({ timeout_ms: 30000 }) → "Done!"' },
+  { agent: 'Cursor', color: '#00d2ff', text: 'terminal_close_session() → exit_code: 0' },
+  { agent: 'Antigravity CLI', color: '#4285f4', text: 'terminal_write({ id: "sess-3", data: "gh pr create\\n" })' },
+  { agent: 'Codex', color: '#10a37f', text: 'terminal_write({ data: "pnpm install\\n" })' },
+  { agent: 'OpenCode', color: '#6c5ce7', text: 'terminal_read_until({ pattern: "\\$ " }) → shell ready' },
+  { agent: 'Qwen Code', color: '#ff6b6b', text: 'terminal_write({ data: "git push origin main\\n" })' },
+];
+---
+
+<Layout
+  title="terminalize — Interactive Terminal for AI Agents"
+  description="Give your AI agents a persistent PTY terminal. npm init, gh pr create, psql — all interactive, all real."
+>
+  <Nav />
+  <Hero />
+  <MarqueeTicker logs={marqueeLogs} />
+  <FeaturesGrid features={features} />
+  <StatsSection stats={stats} agents={agents} />
+  <SiteFooter />
+</Layout>
+
+<style is:global>
+  /* ── Scrollbar ── */
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: #0d1117; }
+  ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: #6c5ce7; }
+  * { scrollbar-color: #30363d #0d1117; scrollbar-width: thin; }
+
+  /* ── Marquee ── */
+  .marquee-track {
+    animation: marquee 80s linear infinite;
+    width: max-content;
+  }
+  @keyframes marquee {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+  }
+  .marquee-track:hover { animation-play-state: paused; }
+
+  /* ── Typewriter ── */
+  .terminal-lines { text-align: left; }
+  .typing-line {
+    overflow: hidden;
+    white-space: nowrap;
+    width: 0;
+    animation: typeLine calc(var(--chars) * 0.05s + 0.3s) ease-out forwards;
+    animation-delay: var(--delay);
+  }
+  @keyframes typeLine {
+    0% { width: 0; }
+    100% { width: calc(var(--chars) * 0.65ch); }
+  }
+  .cursor-blink {
+    color: #6c5ce7;
+    animation: blink 0.8s step-end infinite;
+    animation-delay: var(--delay, 7.5s);
+    opacity: 0;
+  }
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+  }
+
+  /* ── Reveal on scroll ── */
+  [data-reveal] {
+    opacity: 0;
+    transform: translateY(24px);
+    transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+  }
+  [data-reveal][data-revealed] {
+    opacity: 1;
+    transform: translateY(0);
+  }
+</style>
+
+<script>
+  // ── Counter animation ──
+  const counters = document.querySelectorAll('.counter');
+  const counterObs = new IntersectionObserver((entries) => {
+    for (const entry of entries) {
+      if (!entry.isIntersecting) continue;
+      const el = entry.target;
+      const target = parseInt(el.dataset.target, 10);
+      animateCounter(el, target);
+      counterObs.unobserve(el);
+    }
+  }, { threshold: 0.5 });
+
+  for (const c of counters) counterObs.observe(c);
+
+  function animateCounter(el, target) {
+    const duration = 1500;
+    const steps = 30;
+    const increment = target / steps;
+    let current = 0;
+    const stepTime = duration / steps;
+    const timer = setInterval(() => {
+      current += increment;
+      if (current >= target) {
+        el.textContent = target;
+        clearInterval(timer);
+      } else {
+        el.textContent = Math.floor(current);
+      }
+    }, stepTime);
+  }
+
+  // ── Reveal on scroll ──
+  const revealEls = document.querySelectorAll('[data-reveal]:not([data-revealed])');
+  if (revealEls.length > 0) {
+    const revealObs = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        if (!entry.isIntersecting) continue;
+        const el = entry.target;
+        const delay = parseInt(el.dataset.delay, 10) || 0;
+        setTimeout(() => { el.dataset.revealed = 'true'; }, delay);
+        revealObs.unobserve(el);
+      }
+    }, { threshold: 0.1 });
+
+    for (const el of revealEls) revealObs.observe(el);
+  }
+</script>

@@ -23,6 +23,9 @@ export interface SessionInfo {
   rows: number;
   created_at: string;
   last_activity: string;
+  last_output_at: string | null;
+  idle_ms: number;
+  output_bytes: number;
   alive: boolean;
 }
 
@@ -54,6 +57,31 @@ export interface ReadUntilResult {
   ended: boolean;
   exit_code: number | null;
   timed_out: boolean;
+  debug?: ReadUntilDebugInfo;
+}
+
+/**
+ * Additional debug context for terminal_read_until, especially useful on timeout.
+ */
+export interface ReadUntilDebugInfo {
+  session_id: string;
+  pattern: string;
+  timeout_ms: number;
+  idle_ms: number;
+  last_output_at: string | null;
+  output_bytes: number;
+  detected_prompt: string | null;
+  prompt_category: "text" | "confirm" | "choice" | "secret" | "license" | "unknown" | null;
+  should_ask_user: boolean;
+  ask_user_reason:
+    | "destructive_confirmation"
+    | "secret_required"
+    | "license_choice"
+    | "ambiguous_choice"
+    | "unknown_text_without_default"
+    | null;
+  can_accept_default: boolean;
+  recommended_next_action: "input_required" | "inspect_screen" | "wait" | "read" | "ask_user";
 }
 
 /**
@@ -122,6 +150,32 @@ export interface ScreenshotResult {
   cols: number;
   rowsCount: number;
   text: string;
+  /** Monotonic total bytes seen in the PTY output buffer */
+  outputBytes: number;
+  /** ISO timestamp of the latest PTY output chunk, or null if none observed yet */
+  lastOutputAt: string | null;
+  /** Milliseconds since the latest PTY output chunk */
+  idleMs: number;
+  /** Best-effort signal that the terminal is likely waiting for input */
+  isInteractive: boolean;
+  /** Best-effort extracted prompt or question visible on screen */
+  detectedPrompt: string | null;
+  /** Heuristic prompt kind, if a prompt/question is currently visible */
+  promptCategory: "text" | "confirm" | "choice" | "secret" | "license" | "unknown" | null;
+  /** Whether the agent should ask the user instead of guessing the answer */
+  shouldAskUser: boolean;
+  /** Why the prompt should be escalated to the user */
+  askUserReason:
+    | "destructive_confirmation"
+    | "secret_required"
+    | "license_choice"
+    | "ambiguous_choice"
+    | "unknown_text_without_default"
+    | null;
+  /** Whether pressing Enter to accept the default looks safe/reasonable */
+  canAcceptDefault: boolean;
+  /** Suggested next step for agents based on current screen state */
+  recommendedNextAction: "input_required" | "inspect_screen" | "wait" | "read" | "ask_user";
   /** Semantic classification of the foreground application (optional, v0.3+) */
   terminal_mode?: string;
   /** Vim-specific editor submode: "normal" | "insert" | "visual" | "replace" | "unknown" */
@@ -168,11 +222,74 @@ export interface PingResult {
 }
 
 /**
+ * Timeline event captured for session diagnostics.
+ */
+export interface SessionEvent {
+  at: string;
+  type:
+    | "session_created"
+    | "output"
+    | "write"
+    | "read"
+    | "read_until_match"
+    | "read_until_timeout"
+    | "resize"
+    | "signal"
+    | "close"
+    | "exit";
+  bytes?: number;
+  preview?: string;
+  pattern?: string;
+  timeout_ms?: number;
+  matched?: string | null;
+  cols?: number;
+  rows?: number;
+  signal?: string;
+  exit_code?: number | null;
+}
+
+/**
+ * Structured diagnostics snapshot for a terminal session.
+ */
+export interface SessionDiagnostics {
+  session: SessionInfo;
+  recent_events: SessionEvent[];
+  last_screenshot: ScreenshotResult;
+}
+
+/**
+ * Replay-friendly transcript entry derived from low-level session events.
+ */
+export interface SessionTranscriptEntry {
+  at: string;
+  kind: "input" | "output" | "wait" | "signal" | "lifecycle";
+  summary: string;
+  bytes?: number;
+  pattern?: string;
+  timeout_ms?: number;
+}
+
+/**
+ * Structured export payload for issue reports and bug reproduction.
+ */
+export interface SessionExport {
+  session: SessionInfo;
+  recent_events: SessionEvent[];
+  last_screenshot: ScreenshotResult;
+  transcript: SessionTranscriptEntry[];
+}
+
+/**
  * Configuration for the SessionManager.
  */
 export interface SessionManagerConfig {
   max_sessions: number;
   session_ttl_ms: number;
+  session_max_duration_ms?: number;
+  output_buffer_max_bytes?: number;
+  allowed_cwd_roots?: string[];
+  command_allow_patterns?: string[];
+  command_deny_patterns?: string[];
 }
 
 /**
@@ -192,6 +309,16 @@ export class SessionLimitError extends Error {
   constructor(max: number) {
     super(`Maximum session limit reached (${max})`);
     this.name = "SessionLimitError";
+  }
+}
+
+/**
+ * Error thrown when a configured safety policy blocks a session or command.
+ */
+export class SessionPolicyError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "SessionPolicyError";
   }
 }
 

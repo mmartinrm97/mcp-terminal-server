@@ -27,7 +27,7 @@ body:
     id: agent
     attributes:
       label: AI Agent
-      options: [OpenCode, Claude Code, Cursor, Gemini CLI, Windsurf, Kiro CLI, Other]
+      options: [OpenCode, Claude Code, Cursor, Antigravity CLI, Windsurf, Kiro CLI, Other]
   - type: textarea
     id: logs
     attributes:

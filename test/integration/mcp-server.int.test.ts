@@ -48,9 +48,9 @@ describe("MCP Server Integration", () => {
   // 1. List tools via handler
   // ---------------------------------------------------------------------------
   describe("handleListTools", () => {
-    it("should return all 11 tools", async () => {
+    it("should return all 13 tools", async () => {
       const result = await handleListTools();
-      expect(result.tools).toHaveLength(11);
+      expect(result.tools).toHaveLength(13);
     });
 
     it("should include all expected tool names", async () => {
@@ -67,6 +67,8 @@ describe("MCP Server Integration", () => {
       expect(names).toContain("terminal_tail");
       expect(names).toContain("terminal_send_signal");
       expect(names).toContain("terminal_ping");
+      expect(names).toContain("terminal_session_diagnostics");
+      expect(names).toContain("terminal_session_export");
     });
   });
 
@@ -218,9 +220,9 @@ describe("MCP Server Integration", () => {
   // 4. Handle list resources
   // ---------------------------------------------------------------------------
   describe("handleListResources", () => {
-    it("should return 3 resources", async () => {
+    it("should return 5 resources", async () => {
       const result = await handleListResources();
-      expect(result.resources).toHaveLength(3);
+      expect(result.resources).toHaveLength(5);
     });
   });
 
@@ -278,6 +280,43 @@ describe("MCP Server Integration", () => {
       const buffer = JSON.parse(result.contents[0].text) as { data: string; ended: boolean };
       expect(typeof buffer.data).toBe("string");
       expect(typeof buffer.ended).toBe("boolean");
+    });
+
+    it("should return events for terminal://sessions/{id}/events", async () => {
+      const sm = createManager();
+
+      const createResult = await handleCallTool(sm as unknown as SessionManagerType, {
+        name: "terminal_create_session",
+        arguments: { shell: "auto" },
+      });
+      const createData = JSON.parse(createResult.content[0].text) as { id: string };
+      const sessionId = createData.id;
+
+      const result = await handleReadResource(sm as unknown as SessionManagerType, {
+        uri: `terminal://sessions/${sessionId}/events`,
+      });
+      const payload = JSON.parse(result.contents[0].text) as { events: Array<{ type: string }> };
+      expect(payload.events.length).toBeGreaterThan(0);
+      expect(payload.events[0].type).toBe("session_created");
+    });
+
+    it("should return export for terminal://sessions/{id}/export", async () => {
+      const sm = createManager();
+
+      const createResult = await handleCallTool(sm as unknown as SessionManagerType, {
+        name: "terminal_create_session",
+        arguments: { shell: "auto" },
+      });
+      const createData = JSON.parse(createResult.content[0].text) as { id: string };
+      const sessionId = createData.id;
+
+      const result = await handleReadResource(sm as unknown as SessionManagerType, {
+        uri: `terminal://sessions/${sessionId}/export`,
+      });
+      const payload = JSON.parse(result.contents[0].text) as {
+        transcript: Array<{ kind: string }>;
+      };
+      expect(Array.isArray(payload.transcript)).toBe(true);
     });
   });
 

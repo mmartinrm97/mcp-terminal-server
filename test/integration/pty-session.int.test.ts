@@ -1,5 +1,8 @@
 // @integration — requires real shell
-import { describe, it, expect, afterEach } from "vitest";
+import { execFileSync } from "node:child_process";
+import { rmSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { afterEach, describe, expect, it } from "vitest";
 import { PTYSession } from "../../src/core/pty-session.js";
 
 // ---------------------------------------------------------------------------
@@ -19,9 +22,19 @@ function getShell(): ShellConfig {
 
 function createSession(
   id: string,
-  overrides?: Partial<{ cols: number; rows: number; cwd: string }>,
+  overrides?: Partial<{
+    cols: number;
+    rows: number;
+    cwd: string;
+    outputBufferMaxBytes: number;
+    shell: string;
+    args: string[];
+  }>,
 ): PTYSession {
-  const { shell, args } = getShell();
+  const { shell, args } =
+    overrides?.shell != null && overrides?.args != null
+      ? { shell: overrides.shell, args: overrides.args }
+      : getShell();
   return new PTYSession({
     id,
     shell,
@@ -29,6 +42,7 @@ function createSession(
     cwd: overrides?.cwd ?? process.cwd(),
     cols: overrides?.cols ?? 80,
     rows: overrides?.rows ?? 24,
+    outputBufferMaxBytes: overrides?.outputBufferMaxBytes,
   });
 }
 
@@ -41,6 +55,18 @@ function cmd(data: string): string {
     return `@${data}`;
   }
   return data;
+}
+
+function commandExists(binary: string, args: string[] = []): boolean {
+  try {
+    execFileSync(binary, args, {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -157,7 +183,7 @@ describe("PTYSession Integration", () => {
       await sleep(500);
 
       session.write(cmd("echo ---VERSION-1.0.0---\n"));
-      const result = await session.readUntil("---VERSION-1\\.0\\.0---", 10000);
+      const result = await session.readUntil(String.raw`---VERSION-1\.0\.0---`, 10000);
 
       expect(result.timed_out).toBe(false);
       expect(result.matched).toBe("---VERSION-1.0.0---");
@@ -237,6 +263,98 @@ describe("PTYSession Integration", () => {
       expect(result.fullOutput).toContain("LINE-DOG");
       expect(result.fullOutput).toContain("LINE-CAT");
     }, 15000);
+  });
+
+  // ---------------------------------------------------------------------------
+  // 5b. Prompt-by-prompt interaction guidance
+  // ---------------------------------------------------------------------------
+  describe("prompt-by-prompt interaction guidance", () => {
+    it("should complete a prompt-by-prompt interactive flow without batching input", async () => {
+      if (IS_WINDOWS) {
+        console.warn(
+          "[INTEGRATION] Skipping prompt-by-prompt node flow on Windows — ConPTY interactive output remains less stable here.",
+        );
+        return;
+      }
+
+      const session = createSession("int-guidance-8b");
+      sessions.push(session);
+      await sleep(500);
+      const scriptPath = join(process.cwd(), `tmp-terminalize-guidance-${Date.now()}.cjs`);
+      writeFileSync(
+        scriptPath,
+        [
+          "process.stdin.setEncoding('utf8');",
+          "let step = 0;",
+          String.raw`process.stdout.write('package name: (demo)\n');`,
+          "process.stdin.on('data', (chunk) => {",
+          "  const value = chunk.trim();",
+          "  if (step === 0) {",
+          "    console.log('NAME=' + value);",
+          String.raw`    process.stdout.write('Password:\n');`,
+          "    step = 1;",
+          "    return;",
+          "  }",
+          "  console.log('PWLEN=' + value.length);",
+          "  process.exit(0);",
+          "});",
+        ].join("\n"),
+        "utf8",
+      );
+
+      try {
+        session.write(cmd(`node "${scriptPath}"\n`));
+
+        const packagePrompt = await session.readUntil(String.raw`package name: \(demo\)`, 10000);
+        expect(packagePrompt.timed_out).toBe(false);
+        expect(packagePrompt.matched).toBe("package name: (demo)");
+        expect(packagePrompt.data).toContain("package name: (demo)");
+
+        session.write("\n");
+
+        const passwordPrompt = await session.readUntil("Password:", 10000);
+        expect(passwordPrompt.timed_out).toBe(false);
+        expect(passwordPrompt.matched).toBe("Password:");
+        expect(passwordPrompt.data).toContain("Password:");
+
+        session.write("dummy-secret\n");
+        const completed = await session.readUntil("PWLEN=12", 10000);
+        expect(completed.timed_out).toBe(false);
+        expect(completed.matched).toBe("PWLEN=12");
+      } finally {
+        rmSync(scriptPath, { force: true });
+      }
+    }, 20000);
+  });
+
+  // ---------------------------------------------------------------------------
+  // 5c. Large-output trimming
+  // ---------------------------------------------------------------------------
+  describe("large-output trimming", () => {
+    it("should retain only the newest bytes when output exceeds the session buffer cap", async () => {
+      if (IS_WINDOWS) {
+        // ConPTY inserts ANSI cursor-positioning sequences at column boundaries,
+        // breaking the contiguous "X".repeat(64) assertion.
+        console.error(
+          "[INTEGRATION] Skipping large-output trimming on Windows — ConPTY inserts ANSI wrap sequences that break contiguous byte assertions.",
+        );
+        return;
+      }
+      const session = createSession("int-output-trim-8c", {
+        outputBufferMaxBytes: 256,
+      });
+      sessions.push(session);
+      await sleep(500);
+
+      const payload = "X".repeat(2048);
+      session.write(cmd(`node -e "process.stdout.write('${payload}')"\n`));
+      await sleep(1000);
+
+      const snapshot = session.read();
+      expect(snapshot.position).toBeGreaterThan(256);
+      expect(Buffer.byteLength(snapshot.data, "utf-8")).toBeLessThanOrEqual(256);
+      expect(snapshot.data).toContain("X".repeat(64));
+    }, 20000);
   });
 
   // ---------------------------------------------------------------------------
@@ -338,8 +456,11 @@ describe("PTYSession Integration", () => {
       // Close session (graceful on Windows)
       session.close();
 
-      // Wait for the shell to terminate
-      await sleep(IS_WINDOWS ? 1500 : 300);
+      // Poll until the session terminates — macOS CI can need >300ms after SIGHUP
+      const closeDeadline = Date.now() + (IS_WINDOWS ? 3000 : 3000);
+      while (!session.ended && Date.now() < closeDeadline) {
+        await sleep(50);
+      }
 
       // The session should be ended
       expect(session.ended).toBe(true);
@@ -371,6 +492,49 @@ describe("PTYSession Integration", () => {
       expect(session.ended).toBe(true);
       expect(typeof session.exitCode === "number" || session.exitCode === null).toBe(true);
     }, 20000);
+  });
+
+  // ---------------------------------------------------------------------------
+  // 9. Shell-specific close semantics
+  // ---------------------------------------------------------------------------
+  describe("shell-specific close semantics", () => {
+    const shells = IS_WINDOWS
+      ? [
+          { label: "cmd", shell: "cmd.exe", args: [] },
+          ...(commandExists("pwsh", [
+            "-NoProfile",
+            "-Command",
+            "$PSVersionTable.PSVersion.ToString()",
+          ])
+            ? [{ label: "pwsh", shell: "pwsh.exe", args: [] }]
+            : []),
+        ]
+      : [
+          { label: "bash", shell: "/bin/bash", args: [] },
+          ...(commandExists("zsh", ["--version"])
+            ? [{ label: "zsh", shell: "/bin/zsh", args: [] }]
+            : []),
+        ];
+
+    for (const target of shells) {
+      it(`should close a long-running session cleanly in ${target.label}`, async () => {
+        const session = createSession(`int-close-${target.label}-${Date.now()}`, {
+          shell: target.shell,
+          args: target.args,
+        });
+        sessions.push(session);
+        await sleep(500);
+
+        session.write(cmd('node -e "setTimeout(function(){},30000)"\n'));
+        await sleep(500);
+
+        session.close(IS_WINDOWS ? undefined : true);
+        await sleep(IS_WINDOWS ? 1500 : 300);
+
+        expect(session.ended).toBe(true);
+        expect(session.getInfo().alive).toBe(false);
+      }, 10000);
+    }
   });
 });
 

@@ -27,21 +27,23 @@ waits for input or shows a TUI menu, `bash` will time out or return truncated ou
 - Running `shadcn-vue add`, `prisma init` — CLI tools with questions
 - Any command that shows a menu with `↑↓` arrows or `[y/N]` prompts
 
-## Tools Overview (11 tools)
+## Tools Overview (13 tools)
 
-| Tool                      | Purpose                                           | When to Use                         |
-| ------------------------- | ------------------------------------------------- | ----------------------------------- |
-| `terminal_create_session` | Create a persistent PTY session                   | Always first                        |
-| `terminal_write`          | Write keystrokes/commands to the session          | ⭐ Your main input tool             |
-| `terminal_read`           | Read raw buffer (non-blocking)                    | Quick peek at latest output         |
-| `terminal_read_until`     | Wait for a pattern, then return output            | Wait for prompts/questions          |
-| **`terminal_screenshot`** | **Get clean screen state with cursor position**   | **⭐ TUI navigation**               |
-| `terminal_tail`           | Read last N lines (like `tail -n N`)              | ⭐ Logs from long-running processes |
-| `terminal_resize`         | Change terminal dimensions                        | When output is clipped              |
-| `terminal_send_signal`    | Send SIGINT/SIGTSTP/SIGQUIT to foreground process | Interrupt stuck processes           |
-| `terminal_ping`           | Health check — server status + uptime             | Verify server is alive              |
-| `terminal_list_sessions`  | List all active sessions                          | Debugging                           |
-| `terminal_close_session`  | Close and cleanup a session                       | Always last                         |
+| Tool                           | Purpose                                           | When to Use                         |
+| ------------------------------ | ------------------------------------------------- | ----------------------------------- |
+| `terminal_create_session`      | Create a persistent PTY session                   | Always first                        |
+| `terminal_write`               | Write keystrokes/commands to the session          | ⭐ Your main input tool             |
+| `terminal_read`                | Read raw buffer (non-blocking)                    | Quick peek at latest output         |
+| `terminal_read_until`          | Wait for a pattern, then return output            | Wait for prompts/questions          |
+| **`terminal_screenshot`**      | **Get clean screen state with cursor position**   | **⭐ TUI navigation**               |
+| `terminal_tail`                | Read last N lines (like `tail -n N`)              | ⭐ Logs from long-running processes |
+| `terminal_resize`              | Change terminal dimensions                        | When output is clipped              |
+| `terminal_send_signal`         | Send SIGINT/SIGTSTP/SIGQUIT to foreground process | Interrupt stuck processes           |
+| `terminal_ping`                | Health check — server status + uptime             | Verify server is alive              |
+| `terminal_list_sessions`       | List all active sessions                          | Debugging                           |
+| `terminal_session_diagnostics` | Structured debug snapshot for a session           | Diagnose desync / timeouts          |
+| `terminal_session_export`      | Structured export for bug reports / replay        | Attach failure artifacts            |
+| `terminal_close_session`       | Close and cleanup a session                       | Always last                         |
 
 ## Labels for Multi-Agent Flows
 
@@ -58,6 +60,37 @@ terminal_list_sessions()
 Pass the session `id` between sub-agents so any agent can read/write to any session.
 
 ## Interactive Flow Pattern
+
+## Synchronization Rule (CRITICAL)
+
+**Never batch answers into the terminal.**
+
+Interactive CLIs are a synchronized conversation:
+
+1. Wait for the exact next prompt
+2. Write exactly one response
+3. Wait again
+
+### Anti-patterns
+
+```text
+❌ BAD
+- Sending "\n\n\n\n\n" to skip multiple prompts
+- Guessing that "Is this OK?" will appear next
+- Writing before reading the updated screen/prompt
+```
+
+```text
+✅ GOOD
+- read_until("package name:")
+- write("my-name\r\n")
+- read_until("version:")
+- write("\r\n")
+- read_until("description:")
+- write("\r\n")
+```
+
+If a prompt did not arrive yet, **do not spam Enter**. Read again or take a screenshot.
 
 ### Basic Flow
 
@@ -79,6 +112,16 @@ Pass the session `id` between sub-agents so any agent can read/write to any sess
 6. terminal_close_session({ id })
    → Cleanup
 ```
+
+### Golden Rule for Text Prompts
+
+For question/field-based CLIs (`npm init`, `gh pr create`, installers, auth prompts):
+
+```text
+ONE prompt → ONE answer → ONE wait
+```
+
+Do not assume you can safely skip ahead by sending multiple blank lines at once.
 
 ### TUI Menu Navigation (⭐ IMPORTANT)
 
@@ -148,6 +191,17 @@ Always use `terminal_screenshot` BEFORE `terminal_write` when navigating TUIs:
 
 The `terminal_screenshot` returns clean text rows — you can search for `●` or
 `○` to find selected/unselected items without parsing ANSI codes.
+
+It also returns semantic guidance fields:
+
+- `detectedPrompt`
+- `promptCategory`
+- `shouldAskUser`
+- `askUserReason`
+- `canAcceptDefault`
+- `recommendedNextAction`
+
+Use them as hints, not as an excuse to skip reading the actual screen.
 
 ## User Consultation Protocol (⭐ CRITICAL)
 
@@ -366,4 +420,5 @@ terminal_close_session({ id })
 
 - **Source**: See `src/` for the terminalize implementation
 - **Design**: See `docs/ARCHITECTURE.md` for full architecture
+- **Cookbook**: See `docs/COOKBOOK.md` for example flows like `npm init`, `create-vite`, `gh pr create`, `psql`, `git rebase -i`, and auth prompts
 - **Tests**: See `test/` for example usage patterns in integration tests

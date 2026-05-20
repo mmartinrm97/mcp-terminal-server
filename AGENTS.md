@@ -34,3 +34,13 @@
 - Interfaces: PascalCase (no `I` prefix)
 - Files: kebab-case.ts
 - Constants: UPPER_SNAKE_CASE for exported, camelCase for private
+
+## Landing Page
+
+- Astro project in `landing/` directory, independent package (no workspace)
+- Use Astro islands pattern: minimal JS, static-first
+- Tailwind CSS for styling (installed via `pnpm astro add tailwind`)
+- Mobile-first responsive design
+- Dark theme with brand colors: `#6C5CE7` (primary purple), `#00d2ff` (accent cyan)
+- No TDD required — landing page is static content, no business logic
+- Deploy: Cloudflare Pages or Vercel (static export)

@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "terminalize": {
+      "type": "local",
+      "command": "npx",
+      "args": ["terminalize"],
+      "directTools": true
+    }
+  }
+}

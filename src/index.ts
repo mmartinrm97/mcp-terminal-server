@@ -30,6 +30,7 @@ import { PKG_VERSION } from "./version.js";
 const DEFAULT_CONFIG: SessionManagerConfig = {
   max_sessions: 10,
   session_ttl_ms: 30 * 60 * 1000, // 30 minutes
+  output_buffer_max_bytes: 1024 * 1024, // 1MB
 };
 
 /**
@@ -39,8 +40,24 @@ const DEFAULT_CONFIG: SessionManagerConfig = {
 export function parseEnvConfig(): SessionManagerConfig {
   const max = parseEnvInt("MCP_TERMINAL_MAX_SESSIONS", DEFAULT_CONFIG.max_sessions);
   const ttl = parseEnvInt("MCP_TERMINAL_SESSION_TTL_MS", DEFAULT_CONFIG.session_ttl_ms);
+  const maxDuration = parseOptionalEnvInt("MCP_TERMINAL_SESSION_MAX_DURATION_MS");
+  const outputBufferMaxBytes = parseEnvInt(
+    "MCP_TERMINAL_OUTPUT_BUFFER_MAX_BYTES",
+    DEFAULT_CONFIG.output_buffer_max_bytes ?? 1024 * 1024,
+  );
+  const allowedRoots = parseEnvList("MCP_TERMINAL_ALLOWED_CWD_ROOTS", ";");
+  const allowPatterns = parseEnvList("MCP_TERMINAL_COMMAND_ALLOW_PATTERNS", ";;");
+  const denyPatterns = parseEnvList("MCP_TERMINAL_COMMAND_DENY_PATTERNS", ";;");
 
-  return { max_sessions: max, session_ttl_ms: ttl };
+  return {
+    max_sessions: max,
+    session_ttl_ms: ttl,
+    session_max_duration_ms: maxDuration,
+    output_buffer_max_bytes: outputBufferMaxBytes,
+    allowed_cwd_roots: allowedRoots,
+    command_allow_patterns: allowPatterns,
+    command_deny_patterns: denyPatterns,
+  };
 }
 
 /** Parse an environment variable as an integer with a fallback default. */
@@ -49,6 +66,24 @@ function parseEnvInt(envKey: string, defaultVal: number): number {
   if (raw === undefined || raw === "") return defaultVal;
   const parsed = Number.parseInt(raw, 10);
   return Number.isNaN(parsed) ? defaultVal : parsed;
+}
+
+/** Parse an env var as an optional integer (undefined when unset/invalid). */
+function parseOptionalEnvInt(envKey: string): number | undefined {
+  const raw = process.env[envKey];
+  if (raw === undefined || raw === "") return undefined;
+  const parsed = Number.parseInt(raw, 10);
+  return Number.isNaN(parsed) ? undefined : parsed;
+}
+
+/** Parse an env var as a filtered string list. */
+function parseEnvList(envKey: string, separator: string): string[] {
+  const raw = process.env[envKey];
+  if (raw === undefined || raw.trim() === "") return [];
+  return raw
+    .split(separator)
+    .map((value) => value.trim())
+    .filter((value) => value.length > 0);
 }
 
 // ---------------------------------------------------------------------------
@@ -87,13 +122,15 @@ function getSkillPath(): string {
 // Agent definitions shared between discovery and install
 // ---------------------------------------------------------------------------
 
-interface AgentDef {
+export interface AgentDef {
   value: string;
   name: string;
   /** Config dir under home (e.g. ".claude", ".config/opencode"). */
   configSubdir: string;
   /** If true, project-level uses .agents/skills (universal). */
   universal: boolean;
+  /** Installation layout for this agent. */
+  installKind?: "skill" | "plugin";
 }
 
 /** Known agents — matches the skills.sh registry. */
@@ -101,7 +138,13 @@ const ALL_AGENTS: AgentDef[] = [
   // Universal agents (project-level → .agents/skills/)
   { value: "opencode", name: "OpenCode", configSubdir: ".config/opencode", universal: true },
   { value: "cursor", name: "Cursor", configSubdir: ".cursor", universal: true },
-  { value: "gemini", name: "Gemini CLI", configSubdir: ".gemini", universal: true },
+  {
+    value: "antigravity",
+    name: "Antigravity CLI (AGY)",
+    configSubdir: ".gemini/antigravity-cli",
+    universal: false,
+    installKind: "plugin",
+  },
   { value: "codex", name: "Codex", configSubdir: ".codex", universal: true },
   { value: "kimi", name: "Kimi Code", configSubdir: ".kimi", universal: true },
   { value: "copilot", name: "GitHub Copilot", configSubdir: ".copilot", universal: true },
@@ -114,15 +157,21 @@ const ALL_AGENTS: AgentDef[] = [
   { value: "qwen", name: "Qwen Code", configSubdir: ".qwen", universal: false },
 ];
 
-/**
- * Resolve the skills directory for an agent.
- * At project level, universal agents all share .agents/skills.
- */
-function agentSkillsDir(agent: AgentDef, global: boolean, baseDir: string): string {
-  if (!global && agent.universal) {
-    return join(baseDir, ".agents", "skills", "terminalize");
+/** Resolve installation directories for an agent. */
+export function agentInstallDirs(agent: AgentDef, global: boolean, baseDir: string): string[] {
+  if (agent.installKind === "plugin") {
+    if (global) {
+      return [join(baseDir, ".gemini", "config", "plugins", "terminalize")];
+    }
+
+    return [join(baseDir, ".agents", "plugins", "terminalize")];
   }
-  return join(baseDir, agent.configSubdir, "skills", "terminalize");
+
+  if (!global && agent.universal) {
+    return [join(baseDir, ".agents", "skills", "terminalize")];
+  }
+
+  return [join(baseDir, agent.configSubdir, "skills", "terminalize")];
 }
 
 /** Detect which agents have their config dir under a given base. */
@@ -130,7 +179,7 @@ function detectAgentsAt(baseDir: string, global: boolean): AgentDef[] {
   // At project level, always offer universal .agents/skills
   if (!global) {
     const nonUniversal = ALL_AGENTS.filter(
-      (a) => !a.universal && existsSync(join(baseDir, a.configSubdir)),
+      (a) => !a.universal && existsSync(join(homedir(), a.configSubdir)),
     );
     const universal: AgentDef = {
       value: "universal",
@@ -145,6 +194,36 @@ function detectAgentsAt(baseDir: string, global: boolean): AgentDef[] {
   return ALL_AGENTS.filter((a) => existsSync(join(baseDir, a.configSubdir)));
 }
 
+interface AntigravityPluginPayload {
+  pluginJson: string;
+  mcpConfigJson: string;
+}
+
+/** Build the Antigravity plugin files required for terminalize. */
+export function buildAntigravityPluginPayload(): AntigravityPluginPayload {
+  return {
+    pluginJson: JSON.stringify(
+      {
+        name: "terminalize",
+      },
+      null,
+      2,
+    ),
+    mcpConfigJson: JSON.stringify(
+      {
+        mcpServers: {
+          terminalize: {
+            command: "npx",
+            args: ["terminalize"],
+          },
+        },
+      },
+      null,
+      2,
+    ),
+  };
+}
+
 /** Install skill files for selected agents. Returns list of "name → path" strings. */
 function installSkillFiles(
   selectedDefs: AgentDef[],
@@ -157,13 +236,26 @@ function installSkillFiles(
 
   const installed: string[] = [];
   for (const agent of selectedDefs) {
-    const targetDir = agentSkillsDir(agent, global, baseDir);
-    mkdirSync(targetDir, { recursive: true });
-    const targetFile = join(targetDir, "SKILL.md");
     const skillContent = readFileSync(skillPath, "utf-8");
-    writeFileSync(targetFile, skillContent, "utf-8");
+    const targetDirs = agentInstallDirs(agent, global, baseDir);
+
+    for (const targetDir of targetDirs) {
+      mkdirSync(targetDir, { recursive: true });
+
+      if (agent.installKind === "plugin") {
+        const payload = buildAntigravityPluginPayload();
+        const skillTargetDir = join(targetDir, "skills", "terminalize");
+        mkdirSync(skillTargetDir, { recursive: true });
+        writeFileSync(join(targetDir, "plugin.json"), payload.pluginJson, "utf-8");
+        writeFileSync(join(targetDir, "mcp_config.json"), payload.mcpConfigJson, "utf-8");
+        writeFileSync(join(skillTargetDir, "SKILL.md"), skillContent, "utf-8");
+      } else {
+        writeFileSync(join(targetDir, "SKILL.md"), skillContent, "utf-8");
+      }
+    }
+
     spinner.message(`Installed for ${agent.name}`);
-    installed.push(`${agent.name} → ${targetDir}`);
+    installed.push(`${agent.name} → ${targetDirs.join(", ")}`);
   }
 
   spinner.stop("Done installing skills.");
@@ -189,12 +281,12 @@ async function cmdInstallSkills(args: { verbose?: boolean; yes?: boolean } = {})
       {
         label: "Project",
         value: "project",
-        hint: `.agents/skills/ — only this project`,
+        hint: `.agents/... — only this project`,
       },
       {
         label: "Global",
         value: "global",
-        hint: `~/.agent/skills/ — all projects`,
+        hint: `agent home config — all projects`,
       },
     ],
   });
@@ -229,7 +321,9 @@ async function cmdInstallSkills(args: { verbose?: boolean; yes?: boolean } = {})
 
   // Step 3: Filter already installed ones
   const alreadyInstalled = new Set(
-    available.filter((a) => existsSync(agentSkillsDir(a, global, baseDir))).map((a) => a.value),
+    available
+      .filter((a) => agentInstallDirs(a, global, baseDir).some((dir) => existsSync(dir)))
+      .map((a) => a.value),
   );
   const toInstall = available.filter((a) => !alreadyInstalled.has(a.value));
 
@@ -251,7 +345,7 @@ async function cmdInstallSkills(args: { verbose?: boolean; yes?: boolean } = {})
       options: toInstall.map((a) => ({
         label: a.name,
         value: a.value,
-        hint: dirname(agentSkillsDir(a, global, baseDir)),
+        hint: dirname(agentInstallDirs(a, global, baseDir)[0]),
       })),
       required: false,
     })) as (string | symbol)[];
