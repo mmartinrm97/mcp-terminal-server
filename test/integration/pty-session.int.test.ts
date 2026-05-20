@@ -456,8 +456,11 @@ describe("PTYSession Integration", () => {
       // Close session (graceful on Windows)
       session.close();
 
-      // Wait for the shell to terminate
-      await sleep(IS_WINDOWS ? 1500 : 300);
+      // Poll until the session terminates — macOS CI can need >300ms after SIGHUP
+      const closeDeadline = Date.now() + (IS_WINDOWS ? 3000 : 3000);
+      while (!session.ended && Date.now() < closeDeadline) {
+        await sleep(50);
+      }
 
       // The session should be ended
       expect(session.ended).toBe(true);

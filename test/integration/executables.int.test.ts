@@ -348,27 +348,32 @@ describe("Executables Integration", () => {
         const projectPrompt = await session.readUntil("Project name:", 60000);
         expect(projectPrompt.timed_out).toBe(false);
         session.write("terminalize-vite-wsl\r");
-        await sleep(1000);
 
-        const frameworkScreen = session.screenshot();
-        expect(frameworkScreen.text).toContain("Select a framework:");
-        session.write("\x1b[B\r"); // Vue
-        await sleep(1000);
+        // readUntil is reliable on CI; sleep+screenshot is a race condition
+        const frameworkResult = await session.readUntil("Select a framework:", 15000);
+        expect(frameworkResult.timed_out).toBe(false);
+        session.write("\x1b[B\r"); // Arrow Down (Vue) + Enter
 
-        const variantScreen = session.screenshot();
-        expect(variantScreen.text).toContain("Select a variant:");
-        session.write("\x1b[B\r"); // JavaScript
-        await sleep(1000);
+        const variantResult = await session.readUntil("Select a variant:", 15000);
+        expect(variantResult.timed_out).toBe(false);
+        session.write("\x1b[B\r"); // Arrow Down (JavaScript) + Enter
 
-        const installScreen = session.screenshot();
-        expect(installScreen.text).toMatch(/Install with (npm|pnpm) and start now\?/);
-        session.write("\x1b[C\r"); // No
-
-        const completion = await session.readUntil(
-          "Scaffolding project|Done\\. Now run:|cd terminalize-vite-wsl",
-          60000,
+        // "Install with" prompt is optional (create-vite v6+).
+        // Wait for it or for scaffolding to start directly.
+        const postVariant = await session.readUntil(
+          "Install with|Scaffolding project|Done\\. Now run:|cd terminalize-vite-wsl",
+          30000,
         );
-        expect(completion.timed_out).toBe(false);
+        expect(postVariant.timed_out).toBe(false);
+        if (/Install with/.test(postVariant.matched)) {
+          session.write("\x1b[C\r"); // Arrow Right (No) + Enter
+          const completion = await session.readUntil(
+            "Scaffolding project|Done\\. Now run:|cd terminalize-vite-wsl",
+            60000,
+          );
+          expect(completion.timed_out).toBe(false);
+        }
+        // postVariant already consumed a completion indicator — scaffolding done
 
         const packagePath = join(tempDir, "terminalize-vite-wsl", "package.json");
         expect(existsSync(packagePath)).toBe(true);
