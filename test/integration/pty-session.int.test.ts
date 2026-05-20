@@ -1,8 +1,8 @@
 // @integration — requires real shell
+import { execFileSync } from "node:child_process";
 import { rmSync, writeFileSync } from "node:fs";
-import { execSync } from "node:child_process";
 import { join } from "node:path";
-import { describe, it, expect, afterEach } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { PTYSession } from "../../src/core/pty-session.js";
 
 // ---------------------------------------------------------------------------
@@ -31,7 +31,10 @@ function createSession(
     args: string[];
   }>,
 ): PTYSession {
-  const { shell, args } = overrides?.shell && overrides?.args ? overrides : getShell();
+  const { shell, args } =
+    overrides?.shell != null && overrides?.args != null
+      ? { shell: overrides.shell, args: overrides.args }
+      : getShell();
   return new PTYSession({
     id,
     shell,
@@ -54,12 +57,12 @@ function cmd(data: string): string {
   return data;
 }
 
-function commandExists(command: string): boolean {
+function commandExists(binary: string, args: string[] = []): boolean {
   try {
-    execSync(command, {
+    execFileSync(binary, args, {
       encoding: "utf8",
       stdio: ["ignore", "pipe", "ignore"],
-    }).trim();
+    });
     return true;
   } catch {
     return false;
@@ -180,7 +183,7 @@ describe("PTYSession Integration", () => {
       await sleep(500);
 
       session.write(cmd("echo ---VERSION-1.0.0---\n"));
-      const result = await session.readUntil("---VERSION-1\\.0\\.0---", 10000);
+      const result = await session.readUntil(String.raw`---VERSION-1\.0\.0---`, 10000);
 
       expect(result.timed_out).toBe(false);
       expect(result.matched).toBe("---VERSION-1.0.0---");
@@ -283,12 +286,12 @@ describe("PTYSession Integration", () => {
         [
           "process.stdin.setEncoding('utf8');",
           "let step = 0;",
-          "process.stdout.write('package name: (demo)\\n');",
+          String.raw`process.stdout.write('package name: (demo)\n');`,
           "process.stdin.on('data', (chunk) => {",
           "  const value = chunk.trim();",
           "  if (step === 0) {",
           "    console.log('NAME=' + value);",
-          "    process.stdout.write('Password:\\n');",
+          String.raw`    process.stdout.write('Password:\n');`,
           "    step = 1;",
           "    return;",
           "  }",
@@ -302,7 +305,7 @@ describe("PTYSession Integration", () => {
       try {
         session.write(cmd(`node "${scriptPath}"\n`));
 
-        const packagePrompt = await session.readUntil("package name: \\(demo\\)", 10000);
+        const packagePrompt = await session.readUntil(String.raw`package name: \(demo\)`, 10000);
         expect(packagePrompt.timed_out).toBe(false);
         expect(packagePrompt.matched).toBe("package name: (demo)");
         expect(packagePrompt.data).toContain("package name: (demo)");
@@ -329,6 +332,14 @@ describe("PTYSession Integration", () => {
   // ---------------------------------------------------------------------------
   describe("large-output trimming", () => {
     it("should retain only the newest bytes when output exceeds the session buffer cap", async () => {
+      if (IS_WINDOWS) {
+        // ConPTY inserts ANSI cursor-positioning sequences at column boundaries,
+        // breaking the contiguous "X".repeat(64) assertion.
+        console.error(
+          "[INTEGRATION] Skipping large-output trimming on Windows — ConPTY inserts ANSI wrap sequences that break contiguous byte assertions.",
+        );
+        return;
+      }
       const session = createSession("int-output-trim-8c", {
         outputBufferMaxBytes: 256,
       });
@@ -487,13 +498,17 @@ describe("PTYSession Integration", () => {
     const shells = IS_WINDOWS
       ? [
           { label: "cmd", shell: "cmd.exe", args: [] },
-          ...(commandExists('pwsh -NoProfile -Command "$PSVersionTable.PSVersion.ToString()"')
+          ...(commandExists("pwsh", [
+            "-NoProfile",
+            "-Command",
+            "$PSVersionTable.PSVersion.ToString()",
+          ])
             ? [{ label: "pwsh", shell: "pwsh.exe", args: [] }]
             : []),
         ]
       : [
           { label: "bash", shell: "/bin/bash", args: [] },
-          ...(commandExists("zsh --version")
+          ...(commandExists("zsh", ["--version"])
             ? [{ label: "zsh", shell: "/bin/zsh", args: [] }]
             : []),
         ];
