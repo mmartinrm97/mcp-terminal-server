@@ -266,8 +266,8 @@ Goal: prove terminalize works with real agent clients.
 
 ### Priorities
 
-- [ ] Publish validated compatibility results per client
-- [ ] Separate:
+- [x] Publish validated compatibility results per client
+- [x] Separate:
   - MCP/server correctness
   - agent behavior quality
   - known client-specific caveats

@@ -660,7 +660,7 @@ terminalize gives your agent a real **text-based** PTY. While powerful, there ar
 This has been tested across the major target shells and runtimes, with different depth depending on what can run credibly in automation. CI verifies smoke on Windows/Linux/macOS, full integration on Unix-like runners, and maintainers can run the opt-in `gh` / `psql` checks locally when auth or Docker are available.
 
 - **Platforms**: ✅ Windows (interactive + smoke + manual `gh --dry-run`) | ✅ Linux / WSL2 (manual full integration + Docker-backed `psql` + CI integration) | ✅ macOS (CI integration)
-- **Agents**: ✅ OpenCode | ⬜ Claude Code | ⬜ Cursor | ⬜ Gemini CLI | ⬜ Windsurf | ⬜ Kiro CLI | ✅ Codex
+- **Agents**: see [docs/COMPATIBILITY.md](./docs/COMPATIBILITY.md) for evidence-backed client status and caveats
 
 If you test on any of these combinations, open an issue or PR with your results.
 
@@ -726,6 +726,16 @@ See [docs/COOKBOOK.md](./docs/COOKBOOK.md) for example interactive flows coverin
 - auth/login prompts
 
 These are **examples**, not hardcoded built-in recipes.
+
+## Compatibility
+
+See [docs/COMPATIBILITY.md](./docs/COMPATIBILITY.md) for the verified client matrix.
+
+Important:
+
+- compatibility is reported per real client
+- MCP/server correctness is separated from agent-orchestration quality
+- no badge is published without evidence
 
 ## License
 
