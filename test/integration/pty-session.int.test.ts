@@ -1,5 +1,6 @@
 // @integration — requires real shell
 import { rmSync, writeFileSync } from "node:fs";
+import { execSync } from "node:child_process";
 import { join } from "node:path";
 import { describe, it, expect, afterEach } from "vitest";
 import { PTYSession } from "../../src/core/pty-session.js";
@@ -21,9 +22,16 @@ function getShell(): ShellConfig {
 
 function createSession(
   id: string,
-  overrides?: Partial<{ cols: number; rows: number; cwd: string }>,
+  overrides?: Partial<{
+    cols: number;
+    rows: number;
+    cwd: string;
+    outputBufferMaxBytes: number;
+    shell: string;
+    args: string[];
+  }>,
 ): PTYSession {
-  const { shell, args } = getShell();
+  const { shell, args } = overrides?.shell && overrides?.args ? overrides : getShell();
   return new PTYSession({
     id,
     shell,
@@ -31,6 +39,7 @@ function createSession(
     cwd: overrides?.cwd ?? process.cwd(),
     cols: overrides?.cols ?? 80,
     rows: overrides?.rows ?? 24,
+    outputBufferMaxBytes: overrides?.outputBufferMaxBytes,
   });
 }
 
@@ -43,6 +52,18 @@ function cmd(data: string): string {
     return `@${data}`;
   }
   return data;
+}
+
+function commandExists(command: string): boolean {
+  try {
+    execSync(command, {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -304,6 +325,28 @@ describe("PTYSession Integration", () => {
   });
 
   // ---------------------------------------------------------------------------
+  // 5c. Large-output trimming
+  // ---------------------------------------------------------------------------
+  describe("large-output trimming", () => {
+    it("should retain only the newest bytes when output exceeds the session buffer cap", async () => {
+      const session = createSession("int-output-trim-8c", {
+        outputBufferMaxBytes: 256,
+      });
+      sessions.push(session);
+      await sleep(500);
+
+      const payload = "X".repeat(2048);
+      session.write(cmd(`node -e "process.stdout.write('${payload}')"\n`));
+      await sleep(1000);
+
+      const snapshot = session.read();
+      expect(snapshot.position).toBeGreaterThan(256);
+      expect(Buffer.byteLength(snapshot.data, "utf-8")).toBeLessThanOrEqual(256);
+      expect(snapshot.data).toContain("X".repeat(64));
+    }, 20000);
+  });
+
+  // ---------------------------------------------------------------------------
   // 6. Resize functionality
   // ---------------------------------------------------------------------------
   describe("resize", () => {
@@ -435,6 +478,45 @@ describe("PTYSession Integration", () => {
       expect(session.ended).toBe(true);
       expect(typeof session.exitCode === "number" || session.exitCode === null).toBe(true);
     }, 20000);
+  });
+
+  // ---------------------------------------------------------------------------
+  // 9. Shell-specific close semantics
+  // ---------------------------------------------------------------------------
+  describe("shell-specific close semantics", () => {
+    const shells = IS_WINDOWS
+      ? [
+          { label: "cmd", shell: "cmd.exe", args: [] },
+          ...(commandExists('pwsh -NoProfile -Command "$PSVersionTable.PSVersion.ToString()"')
+            ? [{ label: "pwsh", shell: "pwsh.exe", args: [] }]
+            : []),
+        ]
+      : [
+          { label: "bash", shell: "/bin/bash", args: [] },
+          ...(commandExists("zsh --version")
+            ? [{ label: "zsh", shell: "/bin/zsh", args: [] }]
+            : []),
+        ];
+
+    for (const target of shells) {
+      it(`should close a long-running session cleanly in ${target.label}`, async () => {
+        const session = createSession(`int-close-${target.label}-${Date.now()}`, {
+          shell: target.shell,
+          args: target.args,
+        });
+        sessions.push(session);
+        await sleep(500);
+
+        session.write(cmd('node -e "setTimeout(function(){},30000)"\n'));
+        await sleep(500);
+
+        session.close(IS_WINDOWS ? undefined : true);
+        await sleep(IS_WINDOWS ? 1500 : 300);
+
+        expect(session.ended).toBe(true);
+        expect(session.getInfo().alive).toBe(false);
+      }, 10000);
+    }
   });
 });
 
