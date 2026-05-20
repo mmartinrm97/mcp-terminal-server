@@ -420,4 +420,5 @@ terminal_close_session({ id })
 
 - **Source**: See `src/` for the terminalize implementation
 - **Design**: See `docs/ARCHITECTURE.md` for full architecture
+- **Cookbook**: See `docs/COOKBOOK.md` for example flows like `npm init`, `create-vite`, `gh pr create`, `psql`, `git rebase -i`, and auth prompts
 - **Tests**: See `test/` for example usage patterns in integration tests

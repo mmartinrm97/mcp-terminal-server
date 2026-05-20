@@ -234,7 +234,7 @@ Goal: show capability without turning the product into a pile of fragile recipes
 
 ### Priorities
 
-- [ ] Add example flows for:
+- [x] Add example flows for:
   - `npm init`
   - `npx create-vite`
   - `gh pr create`

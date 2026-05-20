@@ -714,6 +714,19 @@ Design rule:
 
 See [ROADMAP.md](./ROADMAP.md) for planned features, platform support, and future milestones.
 
+## Cookbook
+
+See [docs/COOKBOOK.md](./docs/COOKBOOK.md) for example interactive flows covering:
+
+- `npm init`
+- `npx create-vite`
+- `gh pr create --dry-run`
+- `psql`
+- `git rebase -i`
+- auth/login prompts
+
+These are **examples**, not hardcoded built-in recipes.
+
 ## License
 
 Distributed under the MIT License. See [LICENSE](./LICENSE) for more information.
