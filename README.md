@@ -113,7 +113,12 @@ $ npx terminalize install-skills
 
 ### Add MCP config to your agent
 
-Delete the setup wizard. Instead, copy the relevant config block below:
+Delete the setup wizard. Instead, copy the relevant config block below or use the dedicated install guides:
+
+- [Installation guides index](./docs/installation-guides/README.md)
+- [Antigravity CLI](./docs/installation-guides/install-antigravity.md)
+- [Claude Code](./docs/installation-guides/install-claude.md)
+- [OpenAI Codex](./docs/installation-guides/install-codex.md)
 
 **OpenCode** (`~/.config/opencode/opencode.json` or project `opencode.json`):
 
