@@ -161,10 +161,7 @@ const ALL_AGENTS: AgentDef[] = [
 export function agentInstallDirs(agent: AgentDef, global: boolean, baseDir: string): string[] {
   if (agent.installKind === "plugin") {
     if (global) {
-      return [
-        join(baseDir, ".gemini", "config", "plugins", "terminalize"),
-        join(baseDir, ".gemini", "antigravity-cli", "plugins", "terminalize"),
-      ];
+      return [join(baseDir, ".gemini", "config", "plugins", "terminalize")];
     }
 
     return [join(baseDir, ".agents", "plugins", "terminalize")];

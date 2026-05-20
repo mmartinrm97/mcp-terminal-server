@@ -82,16 +82,11 @@ skills/terminalize/SKILL.md
 
 ## Manual global install
 
-Antigravity documentation currently references more than one customization path depending on the surface and workflow.
-
-The safest global locations to know are:
+Use the shared Gemini config plugin location:
 
 ```text
 ~/.gemini/config/plugins/terminalize/
-~/.gemini/antigravity-cli/plugins/terminalize/
 ```
-
-If you want the least ambiguity, use the installer command and let `terminalize` stage both global plugin locations for you.
 
 ## Verification
 
@@ -110,10 +105,10 @@ Verify terminalize is configured, then use it to run npm init interactively.
 As of May 20, 2026:
 
 - the plugin layout validates successfully with `agy plugin validate`
-- AGY recognizes the local `terminalize` plugin/skill in-session
-- but live MCP tool invocation still reported `terminal_ping` as unavailable during end-to-end validation
+- AGY can call `terminalize/terminal_ping` successfully when the plugin is installed under `~/.gemini/config/plugins/terminalize`
+- AGY still has not completed a full interactive `npm init` flow reliably in our validation runs
 
-So the installation path is real, but compatibility should still be treated as **partial** until AGY exposes the terminalize MCP tools in-session.
+So compatibility should still be treated as **partial**: the MCP bridge is alive, but full interactive completion is still under investigation.
 
 ## References
 

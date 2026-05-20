@@ -114,7 +114,7 @@ describe("index — agent install helpers", () => {
     ]);
   });
 
-  it("should resolve Antigravity global install into both documented plugin locations", () => {
+  it("should resolve Antigravity global install into the shared Gemini config plugin location", () => {
     const antigravity: AgentDef = {
       value: "antigravity",
       name: "Antigravity CLI (AGY)",
@@ -125,7 +125,6 @@ describe("index — agent install helpers", () => {
 
     expect(agentInstallDirs(antigravity, true, "C:/Users/marti")).toEqual([
       join("C:/Users/marti", ".gemini", "config", "plugins", "terminalize"),
-      join("C:/Users/marti", ".gemini", "antigravity-cli", "plugins", "terminalize"),
     ]);
   });
 

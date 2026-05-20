@@ -27,7 +27,7 @@ The key rule is simple:
 | Codex                 | Verified   | MCP configured, skill present, real interactive `npm init` flow completed                               | PowerShell profile noise from missing `oh-my-posh` can dirty startup output                                                              | Local shell/profile caveat                         |
 | GitHub Copilot CLI    | Unverified | Skill and MCP installation paths are documented                                                         | No published end-to-end interactive validation yet                                                                                       | Needs validation                                   |
 | Kiro CLI              | Verified   | MCP configured, skill present, full interactive `npm init` flow completed                               | Windows ConPTY can briefly echo prior input in the version field before recovery                                                         | Runtime caveat, flow still succeeds                |
-| Antigravity CLI (AGY) | Partial    | AGY authenticates, loads the workspace plugin, and recognizes the `terminalize` plugin/skill in-session | Direct MCP tool invocation still reports `terminal_ping` as unavailable, so end-to-end interactive terminalize flows are not working yet | Plugin/skill path works, MCP bridge still inactive |
+| Antigravity CLI (AGY) | Partial    | AGY can discover the plugin, expose cached MCP tool metadata, and successfully call `terminalize/terminal_ping` when installed from `~/.gemini/config/plugins/terminalize` | A full interactive `npm init` flow has not completed reliably yet, and AGY logs still intermittently report local auth instability | Basic MCP bridge works, deep interactive reliability still under investigation |
 | OpenCode              | Unverified | Skill and MCP installation paths are documented                                                         | No published end-to-end interactive validation yet                                                                                       | Needs validation                                   |
 | Windsurf              | Unverified | No evidence published yet                                                                               | —                                                                                                                                        | Needs validation                                   |
 
@@ -80,7 +80,7 @@ If a client reaches prompts correctly and then fails because it guessed badly, t
 - TUI flows like `create-vite` require navigation semantics, not plain line-prompt logic.
 - PowerShell startup profiles can inject unrelated noise into PTY output.
 - Google has transitioned consumer Gemini CLI users toward Antigravity CLI as of May 19, 2026; compatibility claims should now target Antigravity, not legacy Gemini consumer installs.
-- Antigravity currently recognizes the local `terminalize` plugin/skill in this workspace, but it still reported the `terminal_ping` MCP tool as unavailable during live validation.
+- Antigravity was able to call `terminalize/terminal_ping` once the plugin was installed from `~/.gemini/config/plugins/terminalize`, but deep interactive completion is still not consistently reliable.
 
 ---
 
