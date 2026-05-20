@@ -21,6 +21,7 @@ prisma.config.ts
 
 
 .agents/*
+.atl/
 vite-project
 
 /src/generated/prisma
