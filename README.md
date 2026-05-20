@@ -9,7 +9,7 @@
   <img src="https://img.shields.io/badge/node.js-22%2B-339933?logo=node.js&logoColor=white&style=flat-square" />
   <img src="https://img.shields.io/badge/typescript-5.8%2B-3178C6?logo=typescript&logoColor=white&style=flat-square" />
   <img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" />
-  <img src="https://img.shields.io/badge/tests-332%20passing-brightgreen?style=flat-square" />
+  <img src="https://img.shields.io/badge/tests-334%20passing-brightgreen?style=flat-square" />
   <a href="http://localhost:9000/dashboard?id=terminalize"><img src="https://img.shields.io/badge/quality%20gate-passing-brightgreen?style=flat-square" /></a>
   <a href="http://localhost:9000/dashboard?id=terminalize"><img src="https://img.shields.io/badge/coverage-89%25-brightgreen?style=flat-square" /></a>
 </p>
@@ -25,7 +25,7 @@
 ```
 
 [![MCP SDK](https://img.shields.io/badge/MCP%20SDK-1.29-blueviolet)](https://spec.modelcontextprotocol.io)
-[![node-pty](https://img.shields.io/badge/node--pty-1.0-FF6C37)](https://github.com/microsoft/node-pty)
+[![node-pty](https://img.shields.io/badge/node--pty-1.2.0--beta.13-FF6C37)](https://github.com/microsoft/node-pty)
 [![npm](https://img.shields.io/npm/v/terminalize?color=red)](https://www.npmjs.com/package/terminalize)
 
 > **Stop the "one-shot" guessing game. Give your AI agents a persistent terminal they can actually talk to.**
@@ -542,7 +542,7 @@ pnpm test
   ✓ test/integration/mcp-server.int.test.ts      (11 tests)
 
 Test Files  15 passed (15)
-      Tests  332 passed (332)
+      Tests  334 passed (334)
 ```
 
 ### Cross-platform smoke coverage
@@ -566,6 +566,13 @@ Known caveat:
 
 - some interactive Node prompt flows remain less stable on Windows ConPTY, so the deeper prompt-by-prompt readline regression is guarded there and kept as a stronger Unix integration check for now.
 
+Additional shell/runtime caveats:
+
+- `create-vite` is a real TUI flow, not a line-based prompt; it needs screenshots plus arrow-key navigation.
+- On Unix-like TUIs, `\r` is often a more reliable confirmation key than plain `\n`.
+- `gh pr create` can be validated safely with `--dry-run`, but the exact prompt sequence depends on local template/auth state.
+- `psql` validation is easiest through Docker when `psql` is not installed locally.
+
 ### Unix integration coverage
 
 The CI workflow also runs the full integration suite on:
@@ -578,6 +585,35 @@ This means prompt-by-prompt reads, signal recovery, long-output handling, execut
 Additional manual validation was also run on:
 
 - WSL2 Ubuntu 22.04 on Windows 11
+
+### Deep interactive validation (opt-in)
+
+Some interactive flows depend on local credentials or local infrastructure, so they are kept as **opt-in integration checks** instead of always-on CI steps.
+
+Current opt-in flows:
+
+- `gh pr create --draft --dry-run`
+- Docker-backed `psql`
+
+PowerShell:
+
+```powershell
+$env:TERMINALIZE_RUN_GH_INTERACTIVE = "1"
+pnpm vitest run test/integration/executables.int.test.ts -t "gh pr create"
+```
+
+WSL / bash:
+
+```bash
+TERMINALIZE_RUN_DOCKER_PSQL=1 pnpm vitest run test/integration/executables.int.test.ts -t "docker-backed psql"
+```
+
+Why they are opt-in:
+
+- `gh pr create` needs a real authenticated GitHub CLI context
+- `psql` needs an accessible database client/server pair; the test uses Docker to provide that safely
+
+This keeps CI honest while still giving maintainers a reproducible path for the deepest interactive checks.
 
 ### Using session exports in bug reports
 
@@ -621,9 +657,9 @@ terminalize gives your agent a real **text-based** PTY. While powerful, there ar
 
 ### Tested platforms
 
-This has been tested primarily on **Windows (ConPTY)** for deeper interactive flows. CI now verifies cross-platform smoke on Windows/Linux/macOS and full integration on Unix-like runners. WSL2 Ubuntu was also validated manually with the full integration suite.
+This has been tested across the major target shells and runtimes, with different depth depending on what can run credibly in automation. CI verifies smoke on Windows/Linux/macOS, full integration on Unix-like runners, and maintainers can run the opt-in `gh` / `psql` checks locally when auth or Docker are available.
 
-- **Platforms**: ✅ Windows (interactive + smoke) | ✅ Linux / WSL2 (manual full integration + CI integration) | ✅ macOS (CI integration)
+- **Platforms**: ✅ Windows (interactive + smoke + manual `gh --dry-run`) | ✅ Linux / WSL2 (manual full integration + Docker-backed `psql` + CI integration) | ✅ macOS (CI integration)
 - **Agents**: ✅ OpenCode | ⬜ Claude Code | ⬜ Cursor | ⬜ Gemini CLI | ⬜ Windsurf | ⬜ Kiro CLI | ✅ Codex
 
 If you test on any of these combinations, open an issue or PR with your results.

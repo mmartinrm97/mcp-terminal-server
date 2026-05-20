@@ -184,15 +184,15 @@ Goal: move from “works on my machine” to real platform confidence.
 
 ### Priorities
 
-- [ ] Full validation matrix for Windows / Linux / macOS
-- [ ] Real interactive smoke tests for:
+- [x] Full validation matrix for Windows / Linux / macOS
+- [x] Real interactive smoke tests for:
   - `npm init`
   - `gh pr create`
   - `npx create-vite`
   - `psql`
-- [ ] Compare screenshot rendering behavior across shells/platforms
-- [ ] Validate signal/close behavior per platform
-- [ ] Document known caveats per shell/runtime
+- [x] Compare screenshot rendering behavior across shells/platforms
+- [x] Validate signal/close behavior per platform
+- [x] Document known caveats per shell/runtime
 
 ### Start earlier, finish here
 
@@ -202,6 +202,19 @@ Basic cross-platform smoke validation should begin before this milestone:
 - [x] Run a minimal create-session / write / read / close flow per OS
 
 This milestone is where that early validation becomes a full, credible compatibility story.
+
+### Delivered validation shape
+
+- CI smoke coverage on Windows / Linux / macOS
+- CI full integration coverage on Ubuntu / macOS
+- Manual Windows interactive validation for `gh pr create --dry-run`
+- Manual WSL2 / Linux-like validation for:
+  - full integration suite
+  - interactive `npm init`
+  - interactive `npx create-vite`
+  - Docker-backed `psql`
+
+Some of the deepest interactive flows remain opt-in/manual because they depend on local auth or local infrastructure. That is acceptable here because the milestone goal is **credible validation**, not pretending everything can or should run in generic CI.
 
 ### Why it matters
 
