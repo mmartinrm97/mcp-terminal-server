@@ -1,22 +1,22 @@
+import type { IPty } from "node-pty";
 import { spawn } from "node-pty";
-import { platform } from "node:os";
 import { execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
+import { platform } from "node:os";
 import { isAbsolute, win32 as pathWin32 } from "node:path";
-import type { IPty } from "node-pty";
-import { OutputBuffer } from "./output-buffer.js";
 import { normalizeEscapeSequences } from "../lib/utils.js";
-import { renderScreen, analyzeScreen } from "./screen.js";
-import { SessionEndedError } from "../types.js";
 import type {
   ReadUntilDebugInfo,
-  SessionDiagnostics,
-  SessionExport,
-  SessionEvent,
-  SessionInfo,
   ScreenshotResult,
+  SessionDiagnostics,
+  SessionEvent,
+  SessionExport,
+  SessionInfo,
   SessionTranscriptEntry,
 } from "../types.js";
+import { SessionEndedError } from "../types.js";
+import { OutputBuffer } from "./output-buffer.js";
+import { analyzeScreen, renderScreen } from "./screen.js";
 
 /**
  * Environment variables merged into every PTY session to disable pagers.
@@ -248,7 +248,7 @@ export class PTYSession {
     position: number;
   } {
     if (typeof flushOrSince === "number") {
-      const result = this.buffer.readAll(flushOrSince) as { data: string; position: number };
+      const result = this.buffer.readAll(flushOrSince);
       this.recordEvent("read", {
         bytes: Buffer.byteLength(result.data, "utf-8"),
         preview: PTYSession.preview(result.data),
