@@ -27,6 +27,11 @@
 [![MCP SDK](https://img.shields.io/badge/MCP%20SDK-1.29-blueviolet)](https://spec.modelcontextprotocol.io)
 [![node-pty](https://img.shields.io/badge/node--pty-1.2.0--beta.13-FF6C37)](https://github.com/microsoft/node-pty)
 [![npm](https://img.shields.io/npm/v/terminalize?color=red)](https://www.npmjs.com/package/terminalize)
+[![Claude Code](https://img.shields.io/badge/Claude%20Code-verified-2EA043?style=flat-square)](./docs/COMPATIBILITY.md)
+[![Cursor](https://img.shields.io/badge/Cursor-verified-2EA043?style=flat-square)](./docs/COMPATIBILITY.md)
+[![Codex](https://img.shields.io/badge/Codex-verified-2EA043?style=flat-square)](./docs/COMPATIBILITY.md)
+[![Kiro CLI](https://img.shields.io/badge/Kiro%20CLI-verified-2EA043?style=flat-square)](./docs/COMPATIBILITY.md)
+[![Antigravity CLI](https://img.shields.io/badge/Antigravity-partial-F2C94C?style=flat-square)](./docs/COMPATIBILITY.md)
 
 > **Stop the "one-shot" guessing game. Give your AI agents a persistent terminal they can actually talk to.**
 
@@ -590,6 +595,19 @@ This means prompt-by-prompt reads, signal recovery, long-output handling, execut
 Additional manual validation was also run on:
 
 - WSL2 Ubuntu 22.04 on Windows 11
+
+### Core hardening status
+
+The original Windows `AttachConsole failed` teardown noise was mitigated in two layers:
+
+- `node-pty` was upgraded to `1.2.0-beta.13`, which already includes a safer ConPTY helper path
+- Windows session shutdown prefers direct `taskkill` before falling back to `node-pty` teardown
+
+The integration suite also now covers:
+
+- prompt-by-prompt interactive regression checks on Unix-like shells
+- long-output trimming against bounded session buffers
+- clean close semantics across the shells available on the host (`cmd`, `pwsh`, `bash`, `zsh`)
 
 ### Deep interactive validation (opt-in)
 

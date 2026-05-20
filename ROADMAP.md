@@ -49,11 +49,11 @@ Goal: make the existing PTY/MCP core more reliable under real agent usage.
 
 ### Priorities
 
-- [ ] Investigate and document Windows `node-pty` / ConPTY teardown noise (`AttachConsole failed`)
-- [ ] Add targeted regression tests for prompt-by-prompt interactive flows
-- [ ] Verify session close semantics across `cmd`, `pwsh`, `bash`, and `zsh`
-- [ ] Audit large-output behavior and trimming under long-running sessions
-- [ ] Align README, skill, and roadmap with actual shipped capabilities
+- [x] Investigate and document Windows `node-pty` / ConPTY teardown noise (`AttachConsole failed`)
+- [x] Add targeted regression tests for prompt-by-prompt interactive flows
+- [x] Verify session close semantics across `cmd`, `pwsh`, `bash`, and `zsh`
+- [x] Audit large-output behavior and trimming under long-running sessions
+- [x] Align README, skill, and roadmap with actual shipped capabilities
 
 ### Why it matters
 
@@ -271,7 +271,7 @@ Goal: prove terminalize works with real agent clients.
   - MCP/server correctness
   - agent behavior quality
   - known client-specific caveats
-- [ ] Add compatibility badges only after real verification
+- [x] Add compatibility badges only after real verification
 
 ### Candidate clients
 
