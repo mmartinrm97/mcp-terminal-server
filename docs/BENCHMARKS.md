@@ -11,6 +11,7 @@ These benchmarks cover three different questions:
 ```bash
 pnpm bench:payload
 pnpm bench:workflow
+pnpm bench:latency
 pnpm bench:cost
 ```
 
@@ -33,6 +34,19 @@ Scenario               Before  After  Saved  %
 ---------------------  ------  -----  -----  -----
 prompt-by-prompt flow  11      7      4      36.4%
 single confirmation    5       4      1      20%
+```
+
+## Local latency baseline
+
+This benchmark measures local MCP handler overhead for the same logical interaction:
+
+- once as `terminal_write` + `terminal_read_until`
+- once as the composite `terminal_execute`
+
+It is intentionally **not** a shell benchmark. It isolates the local protocol/handler path so the numbers stay stable and reproducible.
+
+```bash
+pnpm bench:latency
 ```
 
 ## Approximate provider cost baseline
@@ -70,6 +84,12 @@ Run `pnpm bench:cost` locally to see the current table.
 - Compares representative interactive flows before and after `terminal_execute`.
 - Measures MCP call count, not model latency.
 - The goal is to show protocol overhead reduction, not host-specific shell speed.
+
+### Local latency benchmark
+
+- Runs the same logical interaction through the MCP handlers in a tight loop.
+- Measures local wall-clock handler overhead for split vs composite tool usage.
+- Useful for validating that fewer round-trips help local orchestration latency, not just token cost.
 
 ### Cost benchmark
 
