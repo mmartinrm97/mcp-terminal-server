@@ -27,23 +27,24 @@ waits for input or shows a TUI menu, `bash` will time out or return truncated ou
 - Running `shadcn-vue add`, `prisma init` — CLI tools with questions
 - Any command that shows a menu with `↑↓` arrows or `[y/N]` prompts
 
-## Tools Overview (13 tools)
+## Tools Overview (14 tools)
 
-| Tool                           | Purpose                                           | When to Use                         |
-| ------------------------------ | ------------------------------------------------- | ----------------------------------- |
-| `terminal_create_session`      | Create a persistent PTY session                   | Always first                        |
-| `terminal_write`               | Write keystrokes/commands to the session          | ⭐ Your main input tool             |
-| `terminal_read`                | Read raw buffer (non-blocking)                    | Quick peek at latest output         |
-| `terminal_read_until`          | Wait for a pattern, then return output            | Wait for prompts/questions          |
-| **`terminal_screenshot`**      | **Get clean screen state with cursor position**   | **⭐ TUI navigation**               |
-| `terminal_tail`                | Read last N lines (like `tail -n N`)              | ⭐ Logs from long-running processes |
-| `terminal_resize`              | Change terminal dimensions                        | When output is clipped              |
-| `terminal_send_signal`         | Send SIGINT/SIGTSTP/SIGQUIT to foreground process | Interrupt stuck processes           |
-| `terminal_ping`                | Health check — server status + uptime             | Verify server is alive              |
-| `terminal_list_sessions`       | List all active sessions                          | Debugging                           |
-| `terminal_session_diagnostics` | Structured debug snapshot for a session           | Diagnose desync / timeouts          |
-| `terminal_session_export`      | Structured export for bug reports / replay        | Attach failure artifacts            |
-| `terminal_close_session`       | Close and cleanup a session                       | Always last                         |
+| Tool                           | Purpose                                           | When to Use                                |
+| ------------------------------ | ------------------------------------------------- | ------------------------------------------ |
+| `terminal_create_session`      | Create a persistent PTY session                   | Always first                               |
+| `terminal_write`               | Write keystrokes/commands to the session          | Single keystrokes / raw control            |
+| `terminal_execute`             | Write + optionally wait in one MCP call           | ⭐ Preferred for prompt-by-prompt commands |
+| `terminal_read`                | Read raw buffer (non-blocking)                    | Quick peek at latest output                |
+| `terminal_read_until`          | Wait for a pattern, then return output            | Wait for prompts/questions                 |
+| **`terminal_screenshot`**      | **Get clean screen state with cursor position**   | **⭐ TUI navigation**                      |
+| `terminal_tail`                | Read last N lines (like `tail -n N`)              | ⭐ Logs from long-running processes        |
+| `terminal_resize`              | Change terminal dimensions                        | When output is clipped                     |
+| `terminal_send_signal`         | Send SIGINT/SIGTSTP/SIGQUIT to foreground process | Interrupt stuck processes                  |
+| `terminal_ping`                | Health check — server status + uptime             | Verify server is alive                     |
+| `terminal_list_sessions`       | List all active sessions                          | Debugging                                  |
+| `terminal_session_diagnostics` | Structured debug snapshot for a session           | Diagnose desync / timeouts                 |
+| `terminal_session_export`      | Structured export for bug reports / replay        | Attach failure artifacts                   |
+| `terminal_close_session`       | Close and cleanup a session                       | Always last                                |
 
 ## Labels for Multi-Agent Flows
 
@@ -60,6 +61,33 @@ terminal_list_sessions()
 Pass the session `id` between sub-agents so any agent can read/write to any session.
 
 ## Interactive Flow Pattern
+
+## Cheapest Correct Tool Order (CRITICAL)
+
+Use the cheapest tool that still preserves correctness:
+
+1. **`terminal_execute`** → when you need `write + wait for the next prompt`
+2. **`terminal_read`** → when you only need a quick non-blocking peek
+3. **`terminal_tail`** → for long-running logs or dev servers
+4. **`terminal_screenshot`** → for TUIs, menus, or timeout recovery
+5. **`terminal_session_diagnostics` / `terminal_session_export`** → only for failure analysis
+
+### Anti-patterns
+
+```text
+❌ BAD
+- write() followed by read_until() for every simple prompt if execute() would do
+- read() on a long-running log stream instead of tail()
+- screenshot() on every step when read_until() already matched the next prompt
+- diagnostics/export during the happy path
+```
+
+```text
+✅ GOOD
+- execute({ id, data: "npm init\\n", await_pattern: "package name:" })
+- tail({ id, lines: 40 }) for servers and installers
+- screenshot({ id }) only when a menu or timeout needs visual state
+```
 
 ## Synchronization Rule (CRITICAL)
 
@@ -98,18 +126,15 @@ If a prompt did not arrive yet, **do not spam Enter**. Read again or take a scre
 1. terminal_create_session({ cwd: "/project", shell: "auto" })
    → Get session ID
 
-2. terminal_write({ id, data: "command\n" })
-   → Write command with Enter
+2. terminal_execute({ id, data: "command\n", await_pattern: "prompt pattern", timeout_ms: 10000 })
+   → Write and wait for the first prompt in one call
 
-3. terminal_read_until({ id, pattern: "prompt pattern", timeout_ms: 10000 })
-   → Wait for the first prompt
-
-4. terminal_write({ id, data: "response\n" })
+3. terminal_execute({ id, data: "response\n", await_pattern: "next prompt" })
    → Answer
 
-5. Repeat steps 3-4 until command finishes
+4. Repeat step 3 until command finishes
 
-6. terminal_close_session({ id })
+5. terminal_close_session({ id })
    → Cleanup
 ```
 
@@ -403,8 +428,8 @@ terminal_screenshot({ id })
 # Create session with specific shell
 terminal_create_session({ cwd: ".", shell: "cmd" })
 
-# Write a command
-terminal_write({ id, data: "npm init\n" })
+# Preferred: write and wait in one call
+terminal_execute({ id, data: "npm init\n", await_pattern: "package name:" })
 
 # Take a screenshot of current screen
 terminal_screenshot({ id })

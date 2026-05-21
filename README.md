@@ -336,6 +336,23 @@ This includes:
 | `verbose`              | `boolean` | `false`   | Include timestamps and output counters           |
 | `screenshot_verbosity` | `string`  | `minimal` | Screenshot detail preset                         |
 
+## Agent Usage Contract
+
+Use the cheapest tool that still preserves correctness:
+
+1. `terminal_execute` for the common **write + wait** flow
+2. `terminal_read` for quick non-blocking peeks
+3. `terminal_tail` for long-running logs and servers
+4. `terminal_screenshot` for TUIs, menus, or timeout recovery
+5. `terminal_session_diagnostics` / `terminal_session_export` only for failure analysis
+
+Anti-patterns:
+
+- using `terminal_read` for long-running logs instead of `terminal_tail`
+- using `terminal_screenshot` on every happy-path step
+- calling diagnostics/export during normal execution
+- splitting every simple prompt into `terminal_write` + `terminal_read_until` when `terminal_execute` would do
+
 ## Examples
 
 ### `npm init`
