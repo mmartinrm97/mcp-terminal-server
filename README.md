@@ -29,7 +29,7 @@
 [![Cursor](https://img.shields.io/badge/Cursor-verified-2EA043?style=flat-square)](./docs/COMPATIBILITY.md)
 [![Codex](https://img.shields.io/badge/Codex-verified-2EA043?style=flat-square)](./docs/COMPATIBILITY.md)
 [![Kiro CLI](https://img.shields.io/badge/Kiro%20CLI-verified-2EA043?style=flat-square)](./docs/COMPATIBILITY.md)
-[![Antigravity CLI](https://img.shields.io/badge/Antigravity-partial-F2C94C?style=flat-square)](./docs/COMPATIBILITY.md)
+[![Antigravity CLI](https://img.shields.io/badge/Antigravity-verified-2EA043?style=flat-square)](./docs/COMPATIBILITY.md)
 
 > **Stop the "one-shot" guessing game. Give your AI agents a persistent terminal they can actually talk to.**
 
@@ -129,6 +129,8 @@ Use the dedicated install guides:
 - [Pi](./docs/installation-guides/install-pi.md)
 
 The root README intentionally does **not** duplicate every host-specific MCP block anymore. Those details live in the per-agent guides.
+
+Performance and payload-size evidence lives in [docs/BENCHMARKS.md](./docs/BENCHMARKS.md).
 
 ### Prerequisites
 
