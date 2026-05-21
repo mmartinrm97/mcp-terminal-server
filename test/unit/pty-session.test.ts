@@ -319,6 +319,24 @@ describe("PTYSession", () => {
       expect(result.askUserReason).toBe("secret_required");
       expect(result.recommendedNextAction).toBe("ask_user");
     });
+
+    it("should keep non-interactive screenshot guidance stable over time", () => {
+      vi.useFakeTimers();
+      try {
+        if (onDataCallback) onDataCallback("Scaffold complete");
+
+        const initial = session.screenshot();
+        vi.advanceTimersByTime(5_000);
+        const later = session.screenshot();
+
+        expect(initial.detectedPrompt).toBeNull();
+        expect(initial.isInteractive).toBe(false);
+        expect(initial.recommendedNextAction).toBe("read");
+        expect(later.recommendedNextAction).toBe("read");
+      } finally {
+        vi.useRealTimers();
+      }
+    });
   });
 
   describe("diagnostics", () => {

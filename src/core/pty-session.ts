@@ -306,7 +306,7 @@ export class PTYSession {
       shouldAskUser: analysis.should_ask_user,
       askUserReason: analysis.ask_user_reason,
       canAcceptDefault: analysis.can_accept_default,
-      recommendedNextAction: this.resolveRecommendedNextAction(analysis, idleMs),
+      recommendedNextAction: this.resolveRecommendedNextAction(analysis, screen.text),
       terminal_mode: analysis.terminal_mode,
       editor_mode: analysis.editor_mode,
       status_line: analysis.status_line,
@@ -675,7 +675,7 @@ export class PTYSession {
 
   private resolveRecommendedNextAction(
     analysis: ReturnType<typeof analyzeScreen>,
-    idleMs: number,
+    screenText: string,
   ): ScreenshotResult["recommendedNextAction"] {
     if (analysis.prompt_detected !== null) {
       return analysis.should_ask_user ? "ask_user" : "input_required";
@@ -685,7 +685,8 @@ export class PTYSession {
       return "inspect_screen";
     }
 
-    return idleMs < 1000 ? "wait" : "read";
+    const hasVisibleContent = screenText.trim() !== "";
+    return hasVisibleContent ? "read" : "wait";
   }
 
   private describeLifecycleEvent(event: SessionEvent): string {
