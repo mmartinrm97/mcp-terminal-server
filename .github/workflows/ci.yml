@@ -8,6 +8,20 @@ on:
   workflow_dispatch:
 
 jobs:
+  dependency-hygiene:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm audit:deps
+
   smoke-matrix:
     strategy:
       matrix:

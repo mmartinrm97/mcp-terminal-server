@@ -27,4 +27,10 @@ describe("package.json test scripts", () => {
     expect(scripts["test:smoke"]).toContain("--maxWorkers=1");
     expect(scripts["test:smoke"]).toContain("--no-file-parallelism");
   });
+
+  it("should expose a dedicated dependency audit script", () => {
+    const scripts = readPackageJson().scripts ?? {};
+
+    expect(scripts["audit:deps"]).toBe("pnpm audit");
+  });
 });

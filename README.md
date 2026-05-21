@@ -627,6 +627,7 @@ If you test on any of these combinations, open an issue or PR with your results.
 4. **Orphan cleanup**: If the MCP server process dies, child PTY processes are cleaned up automatically.
 5. **No secrets**: The server MUST NOT be used for sensitive input (passwords, tokens) because the intermediary agent sees everything.
 6. **Optional safety policy**: Teams can widen or narrow allowed cwd roots, block/allow commands with regex-based policy hooks, require confirmation for risky commands/install flows, set a hard max session duration, and cap retained PTY output size.
+7. **Dependency hygiene**: `pnpm audit:deps` is available locally and runs in CI so dependency regressions are caught before release.
 
 ### Safety policy examples
 

@@ -54,7 +54,8 @@
     "prepublishOnly": "pnpm build",
     "postpublish": "node -e \"console.log('Published! Run: npx terminalize')\"",
     "prepare": "husky",
-    "bench:payload": "node scripts/benchmark-payloads.mjs"
+    "bench:payload": "node scripts/benchmark-payloads.mjs",
+    "audit:deps": "pnpm audit"
   },
   "dependencies": {
     "@clack/prompts": "^1.3.0",
