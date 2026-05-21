@@ -465,6 +465,53 @@ describe("Server Handler Functions", () => {
         expect(mockSession.read).toHaveBeenCalledWith(undefined);
       });
 
+      it("should strip ANSI by default", async () => {
+        mockSession.read.mockReturnValue({
+          data: "\u001b[31merror\u001b[0m",
+          ended: false,
+          exit_code: null,
+          position: 0,
+        });
+        const result = await handleCallTool(mockSm as unknown as SessionManager, {
+          name: "terminal_read",
+          arguments: { id: "session-1" },
+        });
+        const parsed = JSON.parse(result.content[0].text);
+        expect(parsed.data).toBe("error");
+      });
+
+      it("should keep ANSI when strip_ansi is false", async () => {
+        mockSession.read.mockReturnValue({
+          data: "\u001b[31merror\u001b[0m",
+          ended: false,
+          exit_code: null,
+          position: 0,
+        });
+        const result = await handleCallTool(mockSm as unknown as SessionManager, {
+          name: "terminal_read",
+          arguments: { id: "session-1", strip_ansi: false },
+        });
+        const parsed = JSON.parse(result.content[0].text);
+        expect(parsed.data).toContain("\u001b[31m");
+      });
+
+      it("should truncate oversized read output when max_output_bytes is provided", async () => {
+        mockSession.read.mockReturnValue({
+          data: "ABCDEFGHIJ1234567890KLMNOPQRSTUVWXYZabcdefghij1234567890KLMNOPQRSTUVWXYZ",
+          ended: false,
+          exit_code: null,
+          position: 72,
+        });
+        const result = await handleCallTool(mockSm as unknown as SessionManager, {
+          name: "terminal_read",
+          arguments: { id: "session-1", max_output_bytes: 64 },
+        });
+        const parsed = JSON.parse(result.content[0].text);
+        expect(parsed.data).toContain("truncated");
+        expect(parsed.data).toContain("ABCDEFG");
+        expect(parsed.data).toContain("QRSTUVWXYZ");
+      });
+
       // ---- Phase 3: since parameter ----
 
       it("should accept since parameter and pass to session.read", async () => {
@@ -627,6 +674,14 @@ describe("Server Handler Functions", () => {
         expect(mockSession.readUntil).toHaveBeenCalledWith("done", 5000, true);
       });
 
+      it("should default strip_ansi to true", async () => {
+        await handleCallTool(mockSm as unknown as SessionManager, {
+          name: "terminal_read_until",
+          arguments: { id: "session-1", pattern: "done" },
+        });
+        expect(mockSession.readUntil).toHaveBeenCalledWith("done", undefined, true);
+      });
+
       it("should handle timeout", async () => {
         mockSession.readUntil.mockRejectedValue(new ReadTimeoutError("timed out", "partial-data"));
         const result = await handleCallTool(mockSm as unknown as SessionManager, {
@@ -637,6 +692,43 @@ describe("Server Handler Functions", () => {
         expect(parsed.timed_out).toBe(true);
         expect(parsed.data).toBe("partial-data");
         expect(parsed.full_output).toBeUndefined();
+        expect(parsed.detected_prompt).toBe("package name: (demo)");
+        expect(parsed.prompt_category).toBe("text");
+        expect(parsed.should_ask_user).toBe(false);
+        expect(parsed.can_accept_default).toBe(true);
+        expect(parsed.recommended_next_action).toBe("input_required");
+      });
+
+      it("should truncate oversized read_until output when max_output_bytes is provided", async () => {
+        mockSession.readUntil.mockResolvedValue({
+          data: "ABCDEFGHIJ1234567890KLMNOPQRSTUVWXYZabcdefghij1234567890KLMNOPQRSTUVWXYZ",
+          fullOutput:
+            "ABCDEFGHIJ1234567890KLMNOPQRSTUVWXYZabcdefghij1234567890KLMNOPQRSTUVWXYZextra",
+          matched: "QRST",
+          ended: false,
+          exit_code: null,
+          timed_out: false,
+          detected_prompt: null,
+          prompt_category: null,
+          should_ask_user: false,
+          ask_user_reason: null,
+          can_accept_default: false,
+          recommended_next_action: "read",
+          debug: {
+            session_id: "session-1",
+            pattern: "QRST",
+            timeout_ms: 30000,
+            idle_ms: 120,
+            last_output_at: "2026-04-30T20:05:00.000Z",
+            output_bytes: 42,
+          },
+        });
+        const result = await handleCallTool(mockSm as unknown as SessionManager, {
+          name: "terminal_read_until",
+          arguments: { id: "session-1", pattern: "QRST", max_output_bytes: 64 },
+        });
+        const parsed = JSON.parse(result.content[0].text);
+        expect(parsed.data).toContain("truncated");
       });
 
       it("should handle SessionNotFoundError", async () => {
@@ -880,6 +972,34 @@ describe("Server Handler Functions", () => {
         const parsed = JSON.parse(result.content[0].text);
         expect(parsed.data).toBe("last lines");
         expect(mockSession.tail).toHaveBeenCalledWith(10);
+      });
+
+      it("should strip ANSI from tail output by default", async () => {
+        mockSession.tail.mockReturnValue({
+          data: "\u001b[32mok\u001b[0m",
+          lines: 20,
+          total_size: 100,
+        });
+        const result = await handleCallTool(mockSm as unknown as SessionManager, {
+          name: "terminal_tail",
+          arguments: { id: "session-1" },
+        });
+        const parsed = JSON.parse(result.content[0].text);
+        expect(parsed.data).toBe("ok");
+      });
+
+      it("should truncate oversized tail output when max_output_bytes is provided", async () => {
+        mockSession.tail.mockReturnValue({
+          data: "ABCDEFGHIJ1234567890KLMNOPQRSTUVWXYZabcdefghij1234567890KLMNOPQRSTUVWXYZ",
+          lines: 20,
+          total_size: 100,
+        });
+        const result = await handleCallTool(mockSm as unknown as SessionManager, {
+          name: "terminal_tail",
+          arguments: { id: "session-1", max_output_bytes: 64 },
+        });
+        const parsed = JSON.parse(result.content[0].text);
+        expect(parsed.data).toContain("truncated");
       });
 
       it("should default to 20 lines when lines not specified", async () => {

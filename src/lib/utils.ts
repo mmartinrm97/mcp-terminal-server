@@ -80,3 +80,58 @@ export function normalizeEscapeSequences(data: string): string {
       .replaceAll(String.raw`\\`, "\\")
   );
 }
+
+/**
+ * Truncate oversized text while preserving both the beginning and the end.
+ *
+ * Useful for AI-facing terminal payloads where the start contains the command
+ * context and the end contains the latest error/result.
+ */
+export function truncateMiddleByBytes(data: string, maxBytes: number): string {
+  if (maxBytes <= 0 || Buffer.byteLength(data, "utf-8") <= maxBytes) {
+    return data;
+  }
+
+  const marker = "\n...[truncated]...\n";
+  const markerBytes = Buffer.byteLength(marker, "utf-8");
+  if (markerBytes >= maxBytes) {
+    return marker;
+  }
+
+  const remainingBytes = maxBytes - markerBytes;
+  const headBudget = Math.max(1, Math.floor((remainingBytes * 2) / 3));
+  const tailBudget = Math.max(1, remainingBytes - headBudget);
+  const head = sliceByBytes(data, headBudget);
+  const tail = sliceTailByBytes(data, tailBudget);
+  return `${head}${marker}${tail}`;
+}
+
+function sliceByBytes(data: string, maxBytes: number): string {
+  let result = "";
+  let bytes = 0;
+  for (const char of data) {
+    const charBytes = Buffer.byteLength(char, "utf-8");
+    if (bytes + charBytes > maxBytes) {
+      break;
+    }
+    result += char;
+    bytes += charBytes;
+  }
+  return result;
+}
+
+function sliceTailByBytes(data: string, maxBytes: number): string {
+  const chars = Array.from(data);
+  let result = "";
+  let bytes = 0;
+  for (let index = chars.length - 1; index >= 0; index -= 1) {
+    const char = chars[index];
+    const charBytes = Buffer.byteLength(char, "utf-8");
+    if (bytes + charBytes > maxBytes) {
+      break;
+    }
+    result = char + result;
+    bytes += charBytes;
+  }
+  return result;
+}

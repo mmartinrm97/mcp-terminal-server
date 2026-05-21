@@ -112,6 +112,8 @@ export interface ReadInput {
   id: string;
   flush?: boolean;
   since?: number;
+  strip_ansi?: boolean;
+  max_output_bytes?: number;
 }
 
 /**
@@ -124,6 +126,7 @@ export interface ReadUntilInput {
   strip_ansi?: boolean;
   include_full_output?: boolean;
   include_debug?: boolean;
+  max_output_bytes?: number;
 }
 
 /**
@@ -203,6 +206,8 @@ export interface ScreenshotInput {
 export interface TailInput {
   id: string;
   lines?: number;
+  strip_ansi?: boolean;
+  max_output_bytes?: number;
 }
 
 /**

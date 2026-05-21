@@ -70,6 +70,15 @@ export const TOOL_DEFINITIONS = [
             "plus the current total position. Use with position from previous response for " +
             "incremental reads. Does NOT clear the buffer.",
         },
+        strip_ansi: {
+          type: "boolean",
+          description: "If true, strip ANSI escape codes from output. Default: true.",
+        },
+        max_output_bytes: {
+          type: "number",
+          description:
+            "Maximum response size in bytes. Oversized output is truncated head+tail with a marker.",
+        },
       },
       required: ["id"],
     },
@@ -93,7 +102,7 @@ export const TOOL_DEFINITIONS = [
         },
         strip_ansi: {
           type: "boolean",
-          description: "If true, strip ANSI escape codes from output. Default: false.",
+          description: "If true, strip ANSI escape codes from output. Default: true.",
         },
         include_full_output: {
           type: "boolean",
@@ -104,6 +113,11 @@ export const TOOL_DEFINITIONS = [
           type: "boolean",
           description:
             "If true, include diagnostic prompt/idle metadata. Default: false; prefer diagnostics/export tools for deep debugging.",
+        },
+        max_output_bytes: {
+          type: "number",
+          description:
+            "Maximum response size in bytes. Oversized output is truncated head+tail with a marker.",
         },
       },
       required: ["id", "pattern"],
@@ -136,6 +150,15 @@ export const TOOL_DEFINITIONS = [
         lines: {
           type: "number",
           description: "Number of recent lines to return (default: 20).",
+        },
+        strip_ansi: {
+          type: "boolean",
+          description: "If true, strip ANSI escape codes from output. Default: true.",
+        },
+        max_output_bytes: {
+          type: "number",
+          description:
+            "Maximum response size in bytes. Oversized output is truncated head+tail with a marker.",
         },
       },
       required: ["id"],
