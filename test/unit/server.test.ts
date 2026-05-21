@@ -109,6 +109,14 @@ function createMockSession(overrides?: Partial<MockPTYSession>): MockPTYSession 
         output_bytes: 42,
         alive: true,
       },
+      summary: {
+        last_input_preview: "npm init",
+        last_output_preview: null,
+        last_wait_pattern: null,
+        last_wait_status: null,
+        detected_prompt: "package name: (demo)",
+        recommended_next_action: "input_required",
+      },
       recent_events: [
         { at: "2026-04-30T20:00:00.000Z", type: "session_created" },
         { at: "2026-04-30T20:00:01.000Z", type: "write", preview: "npm init", bytes: 8 },
@@ -148,6 +156,14 @@ function createMockSession(overrides?: Partial<MockPTYSession>): MockPTYSession 
         idle_ms: 120,
         output_bytes: 42,
         alive: true,
+      },
+      summary: {
+        last_input_preview: "npm init",
+        last_output_preview: null,
+        last_wait_pattern: null,
+        last_wait_status: null,
+        detected_prompt: "package name: (demo)",
+        recommended_next_action: "input_required",
       },
       recent_events: [
         { at: "2026-04-30T20:00:00.000Z", type: "session_created" },
@@ -776,7 +792,7 @@ describe("Server Handler Functions", () => {
     });
 
     describe("terminal_session_diagnostics", () => {
-      it("should return diagnostics with recent events and screenshot", async () => {
+      it("should return diagnostics with summary and compact screenshot by default", async () => {
         const result = await handleCallTool(mockSm as unknown as SessionManager, {
           name: "terminal_session_diagnostics",
           arguments: { id: "session-1", event_limit: 10 },
@@ -784,21 +800,41 @@ describe("Server Handler Functions", () => {
         const parsed = JSON.parse(result.content[0].text);
         expect(parsed.session.id).toBe("session-1");
         expect(parsed.recent_events).toHaveLength(2);
+        expect(parsed.summary.last_input_preview).toBe("npm init");
+        expect(parsed.summary.last_output_preview).toBeNull();
         expect(parsed.last_screenshot.detectedPrompt).toBe("package name: (demo)");
+        expect(parsed.last_screenshot.rows).toBeUndefined();
         expect(mockSession.getDiagnostics).toHaveBeenCalledWith(10);
+      });
+
+      it("should honor verbose session info and diagnostic screenshot verbosity", async () => {
+        const result = await handleCallTool(mockSm as unknown as SessionManager, {
+          name: "terminal_session_diagnostics",
+          arguments: {
+            id: "session-1",
+            event_limit: 10,
+            verbose: true,
+            screenshot_verbosity: "diagnostic",
+          },
+        });
+        const parsed = JSON.parse(result.content[0].text);
+        expect(parsed.session.created_at).toBe("2026-04-30T20:00:00.000Z");
+        expect(parsed.last_screenshot.rows).toEqual(["line1", "line2"]);
       });
     });
 
     describe("terminal_session_export", () => {
-      it("should return export payload with transcript", async () => {
+      it("should return export payload with transcript and compact screenshot by default", async () => {
         const result = await handleCallTool(mockSm as unknown as SessionManager, {
           name: "terminal_session_export",
           arguments: { id: "session-1", event_limit: 10 },
         });
         const parsed = JSON.parse(result.content[0].text);
         expect(parsed.session.id).toBe("session-1");
+        expect(parsed.summary.last_input_preview).toBe("npm init");
         expect(parsed.transcript).toHaveLength(2);
         expect(parsed.transcript[0].kind).toBe("input");
+        expect(parsed.last_screenshot.rows).toBeUndefined();
         expect(mockSession.exportSession).toHaveBeenCalledWith(10);
       });
     });

@@ -284,6 +284,17 @@ export const TOOL_DEFINITIONS = [
           type: "number",
           description: "Maximum number of recent events to include (default: 50).",
         },
+        verbose: {
+          type: "boolean",
+          description:
+            "If true, include timestamps and output counters in session metadata. Default: false for smaller payloads.",
+        },
+        screenshot_verbosity: {
+          type: "string",
+          enum: ["minimal", "standard", "diagnostic"],
+          description:
+            "How much screenshot detail to include. Default: minimal for compact diagnostics.",
+        },
       },
       required: ["id"],
     },
@@ -300,6 +311,17 @@ export const TOOL_DEFINITIONS = [
         event_limit: {
           type: "number",
           description: "Maximum number of recent events/transcript items to include (default: 50).",
+        },
+        verbose: {
+          type: "boolean",
+          description:
+            "If true, include timestamps and output counters in session metadata. Default: false for smaller payloads.",
+        },
+        screenshot_verbosity: {
+          type: "string",
+          enum: ["minimal", "standard", "diagnostic"],
+          description:
+            "How much screenshot detail to include. Default: minimal for compact exports.",
         },
       },
       required: ["id"],

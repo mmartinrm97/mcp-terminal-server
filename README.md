@@ -178,7 +178,22 @@ Writes text/keystrokes to the terminal.
 
 **Tip**: For commands where you need to know exactly when they finish, combine with `terminal_read_until` and use the `writeMarked` method internally (enabled by default via the agent skill). It wraps commands with unique completion markers (`__TERM_MARK_<hex>__`) so the agent can wait for a deterministic pattern instead of guessing the prompt.
 
-### 3. `terminal_read`
+### 3. `terminal_execute`
+
+Writes to the terminal and optionally waits for the next prompt/output pattern in the same MCP call.
+
+| Parameter             | Type      | Default | Description                                               |
+| --------------------- | --------- | ------- | --------------------------------------------------------- |
+| `id`                  | `string`  | —       | Session ID                                                |
+| `data`                | `string`  | —       | Data to write (`\n` for Enter, `\x03` for Ctrl+C)         |
+| `await_pattern`       | `string`  | —       | Optional regex pattern to wait for after writing          |
+| `timeout_ms`          | `number`  | `30000` | Max wait time when `await_pattern` is set                 |
+| `strip_ansi`          | `boolean` | `true`  | Strip ANSI escape codes from awaited output               |
+| `include_full_output` | `boolean` | `false` | Include full matched buffer snapshot                      |
+| `include_debug`       | `boolean` | `false` | Include extra timeout/debug metadata                      |
+| `max_output_bytes`    | `number`  | —       | Truncate oversized awaited output with a head+tail marker |
+
+### 4. `terminal_read`
 
 Reads the current terminal buffer contents. Non-blocking — returns whatever output has accumulated.
 
@@ -190,7 +205,7 @@ Reads the current terminal buffer contents. Non-blocking — returns whatever ou
 
 Response includes `position` (monotonic byte counter) for use in subsequent `since` reads.
 
-### 4. `terminal_read_until` ⭐
+### 5. `terminal_read_until` ⭐
 
 **The most important tool.** Reads the terminal buffer until a regex pattern matches or the timeout is reached.
 
@@ -199,9 +214,9 @@ Response includes `position` (monotonic byte counter) for use in subsequent `sin
 | `id`         | `string`  | —       | Session ID                                      |
 | `pattern`    | `string`  | —       | Regex pattern to wait for                       |
 | `timeout_ms` | `number`  | `30000` | Maximum wait time in milliseconds               |
-| `strip_ansi` | `boolean` | `false` | If `true`, strips ANSI escape codes from output |
+| `strip_ansi` | `boolean` | `true`  | If `true`, strips ANSI escape codes from output |
 
-### 5. `terminal_resize`
+### 6. `terminal_resize`
 
 Resizes the terminal dimensions.
 
@@ -211,15 +226,15 @@ Resizes the terminal dimensions.
 | `cols`    | `number` | New column count |
 | `rows`    | `number` | New row count    |
 
-### 6. `terminal_list_sessions`
+### 7. `terminal_list_sessions`
 
 Lists all active terminal sessions.
 
-| Parameter | Type      | Default | Description                           |
-| --------- | --------- | ------- | ------------------------------------- |
-| `verbose` | `boolean` | `false` | Includes the last activity timestamps |
+| Parameter | Type      | Default | Description                             |
+| --------- | --------- | ------- | --------------------------------------- |
+| `verbose` | `boolean` | `false` | Includes timestamps and output counters |
 
-### 7. `terminal_send_signal`
+### 8. `terminal_send_signal`
 
 Sends a POSIX signal to the foreground process in the terminal. More explicit and reliable than writing `\x03` (Ctrl+C) as raw bytes.
 
@@ -228,14 +243,14 @@ Sends a POSIX signal to the foreground process in the terminal. More explicit an
 | `id`      | `string` | Session ID                                           |
 | `signal`  | `string` | Signal: `SIGINT`, `SIGTSTP`, `SIGQUIT`, or `SIGKILL` |
 
-### 8. `terminal_ping`
+### 9. `terminal_ping`
 
 Health check endpoint. Returns server status, active session count, and uptime.
 
 | Parameter | Type | Description |
 | --------- | ---- | ----------- |
 
-### 9. `terminal_tail`
+### 10. `terminal_tail`
 
 Reads the last N lines of the terminal buffer (like `tail -n N`). Token-efficient — avoids paying tokens for old accumulated output.
 
@@ -244,9 +259,9 @@ Reads the last N lines of the terminal buffer (like `tail -n N`). Token-efficien
 | `id`      | `string` | —       | Session ID                       |
 | `lines`   | `number` | `20`    | Number of recent lines to return |
 
-### 10. `terminal_screenshot`
+### 11. `terminal_screenshot`
 
-Takes a screenshot of the current terminal screen. Returns clean, rendered text rows with cursor position — no raw ANSI codes.
+Takes a screenshot of the current terminal screen. Returns clean rendered text with semantic hints — no raw ANSI codes.
 
 Also includes best-effort semantic hints for agents:
 
@@ -270,11 +285,12 @@ Typical interpretation:
 - `recommendedNextAction = "ask_user"` → do **not** guess; escalate to the user
 - `canAcceptDefault = true` → pressing Enter is likely safe for this prompt
 
-| Parameter | Type     | Description |
-| --------- | -------- | ----------- |
-| `id`      | `string` | Session ID  |
+| Parameter   | Type     | Default   | Description                                                           |
+| ----------- | -------- | --------- | --------------------------------------------------------------------- |
+| `id`        | `string` | —         | Session ID                                                            |
+| `verbosity` | `string` | `minimal` | `minimal`, `standard`, or `diagnostic` screenshot payload size preset |
 
-### 11. `terminal_close_session`
+### 12. `terminal_close_session`
 
 Closes a terminal session and frees its resources.
 
@@ -283,36 +299,42 @@ Closes a terminal session and frees its resources.
 | `id`      | `string`  | —       | Session ID                      |
 | `force`   | `boolean` | `false` | Immediate termination (SIGKILL) |
 
-### 12. `terminal_session_diagnostics`
+### 13. `terminal_session_diagnostics`
 
 Returns a structured diagnostics snapshot for a session.
 
 Use this when an interactive flow behaved unexpectedly and you need to know:
 
 - what the session metadata looks like
+- compact summary of the latest meaningful interaction
 - what recent reads/writes/timeouts happened
 - what the latest semantic screen state looks like
 
-| Parameter     | Type     | Default | Description                               |
-| ------------- | -------- | ------- | ----------------------------------------- |
-| `id`          | `string` | —       | Session ID                                |
-| `event_limit` | `number` | `50`    | Maximum number of recent events to return |
+| Parameter              | Type      | Default   | Description                               |
+| ---------------------- | --------- | --------- | ----------------------------------------- |
+| `id`                   | `string`  | —         | Session ID                                |
+| `event_limit`          | `number`  | `50`      | Maximum number of recent events to return |
+| `verbose`              | `boolean` | `false`   | Include timestamps and output counters    |
+| `screenshot_verbosity` | `string`  | `minimal` | Screenshot detail preset                  |
 
-### 13. `terminal_session_export`
+### 14. `terminal_session_export`
 
 Returns a structured export payload for issue reports and failure replay.
 
 This includes:
 
 - session metadata
+- compact interaction summary
 - recent timeline events
 - latest semantic screenshot
 - replay-friendly transcript derived from inputs, outputs, waits, signals, and lifecycle events
 
-| Parameter     | Type     | Default | Description                                      |
-| ------------- | -------- | ------- | ------------------------------------------------ |
-| `id`          | `string` | —       | Session ID                                       |
-| `event_limit` | `number` | `50`    | Maximum number of recent events/transcript items |
+| Parameter              | Type      | Default   | Description                                      |
+| ---------------------- | --------- | --------- | ------------------------------------------------ |
+| `id`                   | `string`  | —         | Session ID                                       |
+| `event_limit`          | `number`  | `50`      | Maximum number of recent events/transcript items |
+| `verbose`              | `boolean` | `false`   | Include timestamps and output counters           |
+| `screenshot_verbosity` | `string`  | `minimal` | Screenshot detail preset                         |
 
 ## Examples
 

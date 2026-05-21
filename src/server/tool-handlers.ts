@@ -14,6 +14,7 @@ import type {
   ReadResult,
   ReadUntilResult,
   ScreenshotResult,
+  SessionActivitySummary,
   SessionConfig,
   SessionDiagnostics,
   SessionExport,
@@ -194,6 +195,23 @@ function projectScreenshot(
     outputBytes: result.outputBytes,
     lastOutputAt: result.lastOutputAt,
     idleMs: result.idleMs,
+  };
+}
+
+function readScreenshotVerbosity(args: Record<string, unknown>): ScreenshotVerbosity {
+  return args.screenshot_verbosity === "standard" || args.screenshot_verbosity === "diagnostic"
+    ? (args.screenshot_verbosity as ScreenshotVerbosity)
+    : "minimal";
+}
+
+function projectActivitySummary(summary: SessionActivitySummary): SessionActivitySummary {
+  return {
+    last_input_preview: summary.last_input_preview,
+    last_output_preview: summary.last_output_preview,
+    last_wait_pattern: summary.last_wait_pattern,
+    last_wait_status: summary.last_wait_status,
+    detected_prompt: summary.detected_prompt,
+    recommended_next_action: summary.recommended_next_action,
   };
 }
 
@@ -513,19 +531,32 @@ function handleSessionDiagnosticsTool(
   sm: SessionManager,
   args: Record<string, unknown>,
 ): ToolResponse {
-  return handleSessionProjectionTool(
-    sm,
-    args,
-    (session, eventLimit): SessionDiagnostics => session.getDiagnostics(eventLimit),
-  );
+  const verbose = args.verbose === true;
+  const screenshotVerbosity = readScreenshotVerbosity(args);
+  return handleSessionProjectionTool(sm, args, (session, eventLimit) => {
+    const diagnostics = session.getDiagnostics(eventLimit);
+    return {
+      session: projectSessionInfo(diagnostics.session, verbose),
+      summary: projectActivitySummary(diagnostics.summary),
+      recent_events: diagnostics.recent_events,
+      last_screenshot: projectScreenshot(diagnostics.last_screenshot, screenshotVerbosity),
+    };
+  });
 }
 
 function handleSessionExportTool(sm: SessionManager, args: Record<string, unknown>): ToolResponse {
-  return handleSessionProjectionTool(
-    sm,
-    args,
-    (session, eventLimit): SessionExport => session.exportSession(eventLimit),
-  );
+  const verbose = args.verbose === true;
+  const screenshotVerbosity = readScreenshotVerbosity(args);
+  return handleSessionProjectionTool(sm, args, (session, eventLimit) => {
+    const exported = session.exportSession(eventLimit);
+    return {
+      session: projectSessionInfo(exported.session, verbose),
+      summary: projectActivitySummary(exported.summary),
+      recent_events: exported.recent_events,
+      last_screenshot: projectScreenshot(exported.last_screenshot, screenshotVerbosity),
+      transcript: exported.transcript,
+    };
+  });
 }
 
 function handleCloseSessionTool(sm: SessionManager, args: Record<string, unknown>): ToolResponse {

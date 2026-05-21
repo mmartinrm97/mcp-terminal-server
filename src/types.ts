@@ -293,6 +293,7 @@ export interface SessionEvent {
  */
 export interface SessionDiagnostics {
   session: SessionInfo;
+  summary: SessionActivitySummary;
   recent_events: SessionEvent[];
   last_screenshot: ScreenshotResult;
 }
@@ -314,9 +315,22 @@ export interface SessionTranscriptEntry {
  */
 export interface SessionExport {
   session: SessionInfo;
+  summary: SessionActivitySummary;
   recent_events: SessionEvent[];
   last_screenshot: ScreenshotResult;
   transcript: SessionTranscriptEntry[];
+}
+
+/**
+ * Compact summary of the most recent observable session activity.
+ */
+export interface SessionActivitySummary {
+  last_input_preview: string | null;
+  last_output_preview: string | null;
+  last_wait_pattern: string | null;
+  last_wait_status: "matched" | "timed_out" | null;
+  detected_prompt: string | null;
+  recommended_next_action: "input_required" | "inspect_screen" | "wait" | "read" | "ask_user";
 }
 
 /**

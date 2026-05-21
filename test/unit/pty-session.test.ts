@@ -357,6 +357,8 @@ describe("PTYSession", () => {
 
       const diagnostics = session.getDiagnostics(10);
       expect(diagnostics.session.id).toBe("test-session");
+      expect(diagnostics.summary.last_input_preview).toBeNull();
+      expect(diagnostics.summary.detected_prompt).toContain("package name:");
       expect(diagnostics.recent_events.length).toBeGreaterThan(0);
       expect(diagnostics.last_screenshot.detectedPrompt).toContain("package name:");
     });
@@ -367,6 +369,8 @@ describe("PTYSession", () => {
       session.read();
 
       const exported = session.exportSession(10);
+      expect(exported.summary.last_input_preview).toBe("demo-app");
+      expect(exported.summary.recommended_next_action).toBe("input_required");
       expect(exported.transcript.length).toBeGreaterThan(0);
       expect(exported.transcript.some((entry) => entry.kind === "output")).toBe(true);
       expect(exported.transcript.some((entry) => entry.kind === "input")).toBe(true);

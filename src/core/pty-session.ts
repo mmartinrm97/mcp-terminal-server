@@ -11,6 +11,7 @@ import type {
   SessionDiagnostics,
   SessionEvent,
   SessionExport,
+  SessionActivitySummary,
   SessionInfo,
   SessionTranscriptEntry,
 } from "../types.js";
@@ -561,10 +562,13 @@ export class PTYSession {
    * Return a structured diagnostics snapshot for the current session.
    */
   getDiagnostics(limit: number = 50): SessionDiagnostics {
+    const lastScreenshot = this.screenshot();
+    const recentEvents = this.getRecentEvents(limit);
     return {
       session: this.getInfo(),
-      recent_events: this.getRecentEvents(limit),
-      last_screenshot: this.screenshot(),
+      summary: this.buildActivitySummary(recentEvents, lastScreenshot),
+      recent_events: recentEvents,
+      last_screenshot: lastScreenshot,
     };
   }
 
@@ -573,10 +577,12 @@ export class PTYSession {
    */
   exportSession(limit: number = 50): SessionExport {
     const recentEvents = this.getRecentEvents(limit);
+    const lastScreenshot = this.screenshot();
     return {
       session: this.getInfo(),
+      summary: this.buildActivitySummary(recentEvents, lastScreenshot),
       recent_events: recentEvents,
-      last_screenshot: this.screenshot(),
+      last_screenshot: lastScreenshot,
       transcript: this.buildTranscript(recentEvents),
     };
   }
@@ -671,6 +677,33 @@ export class PTYSession {
           return [];
       }
     });
+  }
+
+  private buildActivitySummary(
+    events: SessionEvent[],
+    screenshot: ScreenshotResult,
+  ): SessionActivitySummary {
+    const lastInput = [...events].reverse().find((event) => event.type === "write");
+    const lastOutput = [...events]
+      .reverse()
+      .find((event) => event.type === "output" || event.type === "read");
+    const lastWait = [...events]
+      .reverse()
+      .find((event) => event.type === "read_until_match" || event.type === "read_until_timeout");
+
+    return {
+      last_input_preview: lastInput?.preview ?? null,
+      last_output_preview: lastOutput?.preview ?? null,
+      last_wait_pattern: lastWait?.pattern ?? null,
+      last_wait_status:
+        lastWait?.type === "read_until_match"
+          ? "matched"
+          : lastWait?.type === "read_until_timeout"
+            ? "timed_out"
+            : null,
+      detected_prompt: screenshot.detectedPrompt,
+      recommended_next_action: screenshot.recommendedNextAction,
+    };
   }
 
   private resolveRecommendedNextAction(
