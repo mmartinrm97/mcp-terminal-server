@@ -57,6 +57,18 @@ export interface ReadUntilResult {
   ended: boolean;
   exit_code: number | null;
   timed_out: boolean;
+  detected_prompt?: string | null;
+  prompt_category?: "text" | "confirm" | "choice" | "secret" | "license" | "unknown" | null;
+  should_ask_user?: boolean;
+  ask_user_reason?:
+    | "destructive_confirmation"
+    | "secret_required"
+    | "license_choice"
+    | "ambiguous_choice"
+    | "unknown_text_without_default"
+    | null;
+  can_accept_default?: boolean;
+  recommended_next_action?: "input_required" | "inspect_screen" | "wait" | "read" | "ask_user";
   debug?: ReadUntilDebugInfo;
 }
 
@@ -70,18 +82,6 @@ export interface ReadUntilDebugInfo {
   idle_ms: number;
   last_output_at: string | null;
   output_bytes: number;
-  detected_prompt: string | null;
-  prompt_category: "text" | "confirm" | "choice" | "secret" | "license" | "unknown" | null;
-  should_ask_user: boolean;
-  ask_user_reason:
-    | "destructive_confirmation"
-    | "secret_required"
-    | "license_choice"
-    | "ambiguous_choice"
-    | "unknown_text_without_default"
-    | null;
-  can_accept_default: boolean;
-  recommended_next_action: "input_required" | "inspect_screen" | "wait" | "read" | "ask_user";
 }
 
 /**
@@ -94,6 +94,7 @@ export interface CreateSessionInput {
   cols?: number;
   rows?: number;
   env?: Record<string, string>;
+  verbose?: boolean;
 }
 
 /**
@@ -147,10 +148,10 @@ export interface CloseSessionInput {
  */
 export interface ScreenshotResult {
   rows?: string[];
-  cursorRow: number;
-  cursorCol: number;
-  cols: number;
-  rowsCount: number;
+  cursorRow?: number;
+  cursorCol?: number;
+  cols?: number;
+  rowsCount?: number;
   text: string;
   /** Monotonic total bytes seen in the PTY output buffer */
   outputBytes?: number;

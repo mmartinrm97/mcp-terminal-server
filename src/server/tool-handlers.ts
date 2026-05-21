@@ -31,10 +31,54 @@ import {
 const serverStartTime = Date.now();
 type ScreenshotVerbosity = "minimal" | "standard" | "diagnostic";
 
+interface SessionInfoShape {
+  id: string;
+  label: string | null;
+  shell: string;
+  cwd: string;
+  cols: number;
+  rows: number;
+  alive: boolean;
+  created_at?: string;
+  last_activity?: string;
+  last_output_at?: string | null;
+  idle_ms?: number;
+  output_bytes?: number;
+}
+
+function projectSessionInfo(
+  info: SessionDiagnostics["session"],
+  verbose: boolean = false,
+): SessionInfoShape {
+  const base: SessionInfoShape = {
+    id: info.id,
+    label: info.label,
+    shell: info.shell,
+    cwd: info.cwd,
+    cols: info.cols,
+    rows: info.rows,
+    alive: info.alive,
+  };
+
+  if (!verbose) {
+    return base;
+  }
+
+  return {
+    ...base,
+    created_at: info.created_at,
+    last_activity: info.last_activity,
+    last_output_at: info.last_output_at,
+    idle_ms: info.idle_ms,
+    output_bytes: info.output_bytes,
+  };
+}
+
 function projectReadUntilResult(
   raw: Awaited<ReturnType<NonNullable<ReturnType<SessionManager["getSession"]>>["readUntil"]>>,
   options: { includeFullOutput: boolean; includeDebug: boolean },
 ): ReadUntilResult {
+  const promptDebug = raw.debug;
   return {
     data: raw.data,
     full_output: options.includeFullOutput ? raw.fullOutput : undefined,
@@ -42,7 +86,22 @@ function projectReadUntilResult(
     ended: raw.ended,
     exit_code: raw.exit_code,
     timed_out: raw.timed_out,
-    debug: options.includeDebug ? raw.debug : undefined,
+    detected_prompt: raw.detected_prompt,
+    prompt_category: raw.prompt_category,
+    should_ask_user: raw.should_ask_user,
+    ask_user_reason: raw.ask_user_reason,
+    can_accept_default: raw.can_accept_default,
+    recommended_next_action: raw.recommended_next_action,
+    debug: options.includeDebug
+      ? {
+          session_id: promptDebug.session_id,
+          pattern: promptDebug.pattern,
+          timeout_ms: promptDebug.timeout_ms,
+          idle_ms: promptDebug.idle_ms,
+          last_output_at: promptDebug.last_output_at,
+          output_bytes: promptDebug.output_bytes,
+        }
+      : undefined,
   };
 }
 
@@ -66,10 +125,6 @@ function projectScreenshot(
   verbosity: ScreenshotVerbosity,
 ): ScreenshotResult {
   const base: ScreenshotResult = {
-    cursorRow: result.cursorRow,
-    cursorCol: result.cursorCol,
-    cols: result.cols,
-    rowsCount: result.rowsCount,
     text: result.text,
     isInteractive: result.isInteractive,
     detectedPrompt: result.detectedPrompt,
@@ -97,6 +152,10 @@ function projectScreenshot(
 
   return {
     ...standard,
+    cursorRow: result.cursorRow,
+    cursorCol: result.cursorCol,
+    cols: result.cols,
+    rowsCount: result.rowsCount,
     rows: result.rows,
     content_rows: result.content_rows,
     outputBytes: result.outputBytes,
@@ -117,6 +176,7 @@ async function handleCreateSessionTool(
   args: Record<string, unknown>,
 ): Promise<ToolResponse> {
   try {
+    const verbose = args.verbose === true;
     const info = await sm.createSession({
       id: args.id as string | undefined,
       label: args.label as string | undefined,
@@ -126,7 +186,7 @@ async function handleCreateSessionTool(
       rows: args.rows as number | undefined,
       env: args.env as Record<string, string> | undefined,
     });
-    return { content: [textContent(info)] };
+    return { content: [textContent(projectSessionInfo(info, verbose))] };
   } catch (err) {
     if (err instanceof SessionLimitError || err instanceof SessionPolicyError) {
       return toolError(err.message);
@@ -275,8 +335,10 @@ function handleScreenshotTool(sm: SessionManager, args: Record<string, unknown>)
   return { content: [textContent(result)] };
 }
 
-function handleListSessionsTool(sm: SessionManager): ToolResponse {
-  return { content: [textContent({ sessions: sm.listSessions() })] };
+function handleListSessionsTool(sm: SessionManager, args: Record<string, unknown>): ToolResponse {
+  const verbose = args.verbose === true;
+  const sessions = sm.listSessions().map((session) => projectSessionInfo(session, verbose));
+  return { content: [textContent({ sessions })] };
 }
 
 function handleSessionProjectionTool<T>(
@@ -356,7 +418,7 @@ export async function handleCallTool(
     case "terminal_screenshot":
       return handleScreenshotTool(sm, args);
     case "terminal_list_sessions":
-      return handleListSessionsTool(sm);
+      return handleListSessionsTool(sm, args);
     case "terminal_session_diagnostics":
       return handleSessionDiagnosticsTool(sm, args);
     case "terminal_session_export":

@@ -349,10 +349,23 @@ export class PTYSession {
     ended: boolean;
     exit_code: number | null;
     timed_out: boolean;
+    detected_prompt: string | null;
+    prompt_category: "text" | "confirm" | "choice" | "secret" | "license" | "unknown" | null;
+    should_ask_user: boolean;
+    ask_user_reason:
+      | "destructive_confirmation"
+      | "secret_required"
+      | "license_choice"
+      | "ambiguous_choice"
+      | "unknown_text_without_default"
+      | null;
+    can_accept_default: boolean;
+    recommended_next_action: "input_required" | "inspect_screen" | "wait" | "read" | "ask_user";
     debug: ReadUntilDebugInfo;
   }> {
     try {
       const result = await this.buffer.readUntil(pattern, timeoutMs, stripAnsiColors);
+      const screenshot = this.screenshot();
       this.recordEvent("read_until_match", {
         pattern,
         timeout_ms: timeoutMs ?? 30000,
@@ -367,12 +380,19 @@ export class PTYSession {
         ended: this.isEnded,
         exit_code: this.processExitCode,
         timed_out: false,
-        debug: this.buildReadUntilDebug(pattern, timeoutMs ?? 30000),
+        detected_prompt: screenshot.detectedPrompt,
+        prompt_category: screenshot.promptCategory ?? null,
+        should_ask_user: screenshot.shouldAskUser ?? false,
+        ask_user_reason: screenshot.askUserReason ?? null,
+        can_accept_default: screenshot.canAcceptDefault ?? false,
+        recommended_next_action: screenshot.recommendedNextAction,
+        debug: this.buildReadUntilDebug(pattern, timeoutMs ?? 30000, screenshot),
       };
     } catch (err) {
       // Check if it's a ReadTimeoutError
       if (err instanceof Error && "timedOut" in err) {
         const partialData = (err as { partialData?: string }).partialData ?? "";
+        const screenshot = this.screenshot();
         this.recordEvent("read_until_timeout", {
           pattern,
           timeout_ms: timeoutMs ?? 30000,
@@ -386,7 +406,13 @@ export class PTYSession {
           ended: this.isEnded,
           exit_code: this.processExitCode,
           timed_out: true,
-          debug: this.buildReadUntilDebug(pattern, timeoutMs ?? 30000),
+          detected_prompt: screenshot.detectedPrompt,
+          prompt_category: screenshot.promptCategory ?? null,
+          should_ask_user: screenshot.shouldAskUser ?? false,
+          ask_user_reason: screenshot.askUserReason ?? null,
+          can_accept_default: screenshot.canAcceptDefault ?? false,
+          recommended_next_action: screenshot.recommendedNextAction,
+          debug: this.buildReadUntilDebug(pattern, timeoutMs ?? 30000, screenshot),
         };
       }
       throw err;
@@ -570,8 +596,11 @@ export class PTYSession {
     }
   }
 
-  private buildReadUntilDebug(pattern: string, timeoutMs: number): ReadUntilDebugInfo {
-    const screenshot = this.screenshot();
+  private buildReadUntilDebug(
+    pattern: string,
+    timeoutMs: number,
+    screenshot: ScreenshotResult,
+  ): ReadUntilDebugInfo {
     return {
       session_id: this.id,
       pattern,
@@ -579,12 +608,6 @@ export class PTYSession {
       idle_ms: screenshot.idleMs ?? 0,
       last_output_at: screenshot.lastOutputAt ?? null,
       output_bytes: screenshot.outputBytes ?? 0,
-      detected_prompt: screenshot.detectedPrompt,
-      prompt_category: screenshot.promptCategory ?? null,
-      should_ask_user: screenshot.shouldAskUser ?? false,
-      ask_user_reason: screenshot.askUserReason ?? null,
-      can_accept_default: screenshot.canAcceptDefault ?? false,
-      recommended_next_action: screenshot.recommendedNextAction,
     };
   }
 

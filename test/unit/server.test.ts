@@ -188,12 +188,16 @@ function createMockSession(overrides?: Partial<MockPTYSession>): MockPTYSession 
     close: vi.fn().mockReturnValue(0),
     getInfo: vi.fn().mockReturnValue({
       id: "session-1",
+      label: "demo",
       shell: "/usr/bin/zsh",
       cwd: "/test/workspace",
       cols: 80,
       rows: 24,
       created_at: "2026-04-30T20:00:00.000Z",
       last_activity: "2026-04-30T20:05:00.000Z",
+      last_output_at: "2026-04-30T20:05:00.000Z",
+      idle_ms: 120,
+      output_bytes: 42,
       alive: true,
     }),
     ...overrides,
@@ -204,12 +208,16 @@ function createMockSessionManager(overrides?: Partial<MockSessionManager>): Mock
   return {
     createSession: vi.fn().mockResolvedValue({
       id: "session-1",
+      label: "demo",
       shell: "/usr/bin/zsh",
       cwd: "/test/workspace",
       cols: 80,
       rows: 24,
       created_at: "2026-04-30T20:00:00.000Z",
       last_activity: "2026-04-30T20:05:00.000Z",
+      last_output_at: "2026-04-30T20:05:00.000Z",
+      idle_ms: 120,
+      output_bytes: 42,
       alive: true,
     }),
     getSession: vi.fn().mockReturnValue(createMockSession()),
@@ -217,22 +225,30 @@ function createMockSessionManager(overrides?: Partial<MockSessionManager>): Mock
     listSessions: vi.fn().mockReturnValue([
       {
         id: "session-1",
+        label: "demo",
         shell: "/usr/bin/zsh",
         cwd: "/test/workspace",
         cols: 80,
         rows: 24,
         created_at: "2026-04-30T20:00:00.000Z",
         last_activity: "2026-04-30T20:05:00.000Z",
+        last_output_at: "2026-04-30T20:05:00.000Z",
+        idle_ms: 120,
+        output_bytes: 42,
         alive: true,
       },
       {
         id: "session-2",
+        label: null,
         shell: "/usr/bin/bash",
         cwd: "/other",
         cols: 120,
         rows: 40,
         created_at: "2026-04-30T20:01:00.000Z",
         last_activity: "2026-04-30T20:06:00.000Z",
+        last_output_at: "2026-04-30T20:06:00.000Z",
+        idle_ms: 240,
+        output_bytes: 128,
         alive: false,
       },
     ]),
@@ -325,7 +341,25 @@ describe("Server Handler Functions", () => {
         const parsed = JSON.parse(result.content[0].text);
         expect(parsed.id).toBe("session-1");
         expect(parsed.shell).toBe("/usr/bin/zsh");
+        expect(parsed.created_at).toBeUndefined();
+        expect(parsed.last_activity).toBeUndefined();
+        expect(parsed.last_output_at).toBeUndefined();
+        expect(parsed.idle_ms).toBeUndefined();
+        expect(parsed.output_bytes).toBeUndefined();
         expect(result.isError).toBeUndefined();
+      });
+
+      it("should include verbose session metadata only when requested", async () => {
+        const result = await handleCallTool(mockSm as unknown as SessionManager, {
+          name: "terminal_create_session",
+          arguments: { verbose: true },
+        });
+        const parsed = JSON.parse(result.content[0].text);
+        expect(parsed.created_at).toBe("2026-04-30T20:00:00.000Z");
+        expect(parsed.last_activity).toBe("2026-04-30T20:05:00.000Z");
+        expect(parsed.last_output_at).toBe("2026-04-30T20:05:00.000Z");
+        expect(parsed.idle_ms).toBe(120);
+        expect(parsed.output_bytes).toBe(42);
       });
 
       it("should pass shell, cwd, cols, rows to createSession", async () => {
@@ -511,6 +545,12 @@ describe("Server Handler Functions", () => {
           ended: false,
           exit_code: null,
           timed_out: false,
+          detected_prompt: "package name: (demo)",
+          prompt_category: "text",
+          should_ask_user: false,
+          ask_user_reason: null,
+          can_accept_default: true,
+          recommended_next_action: "input_required",
           debug: {
             session_id: "session-1",
             pattern: "prompt>",
@@ -518,12 +558,6 @@ describe("Server Handler Functions", () => {
             idle_ms: 120,
             last_output_at: "2026-04-30T20:05:00.000Z",
             output_bytes: 42,
-            detected_prompt: "package name: (demo)",
-            prompt_category: "text",
-            should_ask_user: false,
-            ask_user_reason: null,
-            can_accept_default: true,
-            recommended_next_action: "input_required",
           },
         });
         const result = await handleCallTool(mockSm as unknown as SessionManager, {
@@ -534,6 +568,12 @@ describe("Server Handler Functions", () => {
         expect(parsed.data).toBe("prompt> ");
         expect(parsed.matched).toBe("prompt>");
         expect(parsed.timed_out).toBe(false);
+        expect(parsed.detected_prompt).toBe("package name: (demo)");
+        expect(parsed.prompt_category).toBe("text");
+        expect(parsed.should_ask_user).toBe(false);
+        expect(parsed.ask_user_reason).toBeNull();
+        expect(parsed.can_accept_default).toBe(true);
+        expect(parsed.recommended_next_action).toBe("input_required");
         expect(parsed.full_output).toBeUndefined();
         expect(parsed.debug).toBeUndefined();
       });
@@ -546,6 +586,12 @@ describe("Server Handler Functions", () => {
           ended: false,
           exit_code: null,
           timed_out: false,
+          detected_prompt: "package name: (demo)",
+          prompt_category: "text",
+          should_ask_user: false,
+          ask_user_reason: null,
+          can_accept_default: true,
+          recommended_next_action: "input_required",
           debug: {
             session_id: "session-1",
             pattern: "prompt>",
@@ -553,12 +599,6 @@ describe("Server Handler Functions", () => {
             idle_ms: 120,
             last_output_at: "2026-04-30T20:05:00.000Z",
             output_bytes: 42,
-            detected_prompt: "package name: (demo)",
-            prompt_category: "text",
-            should_ask_user: false,
-            ask_user_reason: null,
-            can_accept_default: true,
-            recommended_next_action: "input_required",
           },
         });
         const result = await handleCallTool(mockSm as unknown as SessionManager, {
@@ -573,6 +613,10 @@ describe("Server Handler Functions", () => {
         const parsed = JSON.parse(result.content[0].text);
         expect(parsed.full_output).toBe("all output prompt> ");
         expect(parsed.debug?.session_id).toBe("session-1");
+        expect(parsed.debug?.pattern).toBe("prompt>");
+        expect(parsed.debug?.timeout_ms).toBe(30000);
+        expect(parsed.debug?.detected_prompt).toBeUndefined();
+        expect(parsed.detected_prompt).toBe("package name: (demo)");
       });
 
       it("should pass timeout_ms and strip_ansi", async () => {
@@ -671,6 +715,11 @@ describe("Server Handler Functions", () => {
         expect(parsed.sessions).toHaveLength(2);
         expect(parsed.sessions[0].id).toBe("session-1");
         expect(parsed.sessions[1].id).toBe("session-2");
+        expect(parsed.sessions[0].created_at).toBeUndefined();
+        expect(parsed.sessions[0].last_activity).toBeUndefined();
+        expect(parsed.sessions[0].last_output_at).toBeUndefined();
+        expect(parsed.sessions[0].idle_ms).toBeUndefined();
+        expect(parsed.sessions[0].output_bytes).toBeUndefined();
       });
 
       it("should handle empty session list", async () => {
@@ -690,6 +739,8 @@ describe("Server Handler Functions", () => {
         });
         const parsed = JSON.parse(result.content[0].text);
         expect(parsed.sessions).toHaveLength(2);
+        expect(parsed.sessions[0].created_at).toBe("2026-04-30T20:00:00.000Z");
+        expect(parsed.sessions[0].output_bytes).toBe(42);
       });
     });
 
@@ -764,11 +815,29 @@ describe("Server Handler Functions", () => {
         expect(parsed.terminal_mode).toBe("shell");
         expect(parsed.detectedPrompt).toBe("package name: (demo)");
         expect(parsed.recommendedNextAction).toBe("input_required");
+        expect(parsed.cursorRow).toBeUndefined();
+        expect(parsed.cursorCol).toBeUndefined();
+        expect(parsed.cols).toBeUndefined();
+        expect(parsed.rowsCount).toBeUndefined();
         expect(parsed.rows).toBeUndefined();
         expect(parsed.content_rows).toBeUndefined();
         expect(parsed.outputBytes).toBeUndefined();
         expect(parsed.promptCategory).toBeUndefined();
         expect(mockSession.screenshot).toHaveBeenCalled();
+      });
+
+      it("should include prompt guidance in standard screenshot verbosity", async () => {
+        const result = await handleCallTool(mockSm as unknown as SessionManager, {
+          name: "terminal_screenshot",
+          arguments: { id: "session-1", verbosity: "standard" },
+        });
+        const parsed = JSON.parse(result.content[0].text);
+        expect(parsed.promptCategory).toBe("text");
+        expect(parsed.shouldAskUser).toBe(false);
+        expect(parsed.canAcceptDefault).toBe(true);
+        expect(parsed.cursorRow).toBeUndefined();
+        expect(parsed.rows).toBeUndefined();
+        expect(parsed.outputBytes).toBeUndefined();
       });
 
       it("should include diagnostic fields when verbosity is diagnostic", async () => {
@@ -777,6 +846,10 @@ describe("Server Handler Functions", () => {
           arguments: { id: "session-1", verbosity: "diagnostic" },
         });
         const parsed = JSON.parse(result.content[0].text);
+        expect(parsed.cursorRow).toBe(1);
+        expect(parsed.cursorCol).toBe(5);
+        expect(parsed.cols).toBe(80);
+        expect(parsed.rowsCount).toBe(24);
         expect(parsed.rows).toContain("line1");
         expect(parsed.content_rows).toBeDefined();
         expect(parsed.outputBytes).toBe(42);

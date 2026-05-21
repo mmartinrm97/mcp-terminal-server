@@ -29,6 +29,11 @@ export const TOOL_DEFINITIONS = [
           description: "Additional environment variables.",
           additionalProperties: { type: "string" },
         },
+        verbose: {
+          type: "boolean",
+          description:
+            "If true, include timestamps and output counters in the response. Default: false for smaller payloads.",
+        },
       },
     },
   },
@@ -169,11 +174,10 @@ export const TOOL_DEFINITIONS = [
     name: "terminal_screenshot",
     description:
       "Take a screenshot of the current terminal screen. Returns clean, rendered text rows " +
-      "with cursor position — no raw ANSI codes. The HIGH-LEVEL alternative to terminal_read " +
+      "without raw ANSI codes. The HIGH-LEVEL alternative to terminal_read " +
       "for understanding TUI state (menus, prompts, selections). " +
-      "Also includes semantic fields: terminal_mode (shell|vim|nano|htop|lazygit|less|unknown), " +
-      "editor_mode (normal|insert|visual|replace|unknown), status_line, content_rows, " +
-      "detectedPrompt, isInteractive, recommendedNextAction, idleMs, and outputBytes.",
+      "Also includes semantic fields such as detectedPrompt, isInteractive, " +
+      "recommendedNextAction, terminal_mode, and editor_mode.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -182,7 +186,7 @@ export const TOOL_DEFINITIONS = [
           type: "string",
           enum: ["minimal", "standard", "diagnostic"],
           description:
-            "Response size preset. minimal returns compact navigation fields; standard adds prompt guidance; diagnostic adds rows, content_rows, and metrics.",
+            "Response size preset. minimal returns only core prompt/navigation fields; standard adds prompt guidance; diagnostic adds rows, geometry, and metrics.",
         },
       },
       required: ["id"],
