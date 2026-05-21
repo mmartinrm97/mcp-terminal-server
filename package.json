@@ -55,7 +55,9 @@
     "postpublish": "node -e \"console.log('Published! Run: npx terminalize')\"",
     "prepare": "husky",
     "bench:payload": "node scripts/benchmark-payloads.mjs",
-    "audit:deps": "pnpm audit"
+    "audit:deps": "pnpm audit",
+    "bench:workflow": "node scripts/benchmark-workflows.mjs",
+    "bench:cost": "node scripts/estimate-provider-costs.mjs"
   },
   "dependencies": {
     "@clack/prompts": "^1.3.0",

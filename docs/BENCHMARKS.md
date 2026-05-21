@@ -1,18 +1,20 @@
 # terminalize Benchmarks
 
-These numbers are **serialized JSON payload size benchmarks**, not provider billing estimates.
+These benchmarks cover three different questions:
 
-They answer a narrower and more useful question:
-
-> how much payload did we remove from the default MCP responses that agents consume on every round-trip?
+1. **Payload size** — how big are the default MCP responses?
+2. **Round-trips** — how many MCP calls does a workflow need?
+3. **Approximate provider cost** — what do those payload changes mean under a pricing snapshot?
 
 ## Run locally
 
 ```bash
 pnpm bench:payload
+pnpm bench:workflow
+pnpm bench:cost
 ```
 
-## Current baseline
+## Payload baseline
 
 ```text
 terminalize payload benchmark (serialized JSON bytes)
@@ -23,23 +25,68 @@ terminal_screenshot     legacy verbose -> minimal default        986 B   335 B  
 terminal_list_sessions  verbose session list -> compact default  1474 B  659 B  815 B  55.3%
 ```
 
+## Workflow round-trip baseline
+
+```text
+terminalize workflow benchmark (MCP round-trips)
+Scenario               Before  After  Saved  %
+---------------------  ------  -----  -----  -----
+prompt-by-prompt flow  11      7      4      36.4%
+single confirmation    5       4      1      20%
+```
+
+## Approximate provider cost baseline
+
+This benchmark uses:
+
+- current official pricing snapshots
+- **input token pricing only**, because MCP tool output becomes the next model input
+- a rough heuristic of **~4 UTF-8 bytes per token**
+- **1,000 tool responses per scenario**
+
+```text
+terminalize cost estimate benchmark (approximate model input cost)
+Pricing snapshot as of 2026-05-21
+```
+
+Run `pnpm bench:cost` locally to see the current table.
+
+## Pricing snapshot sources
+
+- OpenAI API pricing: [openai.com/api/pricing](https://openai.com/api/pricing/)
+- Anthropic Claude pricing: [docs.anthropic.com/.../pricing](https://docs.anthropic.com/en/docs/about-claude/pricing)
+- Gemini Developer API pricing: [ai.google.dev/gemini-api/docs/pricing](https://ai.google.dev/gemini-api/docs/pricing?hl=es-419)
+
 ## Methodology
+
+### Payload benchmark
 
 - Uses fixed representative fixtures for the old default shapes and the current compact default shapes.
 - Measures `Buffer.byteLength(JSON.stringify(payload), "utf8")`.
 - Focuses on default agent-facing responses, because those are the hot path that drives token spend.
-- Does **not** try to estimate model-specific token billing, because that varies by vendor and tokenizer.
 
-## What this benchmark proves
+### Workflow benchmark
 
-- `terminal_read_until` is materially cheaper by default after making `full_output` and diagnostic details opt-in.
-- `terminal_screenshot` is much cheaper in minimal mode than the old always-verbose shape.
-- `terminal_list_sessions` scales better after compacting `SessionInfo` by default.
+- Compares representative interactive flows before and after `terminal_execute`.
+- Measures MCP call count, not model latency.
+- The goal is to show protocol overhead reduction, not host-specific shell speed.
 
-## What it does not prove
+### Cost benchmark
 
-- End-to-end provider cost in dollars.
-- Real network latency under every client.
-- The value of future round-trip optimizations like a composite `terminal_execute` tool.
+- Converts serialized payload bytes into approximate tokens using a simple heuristic.
+- Multiplies by official input-token pricing snapshots from provider docs.
+- This is a planning tool, **not** a billing oracle.
 
-For those, you need separate integration benchmarks.
+## What these benchmarks prove
+
+- The default MCP payloads are materially smaller than before.
+- `terminal_execute` reduces round-trips in the common prompt-by-prompt workflow.
+- Under current provider pricing, payload savings are small per call but meaningful at scale.
+
+## What they do not prove
+
+- Exact billable cost for every provider tokenizer.
+- End-to-end client latency across all MCP hosts.
+- Final user-facing cost once retries, reasoning tokens, and tool selection mistakes are included.
+
+For those, you need separate host-specific integration benchmarks.
