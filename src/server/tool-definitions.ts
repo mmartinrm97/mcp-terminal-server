@@ -90,6 +90,16 @@ export const TOOL_DEFINITIONS = [
           type: "boolean",
           description: "If true, strip ANSI escape codes from output. Default: false.",
         },
+        include_full_output: {
+          type: "boolean",
+          description:
+            "If true, include the full matched buffer snapshot. Default: false to avoid token-heavy responses.",
+        },
+        include_debug: {
+          type: "boolean",
+          description:
+            "If true, include diagnostic prompt/idle metadata. Default: false; prefer diagnostics/export tools for deep debugging.",
+        },
       },
       required: ["id", "pattern"],
     },
@@ -168,6 +178,12 @@ export const TOOL_DEFINITIONS = [
       type: "object" as const,
       properties: {
         id: { type: "string", description: "Session ID." },
+        verbosity: {
+          type: "string",
+          enum: ["minimal", "standard", "diagnostic"],
+          description:
+            "Response size preset. minimal returns compact navigation fields; standard adds prompt guidance; diagnostic adds rows, content_rows, and metrics.",
+        },
       },
       required: ["id"],
     },

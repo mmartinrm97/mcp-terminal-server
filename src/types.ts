@@ -52,7 +52,7 @@ export interface ReadResult {
  */
 export interface ReadUntilResult {
   data: string;
-  full_output: string;
+  full_output?: string;
   matched: string | null;
   ended: boolean;
   exit_code: number | null;
@@ -121,6 +121,8 @@ export interface ReadUntilInput {
   pattern: string;
   timeout_ms?: number;
   strip_ansi?: boolean;
+  include_full_output?: boolean;
+  include_debug?: boolean;
 }
 
 /**
@@ -144,28 +146,28 @@ export interface CloseSessionInput {
  * Result of terminal_screenshot.
  */
 export interface ScreenshotResult {
-  rows: string[];
+  rows?: string[];
   cursorRow: number;
   cursorCol: number;
   cols: number;
   rowsCount: number;
   text: string;
   /** Monotonic total bytes seen in the PTY output buffer */
-  outputBytes: number;
+  outputBytes?: number;
   /** ISO timestamp of the latest PTY output chunk, or null if none observed yet */
-  lastOutputAt: string | null;
+  lastOutputAt?: string | null;
   /** Milliseconds since the latest PTY output chunk */
-  idleMs: number;
+  idleMs?: number;
   /** Best-effort signal that the terminal is likely waiting for input */
   isInteractive: boolean;
   /** Best-effort extracted prompt or question visible on screen */
   detectedPrompt: string | null;
   /** Heuristic prompt kind, if a prompt/question is currently visible */
-  promptCategory: "text" | "confirm" | "choice" | "secret" | "license" | "unknown" | null;
+  promptCategory?: "text" | "confirm" | "choice" | "secret" | "license" | "unknown" | null;
   /** Whether the agent should ask the user instead of guessing the answer */
-  shouldAskUser: boolean;
+  shouldAskUser?: boolean;
   /** Why the prompt should be escalated to the user */
-  askUserReason:
+  askUserReason?:
     | "destructive_confirmation"
     | "secret_required"
     | "license_choice"
@@ -173,7 +175,7 @@ export interface ScreenshotResult {
     | "unknown_text_without_default"
     | null;
   /** Whether pressing Enter to accept the default looks safe/reasonable */
-  canAcceptDefault: boolean;
+  canAcceptDefault?: boolean;
   /** Suggested next step for agents based on current screen state */
   recommendedNextAction: "input_required" | "inspect_screen" | "wait" | "read" | "ask_user";
   /** Semantic classification of the foreground application (optional, v0.3+) */
@@ -184,6 +186,14 @@ export interface ScreenshotResult {
   status_line?: string | null;
   /** All rendered rows excluding the status line */
   content_rows?: string[];
+}
+
+/**
+ * Input parameters for terminal_screenshot.
+ */
+export interface ScreenshotInput {
+  id: string;
+  verbosity?: "minimal" | "standard" | "diagnostic";
 }
 
 /**

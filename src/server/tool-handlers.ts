@@ -29,6 +29,81 @@ import {
 } from "./shared.js";
 
 const serverStartTime = Date.now();
+type ScreenshotVerbosity = "minimal" | "standard" | "diagnostic";
+
+function projectReadUntilResult(
+  raw: Awaited<ReturnType<NonNullable<ReturnType<SessionManager["getSession"]>>["readUntil"]>>,
+  options: { includeFullOutput: boolean; includeDebug: boolean },
+): ReadUntilResult {
+  return {
+    data: raw.data,
+    full_output: options.includeFullOutput ? raw.fullOutput : undefined,
+    matched: raw.matched,
+    ended: raw.ended,
+    exit_code: raw.exit_code,
+    timed_out: raw.timed_out,
+    debug: options.includeDebug ? raw.debug : undefined,
+  };
+}
+
+function projectTimeoutReadUntilResult(
+  partialData: string,
+  options: { includeFullOutput: boolean; includeDebug: boolean },
+): ReadUntilResult {
+  return {
+    data: partialData,
+    full_output: options.includeFullOutput ? partialData : undefined,
+    matched: null,
+    ended: false,
+    exit_code: null,
+    timed_out: true,
+    debug: undefined,
+  };
+}
+
+function projectScreenshot(
+  result: ScreenshotResult,
+  verbosity: ScreenshotVerbosity,
+): ScreenshotResult {
+  const base: ScreenshotResult = {
+    cursorRow: result.cursorRow,
+    cursorCol: result.cursorCol,
+    cols: result.cols,
+    rowsCount: result.rowsCount,
+    text: result.text,
+    isInteractive: result.isInteractive,
+    detectedPrompt: result.detectedPrompt,
+    recommendedNextAction: result.recommendedNextAction,
+    terminal_mode: result.terminal_mode,
+    editor_mode: result.editor_mode,
+  };
+
+  if (verbosity === "minimal") {
+    return base;
+  }
+
+  const standard: ScreenshotResult = {
+    ...base,
+    promptCategory: result.promptCategory,
+    shouldAskUser: result.shouldAskUser,
+    askUserReason: result.askUserReason,
+    canAcceptDefault: result.canAcceptDefault,
+    status_line: result.status_line,
+  };
+
+  if (verbosity === "standard") {
+    return standard;
+  }
+
+  return {
+    ...standard,
+    rows: result.rows,
+    content_rows: result.content_rows,
+    outputBytes: result.outputBytes,
+    lastOutputAt: result.lastOutputAt,
+    idleMs: result.idleMs,
+  };
+}
 
 /**
  * Return static MCP tool metadata.
@@ -123,29 +198,19 @@ async function handleReadUntilTool(
 
   const timeoutMs = typeof args.timeout_ms === "number" ? args.timeout_ms : undefined;
   const stripAnsi = typeof args.strip_ansi === "boolean" ? args.strip_ansi : undefined;
+  const includeFullOutput = args.include_full_output === true;
+  const includeDebug = args.include_debug === true;
 
   try {
     const raw = await s.session.readUntil(pattern, timeoutMs, stripAnsi);
-    const result: ReadUntilResult = {
-      data: raw.data,
-      full_output: raw.fullOutput,
-      matched: raw.matched,
-      ended: raw.ended,
-      exit_code: raw.exit_code,
-      timed_out: raw.timed_out,
-      debug: raw.debug,
-    };
+    const result = projectReadUntilResult(raw, { includeFullOutput, includeDebug });
     return { content: [textContent(result)] };
   } catch (err) {
     if (err instanceof ReadTimeoutError) {
-      const result: ReadUntilResult = {
-        data: err.partialData,
-        full_output: err.partialData,
-        matched: null,
-        ended: false,
-        exit_code: null,
-        timed_out: true,
-      };
+      const result = projectTimeoutReadUntilResult(err.partialData, {
+        includeFullOutput,
+        includeDebug,
+      });
       return { content: [textContent(result)] };
     }
 
@@ -201,7 +266,12 @@ function handleScreenshotTool(sm: SessionManager, args: Record<string, unknown>)
   const s = getSessionOrError(sm, id);
   if (s.error) return toolError(s.error);
 
-  const result: ScreenshotResult = s.session.screenshot();
+  const verbosity =
+    args.verbosity === "standard" || args.verbosity === "diagnostic"
+      ? (args.verbosity as ScreenshotVerbosity)
+      : "minimal";
+
+  const result = projectScreenshot(s.session.screenshot(), verbosity);
   return { content: [textContent(result)] };
 }
 
@@ -226,14 +296,18 @@ function handleSessionDiagnosticsTool(
   sm: SessionManager,
   args: Record<string, unknown>,
 ): ToolResponse {
-  return handleSessionProjectionTool(sm, args, (session, eventLimit): SessionDiagnostics =>
-    session.getDiagnostics(eventLimit),
+  return handleSessionProjectionTool(
+    sm,
+    args,
+    (session, eventLimit): SessionDiagnostics => session.getDiagnostics(eventLimit),
   );
 }
 
 function handleSessionExportTool(sm: SessionManager, args: Record<string, unknown>): ToolResponse {
-  return handleSessionProjectionTool(sm, args, (session, eventLimit): SessionExport =>
-    session.exportSession(eventLimit),
+  return handleSessionProjectionTool(
+    sm,
+    args,
+    (session, eventLimit): SessionExport => session.exportSession(eventLimit),
   );
 }
 

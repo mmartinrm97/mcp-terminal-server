@@ -87,6 +87,8 @@ function createMockSession(overrides?: Partial<MockPTYSession>): MockPTYSession 
       askUserReason: null,
       canAcceptDefault: true,
       terminal_mode: "shell",
+      status_line: null,
+      content_rows: ["line1", "line2"],
     }),
     sendSignal: vi.fn(),
     getRecentEvents: vi.fn().mockReturnValue([
@@ -129,6 +131,8 @@ function createMockSession(overrides?: Partial<MockPTYSession>): MockPTYSession 
         askUserReason: null,
         canAcceptDefault: true,
         terminal_mode: "shell",
+        status_line: null,
+        content_rows: ["line1", "line2"],
       },
     }),
     exportSession: vi.fn().mockReturnValue({
@@ -167,6 +171,8 @@ function createMockSession(overrides?: Partial<MockPTYSession>): MockPTYSession 
         canAcceptDefault: true,
         recommendedNextAction: "input_required",
         terminal_mode: "shell",
+        status_line: null,
+        content_rows: ["line1", "line2"],
       },
       transcript: [
         { at: "2026-04-30T20:00:01.000Z", kind: "input", summary: "npm init", bytes: 8 },
@@ -497,7 +503,7 @@ describe("Server Handler Functions", () => {
     });
 
     describe("terminal_read_until", () => {
-      it("should read until pattern matches", async () => {
+      it("should return compact output by default", async () => {
         mockSession.readUntil.mockResolvedValue({
           data: "prompt> ",
           fullOutput: "all output prompt> ",
@@ -505,6 +511,20 @@ describe("Server Handler Functions", () => {
           ended: false,
           exit_code: null,
           timed_out: false,
+          debug: {
+            session_id: "session-1",
+            pattern: "prompt>",
+            timeout_ms: 30000,
+            idle_ms: 120,
+            last_output_at: "2026-04-30T20:05:00.000Z",
+            output_bytes: 42,
+            detected_prompt: "package name: (demo)",
+            prompt_category: "text",
+            should_ask_user: false,
+            ask_user_reason: null,
+            can_accept_default: true,
+            recommended_next_action: "input_required",
+          },
         });
         const result = await handleCallTool(mockSm as unknown as SessionManager, {
           name: "terminal_read_until",
@@ -512,9 +532,47 @@ describe("Server Handler Functions", () => {
         });
         const parsed = JSON.parse(result.content[0].text);
         expect(parsed.data).toBe("prompt> ");
-        expect(parsed.full_output).toBe("all output prompt> ");
         expect(parsed.matched).toBe("prompt>");
         expect(parsed.timed_out).toBe(false);
+        expect(parsed.full_output).toBeUndefined();
+        expect(parsed.debug).toBeUndefined();
+      });
+
+      it("should include full_output and debug when explicitly requested", async () => {
+        mockSession.readUntil.mockResolvedValue({
+          data: "prompt> ",
+          fullOutput: "all output prompt> ",
+          matched: "prompt>",
+          ended: false,
+          exit_code: null,
+          timed_out: false,
+          debug: {
+            session_id: "session-1",
+            pattern: "prompt>",
+            timeout_ms: 30000,
+            idle_ms: 120,
+            last_output_at: "2026-04-30T20:05:00.000Z",
+            output_bytes: 42,
+            detected_prompt: "package name: (demo)",
+            prompt_category: "text",
+            should_ask_user: false,
+            ask_user_reason: null,
+            can_accept_default: true,
+            recommended_next_action: "input_required",
+          },
+        });
+        const result = await handleCallTool(mockSm as unknown as SessionManager, {
+          name: "terminal_read_until",
+          arguments: {
+            id: "session-1",
+            pattern: "prompt>",
+            include_full_output: true,
+            include_debug: true,
+          },
+        });
+        const parsed = JSON.parse(result.content[0].text);
+        expect(parsed.full_output).toBe("all output prompt> ");
+        expect(parsed.debug?.session_id).toBe("session-1");
       });
 
       it("should pass timeout_ms and strip_ansi", async () => {
@@ -534,7 +592,7 @@ describe("Server Handler Functions", () => {
         const parsed = JSON.parse(result.content[0].text);
         expect(parsed.timed_out).toBe(true);
         expect(parsed.data).toBe("partial-data");
-        expect(parsed.full_output).toBe("partial-data");
+        expect(parsed.full_output).toBeUndefined();
       });
 
       it("should handle SessionNotFoundError", async () => {
@@ -696,20 +754,35 @@ describe("Server Handler Functions", () => {
     });
 
     describe("terminal_screenshot", () => {
-      it("should return screenshot result with screen rows", async () => {
+      it("should return a compact screenshot payload by default", async () => {
         const result = await handleCallTool(mockSm as unknown as SessionManager, {
           name: "terminal_screenshot",
           arguments: { id: "session-1" },
         });
         const parsed = JSON.parse(result.content[0].text);
-        expect(parsed.rows).toContain("line1");
+        expect(parsed.text).toBe("line1\nline2");
         expect(parsed.terminal_mode).toBe("shell");
         expect(parsed.detectedPrompt).toBe("package name: (demo)");
         expect(parsed.recommendedNextAction).toBe("input_required");
+        expect(parsed.rows).toBeUndefined();
+        expect(parsed.content_rows).toBeUndefined();
+        expect(parsed.outputBytes).toBeUndefined();
+        expect(parsed.promptCategory).toBeUndefined();
+        expect(mockSession.screenshot).toHaveBeenCalled();
+      });
+
+      it("should include diagnostic fields when verbosity is diagnostic", async () => {
+        const result = await handleCallTool(mockSm as unknown as SessionManager, {
+          name: "terminal_screenshot",
+          arguments: { id: "session-1", verbosity: "diagnostic" },
+        });
+        const parsed = JSON.parse(result.content[0].text);
+        expect(parsed.rows).toContain("line1");
+        expect(parsed.content_rows).toBeDefined();
+        expect(parsed.outputBytes).toBe(42);
         expect(parsed.promptCategory).toBe("text");
         expect(parsed.shouldAskUser).toBe(false);
         expect(parsed.canAcceptDefault).toBe(true);
-        expect(mockSession.screenshot).toHaveBeenCalled();
       });
 
       it("should handle SessionNotFoundError", async () => {
