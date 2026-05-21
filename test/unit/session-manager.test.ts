@@ -55,13 +55,13 @@ describe("SessionManager", () => {
       manager = new SessionManager({ max_sessions: 10, session_ttl_ms: 999999 });
       const info = await manager.createSession({
         shell: "bash",
-        cwd: "/test",
+        cwd: join(process.cwd(), "test-workspace"),
         cols: 80,
         rows: 24,
       });
       expect(info.id).toBeTruthy();
       expect(info.shell).toBe("bash");
-      expect(info.cwd).toBe("/test");
+      expect(info.cwd).toBe(join(process.cwd(), "test-workspace"));
       expect(manager.activeCount).toBe(1);
     });
 
@@ -85,6 +85,13 @@ describe("SessionManager", () => {
       manager = new SessionManager({ max_sessions: 10, session_ttl_ms: 999999 });
       const info = await manager.createSession({});
       expect(info.cwd).toBe(process.cwd());
+    });
+
+    it("should reject cwd outside process.cwd() by default", async () => {
+      manager = new SessionManager({ max_sessions: 10, session_ttl_ms: 999999 });
+      await expect(manager.createSession({ cwd: dirname(process.cwd()) })).rejects.toThrow(
+        SessionPolicyError,
+      );
     });
 
     it("should enforce max session limit", async () => {

@@ -188,6 +188,16 @@ describe("SessionManager Integration", () => {
   // 5. Safety policy
   // ---------------------------------------------------------------------------
   describe("safety policy", () => {
+    it("should reject session creation outside process.cwd() by default", async () => {
+      const sm = createManager();
+
+      await expect(
+        createTestSession(sm, {
+          cwd: join(process.cwd(), ".."),
+        }),
+      ).rejects.toThrow(SessionPolicyError);
+    });
+
     it("should reject session creation outside allowed cwd roots", async () => {
       const sm = createManager({
         allowed_cwd_roots: [join(process.cwd(), "safe-root")],

@@ -43,7 +43,10 @@ export class SessionManager {
       session_ttl_ms: config?.session_ttl_ms ?? 30 * 60 * 1000,
       session_max_duration_ms: config?.session_max_duration_ms,
       output_buffer_max_bytes: config?.output_buffer_max_bytes ?? 1024 * 1024,
-      allowed_cwd_roots: config?.allowed_cwd_roots ?? [],
+      allowed_cwd_roots:
+        config?.allowed_cwd_roots && config.allowed_cwd_roots.length > 0
+          ? config.allowed_cwd_roots
+          : [process.cwd()],
       command_allow_patterns: config?.command_allow_patterns ?? [],
       command_deny_patterns: config?.command_deny_patterns ?? [],
       command_confirm_patterns: config?.command_confirm_patterns ?? [],
