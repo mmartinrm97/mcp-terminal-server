@@ -5,6 +5,19 @@ import { relative, resolve } from "node:path";
 import { SessionNotFoundError, SessionLimitError, SessionPolicyError } from "../types.js";
 import type { SessionConfig, SessionInfo, SessionManagerConfig } from "../types.js";
 
+const defaultConfirmPatterns = [
+  String.raw`\brm\s+-rf\b`,
+  String.raw`\bsudo\b`,
+  String.raw`\bcurl\b.*\|\s*(sh|bash|zsh|pwsh|powershell)\b`,
+  String.raw`\bwget\b`,
+  String.raw`\bcurl\b`,
+  String.raw`\bchmod\s+777\b`,
+  String.raw`\bchown\b`,
+];
+
+const packageInstallPattern =
+  /\b(?:pnpm\s+(?:add|install)\b|npm\s+(?:install|i)\b|yarn\s+add\b|bun\s+add\b)/i;
+
 /**
  * Manages multiple PTY sessions with TTL-based cleanup.
  *
@@ -33,6 +46,7 @@ export class SessionManager {
       allowed_cwd_roots: config?.allowed_cwd_roots ?? [],
       command_allow_patterns: config?.command_allow_patterns ?? [],
       command_deny_patterns: config?.command_deny_patterns ?? [],
+      command_confirm_patterns: config?.command_confirm_patterns ?? [],
     };
 
     // Start cleanup timer — runs every 60 seconds
@@ -203,12 +217,51 @@ export class SessionManager {
     }
 
     const allowPatterns = this.config.command_allow_patterns ?? [];
-    if (allowPatterns.length === 0) return;
+    if (allowPatterns.length === 0) {
+      this.assertCommandConfirmationRequired(normalized);
+      return;
+    }
 
     const matchedAllow = allowPatterns.some((pattern) => new RegExp(pattern, "i").test(normalized));
     if (!matchedAllow) {
       throw new SessionPolicyError("Command not allowed by configured allow patterns");
     }
+
+    this.assertCommandConfirmationRequired(normalized);
+  }
+
+  private assertCommandConfirmationRequired(command: string): void {
+    if (packageInstallPattern.test(command)) {
+      throw new SessionPolicyError(
+        "Command requires user confirmation: package installation detected. Review the package name/version/source, confirm the install, and run pnpm audit after installation to assess vulnerabilities and transitive risk.",
+      );
+    }
+
+    const confirmPatterns = [
+      ...defaultConfirmPatterns,
+      ...(this.config.command_confirm_patterns ?? []),
+    ];
+    for (const pattern of confirmPatterns) {
+      if (new RegExp(pattern, "i").test(command)) {
+        throw new SessionPolicyError(this.buildConfirmationMessage(command, pattern));
+      }
+    }
+  }
+
+  private buildConfirmationMessage(command: string, pattern: string): string {
+    if (/\bcurl\b.*\|\s*(sh|bash|zsh|pwsh|powershell)\b/i.test(command)) {
+      return `Command requires user confirmation: download-and-execute pattern matched (${pattern}). Remote scripts can exfiltrate secrets or irreversibly modify the host.`;
+    }
+
+    if (/\bwget\b|\bcurl\b/i.test(command)) {
+      return `Command requires user confirmation: internet download detected (${pattern}). Downloaded files should be reviewed before execution.`;
+    }
+
+    if (/\brm\s+-rf\b|\bchmod\s+777\b|\bchown\b|\bsudo\b/i.test(command)) {
+      return `Command requires user confirmation: risky system mutation detected (${pattern}). This may cause destructive or irreversible changes.`;
+    }
+
+    return `Command requires user confirmation: risky pattern matched (${pattern}).`;
   }
 
   private isWithinRoot(target: string, root: string): boolean {

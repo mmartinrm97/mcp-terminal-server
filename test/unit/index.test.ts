@@ -28,6 +28,7 @@ describe("index — parseEnvConfig", () => {
       allowed_cwd_roots: [],
       command_allow_patterns: [],
       command_deny_patterns: [],
+      command_confirm_patterns: [],
     });
   });
 
@@ -62,6 +63,7 @@ describe("index — parseEnvConfig", () => {
       allowed_cwd_roots: [],
       command_allow_patterns: [],
       command_deny_patterns: [],
+      command_confirm_patterns: [],
     });
   });
 
@@ -87,6 +89,8 @@ describe("index — parseEnvConfig", () => {
     process.env.MCP_TERMINAL_ALLOWED_CWD_ROOTS = "/workspace;/safe";
     process.env.MCP_TERMINAL_COMMAND_ALLOW_PATTERNS = "^echo\\b;;^pwd\\b";
     process.env.MCP_TERMINAL_COMMAND_DENY_PATTERNS = "rm\\s+-rf;;git\\s+reset\\s+--hard";
+    process.env.MCP_TERMINAL_COMMAND_CONFIRM_PATTERNS =
+      "^terraform\\s+apply\\b;;^docker\\s+push\\b";
     process.env.MCP_TERMINAL_SESSION_MAX_DURATION_MS = "900000";
     process.env.MCP_TERMINAL_OUTPUT_BUFFER_MAX_BYTES = "4096";
 
@@ -94,6 +98,10 @@ describe("index — parseEnvConfig", () => {
     expect(config.allowed_cwd_roots).toEqual(["/workspace", "/safe"]);
     expect(config.command_allow_patterns).toEqual(["^echo\\b", "^pwd\\b"]);
     expect(config.command_deny_patterns).toEqual(["rm\\s+-rf", "git\\s+reset\\s+--hard"]);
+    expect(config.command_confirm_patterns).toEqual([
+      "^terraform\\s+apply\\b",
+      "^docker\\s+push\\b",
+    ]);
     expect(config.session_max_duration_ms).toBe(900000);
     expect(config.output_buffer_max_bytes).toBe(4096);
   });

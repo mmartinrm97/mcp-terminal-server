@@ -306,6 +306,7 @@ export interface SessionManagerConfig {
   allowed_cwd_roots?: string[];
   command_allow_patterns?: string[];
   command_deny_patterns?: string[];
+  command_confirm_patterns?: string[];
 }
 
 /**

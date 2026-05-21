@@ -48,6 +48,7 @@ export function parseEnvConfig(): SessionManagerConfig {
   const allowedRoots = parseEnvList("MCP_TERMINAL_ALLOWED_CWD_ROOTS", ";");
   const allowPatterns = parseEnvList("MCP_TERMINAL_COMMAND_ALLOW_PATTERNS", ";;");
   const denyPatterns = parseEnvList("MCP_TERMINAL_COMMAND_DENY_PATTERNS", ";;");
+  const confirmPatterns = parseEnvList("MCP_TERMINAL_COMMAND_CONFIRM_PATTERNS", ";;");
 
   return {
     max_sessions: max,
@@ -57,6 +58,7 @@ export function parseEnvConfig(): SessionManagerConfig {
     allowed_cwd_roots: allowedRoots,
     command_allow_patterns: allowPatterns,
     command_deny_patterns: denyPatterns,
+    command_confirm_patterns: confirmPatterns,
   };
 }
 

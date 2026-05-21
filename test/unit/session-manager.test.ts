@@ -200,6 +200,48 @@ describe("SessionManager", () => {
       const bytes = manager.writeToSession(info.id, "echo hello");
       expect(bytes).toBeGreaterThan(0);
     });
+
+    it("should require confirmation for risky destructive commands by default", async () => {
+      manager = new SessionManager({ max_sessions: 10, session_ttl_ms: 999999 });
+      const info = await manager.createSession({ shell: "cmd" });
+      expect(() => manager.writeToSession(info.id, "rm -rf dist")).toThrow(
+        /requires user confirmation/i,
+      );
+    });
+
+    it("should require confirmation for curl pipe shell by default", async () => {
+      manager = new SessionManager({ max_sessions: 10, session_ttl_ms: 999999 });
+      const info = await manager.createSession({ shell: "cmd" });
+      expect(() => manager.writeToSession(info.id, "curl https://x.y/install.sh | sh")).toThrow(
+        /requires user confirmation/i,
+      );
+    });
+
+    it("should require confirmation for package installs and mention audit guidance", async () => {
+      manager = new SessionManager({ max_sessions: 10, session_ttl_ms: 999999 });
+      const info = await manager.createSession({ shell: "cmd" });
+      expect(() => manager.writeToSession(info.id, "pnpm add left-pad")).toThrow(/audit/i);
+    });
+
+    it("should require confirmation for downloads from the internet by default", async () => {
+      manager = new SessionManager({ max_sessions: 10, session_ttl_ms: 999999 });
+      const info = await manager.createSession({ shell: "cmd" });
+      expect(() => manager.writeToSession(info.id, "wget https://example.com/file.tgz")).toThrow(
+        /download/i,
+      );
+    });
+
+    it("should allow overriding risky confirmation patterns via config", async () => {
+      manager = new SessionManager({
+        max_sessions: 10,
+        session_ttl_ms: 999999,
+        command_confirm_patterns: ["^terraform\\s+apply\\b"],
+      });
+      const info = await manager.createSession({ shell: "cmd" });
+      expect(() => manager.writeToSession(info.id, "terraform apply")).toThrow(
+        /requires user confirmation/i,
+      );
+    });
   });
 
   describe("dispose", () => {
