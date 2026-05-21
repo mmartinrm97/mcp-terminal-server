@@ -50,6 +50,47 @@ export const TOOL_DEFINITIONS = [
     },
   },
   {
+    name: "terminal_execute",
+    description:
+      "Write text/keystrokes to the terminal and optionally wait for a regex pattern in the same call. " +
+      "Use this to reduce MCP round-trips for the common write + read_until workflow.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        id: { type: "string", description: "Session ID returned by terminal_create_session." },
+        data: { type: "string", description: String.raw`Text data to write. Use \n for Enter.` },
+        await_pattern: {
+          type: "string",
+          description: 'Optional regex pattern to wait for after writing (e.g. "package name:").',
+        },
+        timeout_ms: {
+          type: "number",
+          description: "Max wait time in milliseconds when await_pattern is set. Default: 30000.",
+        },
+        strip_ansi: {
+          type: "boolean",
+          description: "If true, strip ANSI escape codes from the awaited output. Default: true.",
+        },
+        include_full_output: {
+          type: "boolean",
+          description:
+            "If true, include the full matched buffer snapshot from the awaited read. Default: false.",
+        },
+        include_debug: {
+          type: "boolean",
+          description:
+            "If true, include diagnostic prompt/idle metadata from the awaited read. Default: false.",
+        },
+        max_output_bytes: {
+          type: "number",
+          description:
+            "Maximum response size in bytes for the awaited output. Oversized output is truncated head+tail with a marker.",
+        },
+      },
+      required: ["id", "data"],
+    },
+  },
+  {
     name: "terminal_read",
     description:
       "Read the current terminal buffer contents. Non-blocking — returns whatever output " +

@@ -275,9 +275,9 @@ describe("Server Handler Functions", () => {
 
   // ---- handleListTools ----
   describe("handleListTools", () => {
-    it("should return 13 tools", async () => {
+    it("should return 14 tools", async () => {
       const result = await handleListTools();
-      expect(result.tools).toHaveLength(13);
+      expect(result.tools).toHaveLength(14);
     });
 
     it("should include terminal_create_session", async () => {
@@ -290,6 +290,12 @@ describe("Server Handler Functions", () => {
       const result = await handleListTools();
       const names = result.tools.map((t: any) => t.name);
       expect(names).toContain("terminal_write");
+    });
+
+    it("should include terminal_execute", async () => {
+      const result = await handleListTools();
+      const names = result.tools.map((t: any) => t.name);
+      expect(names).toContain("terminal_execute");
     });
 
     it("should include terminal_read_until", async () => {
@@ -1077,6 +1083,67 @@ describe("Server Handler Functions", () => {
         expect(result.isError).toBe(true);
         expect(result.content[0].text).toContain("Unknown tool");
       });
+    });
+  });
+
+  describe("terminal_execute", () => {
+    it("should write and wait for a pattern in one call", async () => {
+      const result = await handleCallTool(mockSm as unknown as SessionManager, {
+        name: "terminal_execute",
+        arguments: {
+          id: "session-1",
+          data: "npm init\\n",
+          await_pattern: "package name:",
+          timeout_ms: 5000,
+        },
+      });
+
+      expect(mockSm.writeToSession).toHaveBeenCalledWith("session-1", "npm init\\n");
+      expect(mockSession.readUntil).toHaveBeenCalledWith("package name:", 5000, true);
+
+      const parsed = JSON.parse(result.content[0].text);
+      expect(parsed.ok).toBe(true);
+      expect(parsed.awaited).toBe(true);
+      expect(parsed.bytes_written).toBe(8);
+      expect(parsed.read_until.matched).toBe("hello");
+    });
+
+    it("should support write-only execution when no await_pattern is provided", async () => {
+      const result = await handleCallTool(mockSm as unknown as SessionManager, {
+        name: "terminal_execute",
+        arguments: {
+          id: "session-1",
+          data: "echo hi\\n",
+        },
+      });
+
+      expect(mockSm.writeToSession).toHaveBeenCalledWith("session-1", "echo hi\\n");
+      expect(mockSession.readUntil).not.toHaveBeenCalled();
+
+      const parsed = JSON.parse(result.content[0].text);
+      expect(parsed.ok).toBe(true);
+      expect(parsed.awaited).toBe(false);
+      expect(parsed.bytes_written).toBe(8);
+      expect(parsed.read_until).toBeUndefined();
+    });
+
+    it("should surface read_until timeout guidance in composite mode", async () => {
+      mockSession.readUntil.mockRejectedValue(new ReadTimeoutError("timed out", "partial-data"));
+
+      const result = await handleCallTool(mockSm as unknown as SessionManager, {
+        name: "terminal_execute",
+        arguments: {
+          id: "session-1",
+          data: "npm init\\n",
+          await_pattern: "never",
+        },
+      });
+
+      const parsed = JSON.parse(result.content[0].text);
+      expect(parsed.ok).toBe(true);
+      expect(parsed.awaited).toBe(true);
+      expect(parsed.read_until.timed_out).toBe(true);
+      expect(parsed.read_until.recommended_next_action).toBe("input_required");
     });
   });
 

@@ -38,6 +38,16 @@ export interface WriteResult {
 }
 
 /**
+ * Result returned by terminal_execute.
+ */
+export interface ExecuteResult {
+  ok: boolean;
+  bytes_written: number;
+  awaited: boolean;
+  read_until?: ReadUntilResult;
+}
+
+/**
  * Result returned by terminal_read.
  */
 export interface ReadResult {
@@ -103,6 +113,20 @@ export interface CreateSessionInput {
 export interface WriteInput {
   id: string;
   data: string;
+}
+
+/**
+ * Input parameters for terminal_execute.
+ */
+export interface ExecuteInput {
+  id: string;
+  data: string;
+  await_pattern?: string;
+  timeout_ms?: number;
+  strip_ansi?: boolean;
+  include_full_output?: boolean;
+  include_debug?: boolean;
+  max_output_bytes?: number;
 }
 
 /**

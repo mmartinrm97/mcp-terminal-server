@@ -9,6 +9,7 @@ import {
 } from "../types.js";
 import { PKG_VERSION } from "../version.js";
 import type {
+  ExecuteResult,
   PingResult,
   ReadResult,
   ReadUntilResult,
@@ -248,6 +249,86 @@ function handleWriteTool(sm: SessionManager, args: Record<string, unknown>): Too
   }
 }
 
+async function handleExecuteTool(
+  sm: SessionManager,
+  args: Record<string, unknown>,
+): Promise<ToolResponse> {
+  const id = requireStringArg(args, "id");
+  const data = args.data as string | undefined;
+  if (typeof data !== "string") {
+    throw new McpError(ErrorCode.InvalidParams, "Missing required parameter: data");
+  }
+
+  const awaitPattern =
+    typeof args.await_pattern === "string" && args.await_pattern.trim() !== ""
+      ? args.await_pattern
+      : undefined;
+  const timeoutMs = typeof args.timeout_ms === "number" ? args.timeout_ms : undefined;
+  const stripAnsiOutput = args.strip_ansi !== false;
+  const includeFullOutput = args.include_full_output === true;
+  const includeDebug = args.include_debug === true;
+  const maxOutputBytes =
+    typeof args.max_output_bytes === "number" ? args.max_output_bytes : undefined;
+
+  try {
+    const bytesWritten = sm.writeToSession(id, data);
+    if (!awaitPattern) {
+      const result: ExecuteResult = {
+        ok: true,
+        bytes_written: bytesWritten,
+        awaited: false,
+      };
+      return { content: [textContent(result)] };
+    }
+
+    const session = sm.getSession(id);
+    try {
+      const raw = await session.readUntil(awaitPattern, timeoutMs, stripAnsiOutput);
+      const result: ExecuteResult = {
+        ok: true,
+        bytes_written: bytesWritten,
+        awaited: true,
+        read_until: projectReadUntilResult(raw, {
+          includeFullOutput,
+          includeDebug,
+          stripAnsi: false,
+          maxOutputBytes,
+        }),
+      };
+      return { content: [textContent(result)] };
+    } catch (err) {
+      if (err instanceof ReadTimeoutError) {
+        const screenshot = session.screenshot();
+        const result: ExecuteResult = {
+          ok: true,
+          bytes_written: bytesWritten,
+          awaited: true,
+          read_until: projectTimeoutReadUntilResult(
+            err.partialData,
+            screenshot,
+            { sessionId: id, pattern: awaitPattern, timeoutMs: timeoutMs ?? 30000 },
+            {
+              includeFullOutput,
+              includeDebug,
+              stripAnsi: stripAnsiOutput,
+              maxOutputBytes,
+            },
+          ),
+        };
+        return { content: [textContent(result)] };
+      }
+
+      throw err;
+    }
+  } catch (err) {
+    if (err instanceof SessionNotFoundError || err instanceof SessionPolicyError) {
+      return toolError(err.message);
+    }
+
+    throw err;
+  }
+}
+
 function handleReadTool(sm: SessionManager, args: Record<string, unknown>): ToolResponse {
   const id = requireStringArg(args, "id");
   const s = getSessionOrError(sm, id);
@@ -477,6 +558,8 @@ export async function handleCallTool(
       return handleCreateSessionTool(sm, args);
     case "terminal_write":
       return handleWriteTool(sm, args);
+    case "terminal_execute":
+      return handleExecuteTool(sm, args);
     case "terminal_read":
       return handleReadTool(sm, args);
     case "terminal_tail":
