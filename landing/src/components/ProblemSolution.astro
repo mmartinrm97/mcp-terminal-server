@@ -1,0 +1,53 @@
+---
+---
+
+<section class="py-24 px-4">
+  <div class="max-w-5xl mx-auto">
+    <h2 class="text-3xl md:text-4xl font-bold text-center mb-4" data-reveal>
+      The problem terminalize solves
+    </h2>
+    <p class="text-[#8b949e] text-center mb-16 max-w-xl mx-auto" data-reveal>
+      Standard CLI execution is fire-and-forget. Agents can't react to prompts, menus, or errors.
+    </p>
+
+    <div class="grid md:grid-cols-2 gap-6">
+      <!-- Before -->
+      <div class="rounded-xl overflow-hidden border border-[#30363d]" data-reveal data-delay="100">
+        <div class="flex items-center gap-2 px-4 py-3 bg-[#ff6b6b]/[0.08] border-b border-[#ff6b6b]/[0.15] text-[#ff6b6b] text-sm font-mono font-semibold">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+            <path d="M8 1a7 7 0 100 14A7 7 0 008 1zm0 10.5a.75.75 0 110-1.5.75.75 0 010 1.5zm.75-4.75a.75.75 0 00-1.5 0v3.5a.75.75 0 001.5 0v-3.5z"/>
+          </svg>
+          Before — agent times out
+        </div>
+        <div class="bg-[#1a1b26] p-5 font-mono text-sm leading-[1.9] min-h-[200px] border-t-2 border-[#ff6b6b]">
+          <div><span class="text-[#2ecc71]">$ </span><span class="text-[#e6edf3]">npm init</span></div>
+          <div class="text-[#8b949e]">This utility will walk you through creating</div>
+          <div class="text-[#8b949e]">a package.json file.</div>
+          <div class="text-[#8b949e]">package name: (project) <span class="animate-pulse">█</span></div>
+          <div class="mt-4 p-3 rounded-lg bg-[#ff6b6b]/[0.06] border-l-2 border-[#ff6b6b] text-[#ff6b6b] text-xs">
+            Error: agent timed out waiting for input. The process is still running.
+          </div>
+        </div>
+      </div>
+
+      <!-- After -->
+      <div class="rounded-xl overflow-hidden border border-[#30363d]" data-reveal data-delay="200">
+        <div class="flex items-center gap-2 px-4 py-3 bg-[#2ecc71]/[0.08] border-b border-[#2ecc71]/[0.15] text-[#2ecc71] text-sm font-mono font-semibold">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+            <path d="M8 1a7 7 0 100 14A7 7 0 008 1zm3.78 4.78a.75.75 0 00-1.06-1.06L7 8.44 5.28 6.72a.75.75 0 00-1.06 1.06l2.25 2.25a.75.75 0 001.06 0l4.25-4.25z"/>
+          </svg>
+          After — agent reads, responds, succeeds
+        </div>
+        <div class="bg-[#1a1b26] p-5 font-mono text-sm leading-[1.9] min-h-[200px] border-t-2 border-[#2ecc71]">
+          <div><span class="text-[#2ecc71]">$ </span><span class="text-[#e6edf3]">npm init</span></div>
+          <div class="text-[#8b949e]">package name: (project)</div>
+          <div class="text-[#00d2ff]">→ terminal_read_until(&#123; pattern: "package name:" &#125;)</div>
+          <div class="text-[#00d2ff]">→ terminal_write(&#123; text: "my-project\n" &#125;)</div>
+          <div class="text-[#8b949e]">version: (1.0.0)</div>
+          <div class="text-[#00d2ff]">→ terminal_write(&#123; text: "\n" &#125;)</div>
+          <div class="mt-2 text-[#2ecc71]">✓ package.json created — no timeout.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

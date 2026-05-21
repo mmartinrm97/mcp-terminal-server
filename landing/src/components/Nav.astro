@@ -1,14 +1,57 @@
 ---
+
 ---
 
-<nav class="fixed top-0 w-full bg-[#0d1117]/80 backdrop-blur border-b border-[#30363d] z-50">
-  <div class="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
-    <span class="font-bold text-[#6c5ce7]">terminalize</span>
-    <div class="flex gap-6 text-sm text-[#8b949e]">
-      <a href="#features" class="hover:text-[#6c5ce7] transition-colors">Features</a>
-      <a href="#stats" class="hover:text-[#6c5ce7] transition-colors">Stats</a>
-      <a href="https://github.com/mmartinrm97/terminalize" class="hover:text-[#6c5ce7] transition-colors" target="_blank">GitHub</a>
-      <a href="https://www.npmjs.com/package/terminalize" class="hover:text-[#6c5ce7] transition-colors" target="_blank">npm</a>
-    </div>
+<nav
+  class="fixed top-0 w-full bg-[#0d1117]/85 backdrop-blur-md border-b border-[#30363d] z-50"
+>
+  <div class="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
+    <a href="/" class="font-mono font-bold text-lg tracking-tight">
+      <span class="text-[#00d2ff]">$</span>
+      <span class="text-[#e6edf3]">terminalize</span>
+    </a>
+
+    <ul
+      class="hidden md:flex items-center gap-8 text-sm text-[#8b949e] list-none m-0 p-0"
+    >
+      <li>
+        <a href="#features" class="hover:text-[#e6edf3] transition-colors"
+          >Features</a>
+      </li>
+      <li>
+        <a href="#tools" class="hover:text-[#e6edf3] transition-colors"
+          >Tools</a>
+      </li>
+      <li>
+        <a href="#stats" class="hover:text-[#e6edf3] transition-colors"
+          >Compatibility</a>
+      </li>
+      <li>
+        <a
+          href="https://github.com/mmartinrm97/terminalize#readme"
+          target="_blank"
+          class="hover:text-[#e6edf3] transition-colors">Docs</a
+        >
+      </li>
+      <li>
+        <a
+          href="https://github.com/mmartinrm97/terminalize"
+          target="_blank"
+          class="hover:text-[#e6edf3] transition-colors">GitHub</a
+        >
+      </li>
+    </ul>
+
+    <button
+      type="button"
+      data-copy-button
+      data-copy-value="npm install -g terminalize"
+      data-copy-default="Copy npm install"
+      data-copy-success="Copied"
+      class="inline-flex items-center gap-2 rounded-md border-0 bg-[#6c5ce7] px-4 py-2 font-mono text-xs font-semibold text-white transition-all hover:-translate-y-px hover:bg-[#5b4bd5] cursor-pointer"
+      title="Copy install command"
+    >
+      <span data-copy-label>Copy npm install</span>
+    </button>
   </div>
 </nav>

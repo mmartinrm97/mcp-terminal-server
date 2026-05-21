@@ -1,0 +1,60 @@
+---
+const tools = [
+  { name: "terminal_create_session", desc: "Open a new PTY shell with shell, cwd, env, cols, and rows." },
+  { name: "terminal_write", desc: "Send text or keystrokes to the live terminal session." },
+  { name: "terminal_read", desc: "Read the current accumulated output buffer." },
+  { name: "terminal_read_until", desc: "Block until a regex prompt or pattern appears." },
+  { name: "terminal_resize", desc: "Change terminal dimensions mid-session." },
+  { name: "terminal_tail", desc: "Fetch only the last N lines for token-efficient polling." },
+  { name: "terminal_send_signal", desc: "Send SIGINT, SIGTSTP, SIGQUIT, or SIGKILL." },
+  { name: "terminal_ping", desc: "Verify the MCP server is alive before work starts." },
+  { name: "terminal_screenshot", desc: "Render the screen as clean text plus semantic hints." },
+  { name: "terminal_list_sessions", desc: "Inspect active sessions and their status." },
+  { name: "terminal_session_diagnostics", desc: "Get event timeline plus screenshot for stuck flows." },
+  { name: "terminal_session_export", desc: "Export a replay-friendly transcript for bug reports." },
+  { name: "terminal_close_session", desc: "Close a session gracefully or force-kill it." },
+];
+---
+
+<section class="border-t border-[#202938] px-4 py-24" id="tools">
+  <div class="mx-auto max-w-5xl">
+    <div class="mx-auto max-w-2xl text-center">
+      <h2 class="text-3xl font-bold tracking-tight md:text-4xl" data-reveal>
+        The tool surface, exactly as shipped
+      </h2>
+      <p
+        class="mx-auto mt-4 max-w-xl text-base leading-7 text-[#98a3b3]"
+        data-reveal
+      >
+        No made-up helpers. No stale names. These are the 13 MCP tools exposed
+        by the server today.
+      </p>
+    </div>
+
+    <div class="mt-14 grid gap-4 md:grid-cols-2">
+      {
+        tools.map((tool, i) => (
+          <article
+            class="rounded-2xl border border-[#273042] bg-[#101722]/92 px-5 py-4 transition-all hover:border-[#6c5ce7]/40 hover:bg-[#111a28]"
+            data-reveal
+            data-delay={i * 40}
+          >
+            <div class="font-mono text-[13px] font-semibold text-[#8edcff]">{tool.name}</div>
+            <p class="mt-2 text-sm leading-6 text-[#b6c2d2]">{tool.desc}</p>
+          </article>
+        ))
+      }
+    </div>
+
+    <p class="mt-10 text-center text-sm text-[#8b949e]" data-reveal>
+      Full schemas and examples live in the
+      <a
+        href="https://github.com/mmartinrm97/terminalize#readme"
+        class="font-semibold text-[#a89cf7] hover:text-white transition-colors"
+        target="_blank"
+      >
+        main README
+      </a>.
+    </p>
+  </div>
+</section>

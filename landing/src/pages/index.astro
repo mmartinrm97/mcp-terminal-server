@@ -1,79 +1,84 @@
 ---
-import Layout from '../layouts/Layout.astro';
-import Nav from '../components/Nav.astro';
-import Hero from '../components/Hero.astro';
-import MarqueeTicker from '../components/MarqueeTicker.astro';
-import FeaturesGrid from '../components/FeaturesGrid.astro';
-import StatsSection from '../components/StatsSection.astro';
-import SiteFooter from '../components/SiteFooter.astro';
+import Layout from "../layouts/Layout.astro";
+import Nav from "../components/Nav.astro";
+import Hero from "../components/Hero.astro";
+import ProblemSolution from "../components/ProblemSolution.astro";
+import HowItWorks from "../components/HowItWorks.astro";
+import FeaturesGrid from "../components/FeaturesGrid.astro";
+import ToolCatalog from "../components/ToolCatalog.astro";
+import StatsSection from "../components/StatsSection.astro";
+import FinalCTA from "../components/FinalCTA.astro";
+import SiteFooter from "../components/SiteFooter.astro";
 
 const stats = [
-  { value: 305, suffix: '', label: 'Tests Passing' },
-  { value: 89, suffix: '%', label: 'Coverage' },
-  { value: 478, suffix: '/wk', label: 'npm Downloads' },
-  { value: 40, suffix: '→0', label: 'SonarQube Issues' },
+  { value: 13, suffix: "", label: "MCP Tools" },
+  { value: 7, suffix: "", label: "Tested Clients" },
+  { value: 360, suffix: "", label: "Passing Tests" },
+  { value: 0, suffix: "", label: "New Sonar Issues" },
 ];
 
 const features = [
   {
-    title: 'readUntil',
-    desc: 'Esperá un patrón regex en el output. Ideal para prompts interactivos.',
+    title: "terminal_read_until",
+    desc: "Block until a regex pattern appears in output. Handles interactive prompts with configurable timeouts.",
     code: 'terminal_read_until({ pattern: "package name:" })',
   },
   {
-    title: 'screenshot',
-    desc: 'Renderizá ANSI a texto limpio. Detectá si el agente está en vim, nano, htop.',
+    title: "terminal_screenshot",
+    desc: "Render ANSI to clean text. Detect if the agent is inside vim, nano, htop, or any full-screen app.",
     code: 'terminal_screenshot({ id: "sess-1" })',
   },
   {
-    title: 'writeMarked',
-    desc: 'Ejecutá comandos con markers de completado. Sabé exactamente cuándo termina.',
-    code: 'terminal_writeMarked({ id: "sess-1", cmd: "npm install" })',
+    title: "terminal_session_diagnostics",
+    desc: "Capture timeline, recent events, and a fresh semantic screenshot when an agent gets stuck.",
+    code: 'terminal_session_diagnostics({ id: "sess-1" })',
   },
   {
-    title: 'sendSignal',
-    desc: 'Enviale SIGINT, SIGTSTP o SIGKILL al proceso en foreground.',
+    title: "terminal_send_signal",
+    desc: "Send SIGINT, SIGTSTP, or SIGKILL to the foreground process. Press Ctrl+C programmatically.",
     code: 'terminal_send_signal({ id: "sess-1", signal: "SIGINT" })',
   },
   {
-    title: 'Múltiples Sesiones',
-    desc: 'Hasta 10 sesiones simultáneas con auto-cleanup por TTL.',
+    title: "terminal_create_session",
+    desc: "Up to 10 simultaneous sessions with per-session shell, cwd, dimensions, and TTL auto-cleanup.",
     code: 'terminal_create_session({ shell: "bash", cwd: "/project" })',
   },
   {
-    title: 'Screenshot Semántico',
-    desc: 'Analizá la pantalla: detectá modo, status line, y contenido.',
-    code: 'terminal_screenshot({ id: "sess-1" }) → { terminal_mode: "vim", ... }',
+    title: "terminal_session_export",
+    desc: "Export replay-friendly transcripts for bug reports, issue filing, and cross-agent debugging.",
+    code: 'terminal_session_export({ id: "sess-1", event_limit: 25 })',
   },
 ];
 
 const agents = [
-  { name: 'OpenCode', icon: 'https://svgl.app/library/opencode.svg', color: '#6c5ce7' },
-  { name: 'Claude Code', icon: 'https://svgl.app/library/claude-ai-icon.svg', color: '#d97706' },
-  { name: 'Cursor', icon: 'https://svgl.app/library/cursor_dark.svg', color: '#00d2ff' },
-  { name: 'Antigravity CLI', icon: 'https://svgl.app/library/google.svg', color: '#4285f4' },
-  { name: 'Copilot', icon: 'https://svgl.app/library/copilot_dark.svg', color: '#8957e5' },
-  { name: 'Codex', icon: 'https://svgl.app/library/codex_dark.svg', color: '#10a37f' },
-  { name: 'Windsurf', icon: 'https://svgl.app/library/windsurf-dark.svg', color: '#2ecc71' },
-  { name: 'Qwen Code', icon: 'https://svgl.app/library/qwen_dark.svg', color: '#ff6b6b' },
-];
-
-const marqueeLogs = [
-  { agent: 'OpenCode', color: '#6c5ce7', text: 'terminal_create_session({ cwd: "/project" })' },
-  { agent: 'Claude Code', color: '#d97706', text: 'terminal_write({ data: "npm init\\n" }) + readUntil("package name:")' },
-  { agent: 'Cursor', color: '#00d2ff', text: 'terminal_write({ data: "gh pr create --fill\\n" })' },
-  { agent: 'Antigravity CLI', color: '#4285f4', text: 'terminal_screenshot({ id: "sess-3" }) → promptCategory: "choice"' },
-  { agent: 'OpenCode', color: '#6c5ce7', text: 'terminal_write({ data: "npx create-vite\\n" }) + select("React")' },
-  { agent: 'Copilot', color: '#8957e5', text: 'terminal_read_until({ pattern: "Select a framework:" })' },
-  { agent: 'Codex', color: '#10a37f', text: 'terminal_screenshot() → "lazygit" mode detected' },
-  { agent: 'Windsurf', color: '#2ecc71', text: 'terminal_tail({ lines: 10 }) → last build output' },
-  { agent: 'OpenCode', color: '#6c5ce7', text: 'terminal_send_signal({ signal: "SIGINT" }) → Ctrl+C' },
-  { agent: 'Claude Code', color: '#d97706', text: 'terminal_read_until({ timeout_ms: 30000 }) → "Done!"' },
-  { agent: 'Cursor', color: '#00d2ff', text: 'terminal_close_session() → exit_code: 0' },
-  { agent: 'Antigravity CLI', color: '#4285f4', text: 'terminal_write({ id: "sess-3", data: "gh pr create\\n" })' },
-  { agent: 'Codex', color: '#10a37f', text: 'terminal_write({ data: "pnpm install\\n" })' },
-  { agent: 'OpenCode', color: '#6c5ce7', text: 'terminal_read_until({ pattern: "\\$ " }) → shell ready' },
-  { agent: 'Qwen Code', color: '#ff6b6b', text: 'terminal_write({ data: "git push origin main\\n" })' },
+  {
+    name: "Claude Code",
+    status: "Verified",
+  },
+  {
+    name: "Codex",
+    status: "Verified",
+  },
+  {
+    name: "Cursor",
+    status: "Verified",
+  },
+  {
+    name: "OpenCode",
+    status: "Verified",
+  },
+  {
+    name: "Copilot",
+    status: "Verified",
+  },
+  {
+    name: "Pi",
+    status: "Verified",
+  },
+  {
+    name: "Antigravity",
+    status: "Verified",
+  },
 ];
 ---
 
@@ -83,79 +88,117 @@ const marqueeLogs = [
 >
   <Nav />
   <Hero />
-  <MarqueeTicker logs={marqueeLogs} />
+  <ProblemSolution />
+  <HowItWorks />
   <FeaturesGrid features={features} />
+  <ToolCatalog />
   <StatsSection stats={stats} agents={agents} />
+  <FinalCTA />
   <SiteFooter />
 </Layout>
 
 <style is:global>
   /* ── Scrollbar ── */
-  ::-webkit-scrollbar { width: 8px; height: 8px; }
-  ::-webkit-scrollbar-track { background: #0d1117; }
-  ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 4px; }
-  ::-webkit-scrollbar-thumb:hover { background: #6c5ce7; }
-  * { scrollbar-color: #30363d #0d1117; scrollbar-width: thin; }
-
-  /* ── Marquee ── */
-  .marquee-track {
-    animation: marquee 80s linear infinite;
-    width: max-content;
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
   }
-  @keyframes marquee {
-    0% { transform: translateX(0); }
-    100% { transform: translateX(-50%); }
+  ::-webkit-scrollbar-track {
+    background: #0d1117;
   }
-  .marquee-track:hover { animation-play-state: paused; }
-
-  /* ── Typewriter ── */
-  .terminal-lines { text-align: left; }
-  .typing-line {
-    overflow: hidden;
-    white-space: nowrap;
-    width: 0;
-    animation: typeLine calc(var(--chars) * 0.05s + 0.3s) ease-out forwards;
-    animation-delay: var(--delay);
+  ::-webkit-scrollbar-thumb {
+    background: #30363d;
+    border-radius: 4px;
   }
-  @keyframes typeLine {
-    0% { width: 0; }
-    100% { width: calc(var(--chars) * 0.65ch); }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #6c5ce7;
   }
-  .cursor-blink {
-    color: #6c5ce7;
-    animation: blink 0.8s step-end infinite;
-    animation-delay: var(--delay, 7.5s);
-    opacity: 0;
-  }
-  @keyframes blink {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0; }
+  * {
+    scrollbar-color: #30363d #0d1117;
+    scrollbar-width: thin;
   }
 
   /* ── Reveal on scroll ── */
-  [data-reveal] {
+  html[data-js="enhanced"] [data-reveal] {
     opacity: 0;
     transform: translateY(24px);
-    transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+    transition:
+      opacity 0.6s ease-out,
+      transform 0.6s ease-out;
   }
-  [data-reveal][data-revealed] {
+  html[data-js="enhanced"] [data-reveal][data-revealed] {
     opacity: 1;
     transform: translateY(0);
   }
 </style>
 
 <script>
-  // ── Counter animation ──
-  const counters = document.querySelectorAll('.counter');
-  const counterObs = new IntersectionObserver((entries) => {
-    for (const entry of entries) {
-      if (!entry.isIntersecting) continue;
-      const el = entry.target;
-      const target = parseInt(el.dataset.target, 10);
-      animateCounter(el, target);
-      counterObs.unobserve(el);
+  document.documentElement.dataset.js = "enhanced";
+
+  async function copyTextToClipboard(text) {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
     }
-  }, { threshold: 0.5 });
+
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.setAttribute("readonly", "");
+    textarea.style.position = "absolute";
+    textarea.style.left = "-9999px";
+    document.body.appendChild(textarea);
+    textarea.select();
+    const success = document.execCommand("copy");
+    document.body.removeChild(textarea);
+
+    if (!success) {
+      throw new Error("Copy command failed");
+    }
+
+    return true;
+  }
+
+  const copyButtons = document.querySelectorAll("[data-copy-button]");
+
+  for (const button of copyButtons) {
+    button.addEventListener("click", async () => {
+      const text = button.dataset.copyValue;
+      const label = button.querySelector("[data-copy-label]");
+      const defaultLabel = button.dataset.copyDefault ?? "Copy";
+      const successLabel = button.dataset.copySuccess ?? "Copied";
+
+      if (!text || !label) return;
+
+      try {
+        await copyTextToClipboard(text);
+        label.textContent = successLabel;
+        button.dataset.state = "success";
+      } catch {
+        label.textContent = "Select manually";
+        button.dataset.state = "error";
+      }
+
+      window.setTimeout(() => {
+        label.textContent = defaultLabel;
+        button.dataset.state = "idle";
+      }, 1800);
+    });
+  }
+
+  // ── Counter animation ──
+  const counters = document.querySelectorAll(".counter");
+  const counterObs = new IntersectionObserver(
+    (entries) => {
+      for (const entry of entries) {
+        if (!entry.isIntersecting) continue;
+        const el = entry.target;
+        const target = parseInt(el.dataset.target, 10);
+        animateCounter(el, target);
+        counterObs.unobserve(el);
+      }
+    },
+    { threshold: 0.5 },
+  );
 
   for (const c of counters) counterObs.observe(c);
 
@@ -177,17 +220,24 @@ const marqueeLogs = [
   }
 
   // ── Reveal on scroll ──
-  const revealEls = document.querySelectorAll('[data-reveal]:not([data-revealed])');
+  const revealEls = document.querySelectorAll(
+    "[data-reveal]:not([data-revealed])",
+  );
   if (revealEls.length > 0) {
-    const revealObs = new IntersectionObserver((entries) => {
-      for (const entry of entries) {
-        if (!entry.isIntersecting) continue;
-        const el = entry.target;
-        const delay = parseInt(el.dataset.delay, 10) || 0;
-        setTimeout(() => { el.dataset.revealed = 'true'; }, delay);
-        revealObs.unobserve(el);
-      }
-    }, { threshold: 0.1 });
+    const revealObs = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue;
+          const el = entry.target;
+          const delay = parseInt(el.dataset.delay, 10) || 0;
+          setTimeout(() => {
+            el.dataset.revealed = "true";
+          }, delay);
+          revealObs.unobserve(el);
+        }
+      },
+      { threshold: 0.1 },
+    );
 
     for (const el of revealEls) revealObs.observe(el);
   }

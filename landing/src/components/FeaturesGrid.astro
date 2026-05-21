@@ -14,23 +14,32 @@ const { features } = Astro.props;
 
 <section id="features" class="py-24 px-4">
   <div class="max-5xl mx-auto max-w-5xl">
-    <h2 class="text-3xl md:text-4xl font-bold text-center mb-4" data-reveal>Why terminalize?</h2>
+    <h2 class="text-3xl md:text-4xl font-bold text-center mb-4" data-reveal>
+      Higher-level tooling for messy interactive flows
+    </h2>
     <p class="text-[#8b949e] text-center mb-16 max-w-xl mx-auto" data-reveal>
-      11 MCP tools designed for interactive workflows. No more timeouts, no more guessing.
+      The server stays grounded in a real PTY, but the tools help agents read
+      state, debug failures, and recover without guessing.
     </p>
 
     <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
-      {features.map((f, i) => (
-        <div
-          class="bg-[#161b22] border border-[#30363d] rounded-xl p-6 hover:border-[#6c5ce7]/50 transition-all hover:-translate-y-0.5 duration-300"
-          data-reveal
-          data-delay={i * 100}
-        >
-          <h3 class="text-[#6c5ce7] font-bold mb-2 font-mono text-sm">{f.title}</h3>
-          <p class="text-[#8b949e] text-sm mb-4">{f.desc}</p>
-          <pre class="bg-[#1a1b26] rounded-lg p-3 text-xs font-mono text-[#00d2ff] overflow-x-auto">{f.code}</pre>
-        </div>
-      ))}
+      {
+        features.map((f, i) => (
+          <div
+            class="bg-[#161b22] border border-[#30363d] rounded-xl p-6 hover:border-[#6c5ce7]/50 transition-all hover:-translate-y-0.5 duration-300"
+            data-reveal
+            data-delay={i * 100}
+          >
+            <h3 class="text-[#a89cf7] font-bold mb-2 font-mono text-sm">
+              {f.title}
+            </h3>
+            <p class="text-[#8b949e] text-sm mb-4">{f.desc}</p>
+            <pre class="bg-[#1a1b26] rounded-lg p-3 text-xs font-mono text-[#00d2ff] overflow-x-auto">
+              {f.code}
+            </pre>
+          </div>
+        ))
+      }
     </div>
   </div>
 </section>

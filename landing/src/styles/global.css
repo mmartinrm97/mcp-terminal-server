@@ -2,6 +2,7 @@
 
 @theme {
   --color-primary: #6c5ce7;
+  --color-primary-text: #a89cf7;
   --color-accent: #00d2ff;
   --color-success: #2ecc71;
   --color-bg: #0d1117;
@@ -10,4 +11,25 @@
   --color-text: #e6edf3;
   --color-muted: #8b949e;
   --color-code: #1a1b26;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at top left, rgba(108, 92, 231, 0.16), transparent 24%),
+    radial-gradient(circle at top right, rgba(0, 210, 255, 0.1), transparent 20%),
+    linear-gradient(180deg, #0d1117 0%, #0b0f15 100%);
+}
+
+::selection {
+  background: rgba(108, 92, 231, 0.35);
+  color: #ffffff;
 }

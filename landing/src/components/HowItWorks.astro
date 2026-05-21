@@ -1,0 +1,102 @@
+---
+const configCode = `<span class="text-[#8b949e]">// .cursor/mcp.json — one-time setup</span>
+{
+  <span class="text-[#a89cf7]">"mcpServers"</span>: {
+    <span class="text-[#a89cf7]">"terminalize"</span>: {
+      <span class="text-[#a89cf7]">"command"</span>: <span class="text-[#00d2ff]">"npx"</span>,
+      <span class="text-[#a89cf7]">"args"</span>: [<span class="text-[#00d2ff]">"terminalize"</span>]
+    }
+  }
+}`;
+
+const sessionCode = `<span class="text-[#8b949e]">// Agent calls MCP tool:</span>
+<span class="text-[#a89cf7]">terminal_create_session</span>({ <span class="text-[#a89cf7]">shell</span>: <span class="text-[#00d2ff]">"bash"</span> })
+
+<span class="text-[#8b949e]">// Returns:</span>
+{ <span class="text-[#a89cf7]">sessionId</span>: <span class="text-[#00d2ff]">"sess_abc123"</span>, <span class="text-[#a89cf7]">pid</span>: <span class="text-[#00d2ff]">48291</span> }`;
+
+const interactCode = `<span class="text-[#a89cf7]">terminal_read_until</span>({ <span class="text-[#a89cf7]">pattern</span>: <span class="text-[#00d2ff]">"package name:"</span> })
+<span class="text-[#a89cf7]">terminal_write</span>({ <span class="text-[#a89cf7]">text</span>: <span class="text-[#00d2ff]">"my-project\\n"</span> })
+<span class="text-[#a89cf7]">terminal_screenshot</span>({ <span class="text-[#a89cf7]">sessionId</span>: <span class="text-[#00d2ff]">"sess_abc123"</span> })
+<span class="text-[#a89cf7]">terminal_send_signal</span>({ <span class="text-[#a89cf7]">signal</span>: <span class="text-[#00d2ff]">"SIGINT"</span> })`;
+
+const steps = [
+  {
+    n: 1,
+    title: 'Connect',
+    desc: 'Add 4 lines to your agent config. terminalize runs as a stdio MCP server — no daemon, no port.',
+    code: configCode,
+  },
+  {
+    n: 2,
+    title: 'Create a session',
+    desc: 'The agent opens a real PTY shell. Up to 10 simultaneous sessions, each with its own environment.',
+    code: sessionCode,
+  },
+  {
+    n: 3,
+    title: 'Interact',
+    desc: 'Read output, wait for patterns, send input, take screenshots. Full PTY control for any CLI tool.',
+    code: interactCode,
+  },
+];
+---
+
+<section class="py-24 px-4" id="how-it-works">
+  <div class="max-w-3xl mx-auto">
+    <h2 class="text-3xl md:text-4xl font-bold text-center mb-4" data-reveal>How it works</h2>
+    <p class="text-[#8b949e] text-center mb-16 max-w-xl mx-auto" data-reveal>
+      Three steps from zero to a fully interactive terminal inside your AI agent.
+    </p>
+
+    <div class="steps">
+      {steps.map((step, i) => (
+        <div class="step" data-reveal data-delay={i * 120}>
+          <div class="step-num" aria-hidden="true">{step.n}</div>
+          <div class={`flex-1 ${i < steps.length - 1 ? 'pb-10' : ''}`}>
+            <h3 class="text-xl font-semibold mb-2">{step.title}</h3>
+            <p class="text-[#8b949e] text-sm mb-4 leading-relaxed">{step.desc}</p>
+            <pre class="bg-[#1a1b26] border border-[#30363d] rounded-xl p-5 text-sm font-mono leading-[1.9] overflow-x-auto" set:html={step.code}></pre>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
+
+<style>
+  .steps {
+    position: relative;
+  }
+  .steps::before {
+    content: '';
+    position: absolute;
+    left: 23px;
+    top: 24px;
+    bottom: 24px;
+    width: 2px;
+    background: #30363d;
+  }
+  .step {
+    display: flex;
+    gap: 24px;
+    position: relative;
+  }
+  .step-num {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: #161b22;
+    border: 2px solid #6c5ce7;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    font-size: 15px;
+    color: #a89cf7;
+    flex-shrink: 0;
+    z-index: 1;
+    position: relative;
+  }
+</style>
