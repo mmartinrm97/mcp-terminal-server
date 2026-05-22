@@ -695,15 +695,24 @@ export class PTYSession {
       last_input_preview: lastInput?.preview ?? null,
       last_output_preview: lastOutput?.preview ?? null,
       last_wait_pattern: lastWait?.pattern ?? null,
-      last_wait_status:
-        lastWait?.type === "read_until_match"
-          ? "matched"
-          : lastWait?.type === "read_until_timeout"
-            ? "timed_out"
-            : null,
+      last_wait_status: this.resolveLastWaitStatus(lastWait?.type),
       detected_prompt: screenshot.detectedPrompt,
       recommended_next_action: screenshot.recommendedNextAction,
     };
+  }
+
+  private resolveLastWaitStatus(
+    eventType: SessionEvent["type"] | undefined,
+  ): SessionActivitySummary["last_wait_status"] {
+    if (eventType === "read_until_match") {
+      return "matched";
+    }
+
+    if (eventType === "read_until_timeout") {
+      return "timed_out";
+    }
+
+    return null;
   }
 
   private resolveRecommendedNextAction(

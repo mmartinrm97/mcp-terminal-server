@@ -17,7 +17,6 @@ import type {
   SessionActivitySummary,
   SessionConfig,
   SessionDiagnostics,
-  SessionExport,
   TailResult,
   WriteResult,
 } from "../types.js";

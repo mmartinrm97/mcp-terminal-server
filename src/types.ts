@@ -57,6 +57,30 @@ export interface ReadResult {
   position: number;
 }
 
+export type PromptCategory =
+  | "text"
+  | "confirm"
+  | "choice"
+  | "secret"
+  | "license"
+  | "unknown"
+  | null;
+
+export type AskUserReason =
+  | "destructive_confirmation"
+  | "secret_required"
+  | "license_choice"
+  | "ambiguous_choice"
+  | "unknown_text_without_default"
+  | null;
+
+export type RecommendedNextAction =
+  | "input_required"
+  | "inspect_screen"
+  | "wait"
+  | "read"
+  | "ask_user";
+
 /**
  * Result returned by terminal_read_until (the key tool for interactive flows).
  */
@@ -68,17 +92,11 @@ export interface ReadUntilResult {
   exit_code: number | null;
   timed_out: boolean;
   detected_prompt?: string | null;
-  prompt_category?: "text" | "confirm" | "choice" | "secret" | "license" | "unknown" | null;
+  prompt_category?: PromptCategory;
   should_ask_user?: boolean;
-  ask_user_reason?:
-    | "destructive_confirmation"
-    | "secret_required"
-    | "license_choice"
-    | "ambiguous_choice"
-    | "unknown_text_without_default"
-    | null;
+  ask_user_reason?: AskUserReason;
   can_accept_default?: boolean;
-  recommended_next_action?: "input_required" | "inspect_screen" | "wait" | "read" | "ask_user";
+  recommended_next_action?: RecommendedNextAction;
   debug?: ReadUntilDebugInfo;
 }
 
@@ -191,21 +209,15 @@ export interface ScreenshotResult {
   /** Best-effort extracted prompt or question visible on screen */
   detectedPrompt: string | null;
   /** Heuristic prompt kind, if a prompt/question is currently visible */
-  promptCategory?: "text" | "confirm" | "choice" | "secret" | "license" | "unknown" | null;
+  promptCategory?: PromptCategory;
   /** Whether the agent should ask the user instead of guessing the answer */
   shouldAskUser?: boolean;
   /** Why the prompt should be escalated to the user */
-  askUserReason?:
-    | "destructive_confirmation"
-    | "secret_required"
-    | "license_choice"
-    | "ambiguous_choice"
-    | "unknown_text_without_default"
-    | null;
+  askUserReason?: AskUserReason;
   /** Whether pressing Enter to accept the default looks safe/reasonable */
   canAcceptDefault?: boolean;
   /** Suggested next step for agents based on current screen state */
-  recommendedNextAction: "input_required" | "inspect_screen" | "wait" | "read" | "ask_user";
+  recommendedNextAction: RecommendedNextAction;
   /** Semantic classification of the foreground application (optional, v0.3+) */
   terminal_mode?: string;
   /** Vim-specific editor submode: "normal" | "insert" | "visual" | "replace" | "unknown" */
@@ -330,7 +342,7 @@ export interface SessionActivitySummary {
   last_wait_pattern: string | null;
   last_wait_status: "matched" | "timed_out" | null;
   detected_prompt: string | null;
-  recommended_next_action: "input_required" | "inspect_screen" | "wait" | "read" | "ask_user";
+  recommended_next_action: RecommendedNextAction;
 }
 
 /**
