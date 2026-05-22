@@ -137,6 +137,7 @@ Before publishing a new version:
 1. run `pnpm release:check`
 2. run `pnpm quality` if SonarQube is available
 3. publish only from a clean working tree
+4. prefer the pinned GitHub Actions release workflow for npm provenance
 
 Full checklist: [./docs/RELEASE.md](./docs/RELEASE.md)
 
@@ -679,7 +680,9 @@ If you test on any of these combinations, open an issue or PR with your results.
 4. **Orphan cleanup**: If the MCP server process dies, child PTY processes are cleaned up automatically.
 5. **No secrets**: The server MUST NOT be used for sensitive input (passwords, tokens) because the intermediary agent sees everything.
 6. **Optional safety policy**: Teams can widen or narrow allowed cwd roots, block/allow commands with regex-based policy hooks, require confirmation for risky commands/install flows, set a hard max session duration, and cap retained PTY output size.
-7. **Dependency hygiene**: `pnpm audit:deps` is available locally and runs in CI so dependency regressions are caught before release.
+7. **Dependency hygiene**: `pnpm audit:deps` is available locally, runs in CI, and is enforced by `pnpm release:check` before publish.
+8. **Secret scanning**: CI runs `gitleaks` on pushes and pull requests to catch leaked credentials before release.
+9. **Supply-chain review**: pull requests run GitHub's dependency review action, and the release workflow publishes with npm provenance.
 
 ### Safety policy examples
 
