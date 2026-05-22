@@ -32,9 +32,45 @@ Use this checklist before publishing a new `terminalize` version.
 - [ ] `git status --short` is clean
 - [ ] `pnpm release:check` passed
 - [ ] `pnpm quality` passed or the SonarQube environment is explicitly unavailable
-- [ ] `NPM_TOKEN` is configured for the release workflow
+- [ ] npm trusted publishing is configured for this package/workflow
 - [ ] compatibility claims in `README.md` and `docs/COMPATIBILITY.md` match real evidence
 - [ ] changelog/release notes match the shipped version
+
+## One-time trusted publishing setup
+
+Trusted publishing is an npm-side configuration, not something the repo can finish by itself.
+
+Recommended path:
+
+```bash
+npm install -g npm@11.15.0
+npm trust github terminalize --file release.yml --repo mmartinrm97/terminalize --yes
+```
+
+Then, on npmjs.com for the `terminalize` package, prefer **"Require two-factor authentication and disallow tokens"** after trusted publishing is verified.
+
+The release workflow is already prepared for this model:
+
+- `id-token: write`
+- no `NPM_TOKEN`
+- `npm publish` from GitHub-hosted runners
+- automatic npm provenance for public packages from public repos
+- GitHub artifact attestations for the packaged tarball
+- CycloneDX SBOM + SHA256 checksums uploaded as release artifacts
+
+## Artifact verification
+
+Local integrity check after downloading release artifacts:
+
+```bash
+pnpm verify:checksums artifacts/SHASUMS256.txt
+```
+
+GitHub attestation verification:
+
+```bash
+gh attestation verify terminalize-0.4.0.tgz --repo mmartinrm97/terminalize
+```
 
 ## Next step
 
@@ -47,7 +83,7 @@ git tag v0.4.0
 git push origin v0.4.0
 ```
 
-This runs `.github/workflows/release.yml`, re-checks `pnpm release:check`, and publishes with `--provenance`.
+This runs `.github/workflows/release.yml`, re-checks `pnpm release:check`, generates SBOM/checksums/attestations, and publishes via npm trusted publishing.
 
 ### Local fallback
 

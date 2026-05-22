@@ -29,8 +29,23 @@ describe("security workflows", () => {
   it("should publish with npm provenance in the release workflow", () => {
     const workflow = readWorkflow("release.yml");
 
-    expect(workflow).toContain("pnpm publish --provenance --no-git-checks");
+    expect(workflow).toContain("npm install -g npm@11.15.0");
+    expect(workflow).toContain("npm publish artifacts/*.tgz");
     expect(workflow).toContain("id-token: write");
-    expect(workflow).toContain("NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}");
+    expect(workflow).not.toContain("NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}");
+    expect(workflow).toContain("attestations: write");
+    expect(workflow).toContain("actions/attest@");
+    expect(workflow).toContain("actions/upload-artifact@");
+    expect(workflow).toContain("pnpm sbom:generate");
+  });
+
+  it("should run CodeQL analysis with the official advanced setup action", () => {
+    const workflow = readWorkflow("codeql.yml");
+
+    expect(workflow).toContain("github/codeql-action/init@v4");
+    expect(workflow).toContain("github/codeql-action/analyze@v4");
+    expect(workflow).toContain("language: [javascript-typescript]");
+    expect(workflow).toContain("languages: ${{ matrix.language }}");
+    expect(workflow).toContain("security-events: write");
   });
 });

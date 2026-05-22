@@ -15,6 +15,8 @@ jobs:
     permissions:
       contents: read
       id-token: write
+      attestations: write
+      artifact-metadata: write
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - uses: pnpm/action-setup@9fd676a19091d4595eefd76e4bd31c97133911f1 # v4.2.0
@@ -25,8 +27,32 @@ jobs:
           node-version: 22
           cache: pnpm
           registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+      - run: npm install -g npm@11.15.0
       - run: pnpm install --frozen-lockfile
       - run: pnpm release:check
-      - run: pnpm publish --provenance --no-git-checks
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Pack npm artifact
+        run: |
+          mkdir -p artifacts
+          pnpm pack --pack-destination artifacts
+      - name: Generate CycloneDX SBOM
+        run: pnpm sbom:generate
+      - name: Generate checksums
+        run: pnpm checksums:generate
+      - name: Verify generated checksums
+        run: pnpm verify:checksums
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: terminalize-release-artifacts
+          path: |
+            artifacts/*.tgz
+            artifacts/*.cdx.json
+            artifacts/SHASUMS256.txt
+      - uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4.1.0
+        with:
+          subject-path: artifacts/*.tgz
+      - uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4.1.0
+        with:
+          subject-path: artifacts/*.tgz
+          sbom-path: artifacts/terminalize.cdx.json
+      - run: npm publish artifacts/*.tgz

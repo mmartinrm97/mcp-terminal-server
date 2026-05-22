@@ -34,6 +34,18 @@ describe("package.json test scripts", () => {
     expect(scripts["audit:deps"]).toBe("pnpm audit");
   });
 
+  it("should expose artifact generation and verification scripts", () => {
+    const scripts = readPackageJson().scripts ?? {};
+
+    expect(scripts["sbom:generate"]).toBe(
+      "node scripts/generate-sbom.mjs --output artifacts/terminalize.cdx.json",
+    );
+    expect(scripts["checksums:generate"]).toBe(
+      "node scripts/generate-checksums.mjs artifacts artifacts/SHASUMS256.txt",
+    );
+    expect(scripts["verify:checksums"]).toBe("node scripts/verify-checksums.mjs");
+  });
+
   it("should enforce a release check before publish", () => {
     const scripts = readPackageJson().scripts ?? {};
 

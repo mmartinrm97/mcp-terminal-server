@@ -141,6 +141,13 @@ Before publishing a new version:
 
 Full checklist: [./docs/RELEASE.md](./docs/RELEASE.md)
 
+The release workflow now also generates:
+
+- a CycloneDX SBOM
+- SHA256 checksums for release artifacts
+- GitHub artifact attestations
+- npm trusted-publishing provenance
+
 The root README intentionally does **not** duplicate every host-specific MCP block anymore. Those details live in the per-agent guides.
 
 Performance and payload-size evidence lives in [docs/BENCHMARKS.md](./docs/BENCHMARKS.md).
@@ -683,6 +690,7 @@ If you test on any of these combinations, open an issue or PR with your results.
 7. **Dependency hygiene**: `pnpm audit:deps` is available locally, runs in CI, and is enforced by `pnpm release:check` before publish.
 8. **Secret scanning**: CI runs `gitleaks` on pushes and pull requests to catch leaked credentials before release.
 9. **Supply-chain review**: pull requests run GitHub's dependency review action, and the release workflow publishes with npm provenance.
+10. **Static analysis**: CI also runs CodeQL for JavaScript/TypeScript security scanning on `main`, pull requests, and a weekly schedule.
 
 ### Safety policy examples
 
