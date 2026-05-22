@@ -130,6 +130,16 @@ Use the dedicated install guides:
 - [OpenCode](./docs/installation-guides/install-opencode.md)
 - [Pi](./docs/installation-guides/install-pi.md)
 
+## Release
+
+Before publishing a new version:
+
+1. run `pnpm release:check`
+2. run `pnpm quality` if SonarQube is available
+3. publish only from a clean working tree
+
+Full checklist: [./docs/RELEASE.md](./docs/RELEASE.md)
+
 The root README intentionally does **not** duplicate every host-specific MCP block anymore. Those details live in the per-agent guides.
 
 Performance and payload-size evidence lives in [docs/BENCHMARKS.md](./docs/BENCHMARKS.md).

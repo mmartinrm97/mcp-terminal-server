@@ -34,6 +34,13 @@ describe("package.json test scripts", () => {
     expect(scripts["audit:deps"]).toBe("pnpm audit");
   });
 
+  it("should enforce a release check before publish", () => {
+    const scripts = readPackageJson().scripts ?? {};
+
+    expect(scripts["release:check"]).toBe("pnpm test:unit && pnpm build && pnpm audit:deps");
+    expect(scripts.prepublishOnly).toBe("pnpm release:check");
+  });
+
   it("should expose benchmark scripts for payload, workflow, latency, and cost", () => {
     const scripts = readPackageJson().scripts ?? {};
 
