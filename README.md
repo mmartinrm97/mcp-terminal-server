@@ -30,6 +30,8 @@
 [![Codex](https://img.shields.io/badge/Codex-verified-2EA043?style=flat-square)](./docs/COMPATIBILITY.md)
 [![Kiro CLI](https://img.shields.io/badge/Kiro%20CLI-verified-2EA043?style=flat-square)](./docs/COMPATIBILITY.md)
 [![Antigravity CLI](https://img.shields.io/badge/Antigravity-verified-2EA043?style=flat-square)](./docs/COMPATIBILITY.md)
+[![GitHub Copilot CLI](https://img.shields.io/badge/Copilot-verified-2EA043?style=flat-square)](./docs/COMPATIBILITY.md)
+[![Pi](https://img.shields.io/badge/Pi-verified-2EA043?style=flat-square)](./docs/COMPATIBILITY.md)
 
 > **Stop the "one-shot" guessing game. Give your AI agents a persistent terminal they can actually talk to.**
 
@@ -197,11 +199,13 @@ Writes to the terminal and optionally waits for the next prompt/output pattern i
 
 Reads the current terminal buffer contents. Non-blocking — returns whatever output has accumulated.
 
-| Parameter | Type      | Default | Description                                                                                                                                     |
-| --------- | --------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| `id`      | `string`  | —       | Session ID                                                                                                                                      |
-| `flush`   | `boolean` | `false` | If `true`, clears the buffer after reading                                                                                                      |
-| `since`   | `number`  | —       | Byte position for incremental reads. Returns only output after this position. Use `position` from previous response for token-efficient polling |
+| Parameter          | Type      | Default | Description                                                                                                                                     |
+| ------------------ | --------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `id`               | `string`  | —       | Session ID                                                                                                                                      |
+| `flush`            | `boolean` | `false` | If `true`, clears the buffer after reading                                                                                                      |
+| `since`            | `number`  | —       | Byte position for incremental reads. Returns only output after this position. Use `position` from previous response for token-efficient polling |
+| `strip_ansi`       | `boolean` | `true`  | Strip ANSI escape codes from output                                                                                                             |
+| `max_output_bytes` | `number`  | —       | Truncate oversized output with a head+tail marker                                                                                               |
 
 Response includes `position` (monotonic byte counter) for use in subsequent `since` reads.
 
@@ -209,12 +213,15 @@ Response includes `position` (monotonic byte counter) for use in subsequent `sin
 
 **The most important tool.** Reads the terminal buffer until a regex pattern matches or the timeout is reached.
 
-| Parameter    | Type      | Default | Description                                     |
-| ------------ | --------- | ------- | ----------------------------------------------- |
-| `id`         | `string`  | —       | Session ID                                      |
-| `pattern`    | `string`  | —       | Regex pattern to wait for                       |
-| `timeout_ms` | `number`  | `30000` | Maximum wait time in milliseconds               |
-| `strip_ansi` | `boolean` | `true`  | If `true`, strips ANSI escape codes from output |
+| Parameter             | Type      | Default | Description                                       |
+| --------------------- | --------- | ------- | ------------------------------------------------- |
+| `id`                  | `string`  | —       | Session ID                                        |
+| `pattern`             | `string`  | —       | Regex pattern to wait for                         |
+| `timeout_ms`          | `number`  | `30000` | Maximum wait time in milliseconds                 |
+| `strip_ansi`          | `boolean` | `true`  | If `true`, strips ANSI escape codes from output   |
+| `include_full_output` | `boolean` | `false` | Include full matched buffer snapshot              |
+| `include_debug`       | `boolean` | `false` | Include extra timeout/debug metadata              |
+| `max_output_bytes`    | `number`  | —       | Truncate oversized output with a head+tail marker |
 
 ### 6. `terminal_resize`
 
@@ -254,21 +261,21 @@ Health check endpoint. Returns server status, active session count, and uptime.
 
 Reads the last N lines of the terminal buffer (like `tail -n N`). Token-efficient — avoids paying tokens for old accumulated output.
 
-| Parameter | Type     | Default | Description                      |
-| --------- | -------- | ------- | -------------------------------- |
-| `id`      | `string` | —       | Session ID                       |
-| `lines`   | `number` | `20`    | Number of recent lines to return |
+| Parameter          | Type      | Default | Description                              |
+| ------------------ | --------- | ------- | ---------------------------------------- |
+| `id`               | `string`  | —       | Session ID                               |
+| `lines`            | `number`  | `20`    | Number of recent lines to return         |
+| `strip_ansi`       | `boolean` | `true`  | Strip ANSI escape codes from output      |
+| `max_output_bytes` | `number`  | —       | Truncate oversized output with head+tail |
 
 ### 11. `terminal_screenshot`
 
 Takes a screenshot of the current terminal screen. Returns clean rendered text with semantic hints — no raw ANSI codes.
 
-Also includes best-effort semantic hints for agents:
+Also includes best-effort semantic hints for agents. The exact payload depends on `verbosity`:
 
 - `terminal_mode`
 - `editor_mode`
-- `status_line`
-- `content_rows`
 - `detectedPrompt`
 - `promptCategory`
 - `shouldAskUser`
@@ -276,8 +283,8 @@ Also includes best-effort semantic hints for agents:
 - `canAcceptDefault`
 - `isInteractive`
 - `recommendedNextAction`
-- `idleMs`
-- `outputBytes`
+
+`diagnostic` additionally includes full rows, geometry, status/content splits, and metrics like `idleMs` / `outputBytes`.
 
 Typical interpretation:
 
@@ -603,6 +610,24 @@ When an interactive run fails in a confusing way:
    - `recent_events` for low-level sequencing and timeout context
    - `last_screenshot` for the final semantic terminal state
 
+## Benchmarks
+
+Current local benchmark scripts:
+
+- `pnpm bench:payload` — serialized MCP payload size
+- `pnpm bench:workflow` — round-trip count before vs after `terminal_execute`
+- `pnpm bench:latency` — local MCP handler latency
+- `pnpm bench:cost` — approximate provider-side input cost from payload size
+
+Current baseline highlights:
+
+- `terminal_read_until`: **40.4% smaller** default payload
+- `terminal_screenshot`: **66.0% smaller** default payload
+- `terminal_list_sessions`: **55.3% smaller** default payload
+- prompt-by-prompt flow: **36.4% fewer** MCP round-trips with `terminal_execute`
+
+Full methodology and outputs live in [./docs/BENCHMARKS.md](./docs/BENCHMARKS.md).
+
 ## Coverage
 
 Current local baseline from `pnpm quality`:
@@ -664,6 +689,12 @@ Block dangerous commands:
 
 ```bash
 MCP_TERMINAL_COMMAND_DENY_PATTERNS="rm\\s+-rf;;git\\s+reset\\s+--hard;;docker\\s+system\\s+prune"
+```
+
+Require confirmation before risky commands or package installs:
+
+```bash
+MCP_TERMINAL_COMMAND_CONFIRM_PATTERNS="curl\\s+\\|\\s*sh;;sudo\\b;;pnpm\\s+add\\b"
 ```
 
 Force-close sessions after 15 minutes total lifetime:

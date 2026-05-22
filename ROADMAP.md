@@ -21,7 +21,7 @@ when one-shot shell tools are not enough.
 
 As of `v0.4.0`, terminalize already includes:
 
-- 11 MCP tools for interactive PTY sessions
+- 14 MCP tools for interactive PTY sessions
 - Stateful terminal sessions with TTL cleanup and session limits
 - Incremental reads via byte position
 - Token-efficient tail reads
