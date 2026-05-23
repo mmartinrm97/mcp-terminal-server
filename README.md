@@ -1,7 +1,7 @@
 # terminalize
 
 <p align="center">
-  <img src="https://img.shields.io/badge/terminalize-v0.4.0-6C5CE7?style=for-the-badge&logo=window-terminal&logoColor=white" alt="terminalize" />
+  <img src="https://img.shields.io/badge/terminalize-v0.5.0-6C5CE7?style=for-the-badge&logo=window-terminal&logoColor=white" alt="terminalize" />
 </p>
 
 <p align="center">
@@ -9,7 +9,7 @@
   <img src="https://img.shields.io/badge/node.js-22%2B-339933?logo=node.js&logoColor=white&style=flat-square" />
   <img src="https://img.shields.io/badge/typescript-5.8%2B-3178C6?logo=typescript&logoColor=white&style=flat-square" />
   <img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" />
-  <img src="https://img.shields.io/badge/tests-360%20passing-brightgreen?style=flat-square" />
+  <img src="https://img.shields.io/badge/tests-405%20passing-brightgreen?style=flat-square" />
   <img src="https://img.shields.io/badge/quality%20gate-passing-brightgreen?style=flat-square" />
   <img src="https://img.shields.io/badge/coverage-92.6%25-brightgreen?style=flat-square" />
 </p>
@@ -650,10 +650,10 @@ Full methodology and outputs live in [./docs/BENCHMARKS.md](./docs/BENCHMARKS.md
 
 Current local baseline from `pnpm quality`:
 
-- **360 passing tests**
-- **90.8% statements**
-- **82.0% branches**
-- **92.6% lines**
+- **405 passing tests**
+- **91.1% statements**
+- **81.1% branches**
+- **92.7% lines**
 - **SonarQube quality gate: passing**
 
 The important point is not chasing vanity numbers. The point is that the core PTY/session/safety flow is covered enough to keep the quality gate honest while still leaving room for targeted regression tests where interactive behavior is subtle.

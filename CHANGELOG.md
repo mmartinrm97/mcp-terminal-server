@@ -5,6 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] — 2026-05-22
+
+### Added
+
+- **Efficiency**: `terminal_execute` composite tool reduces common write+wait round-trips into a single MCP call
+- **Efficiency**: Benchmark suite for payload size, workflow round-trips, local handler latency, and approximate provider-side cost
+- **Security**: Risk-confirmation policy for dangerous commands and package-install flows
+- **Security**: Release supply-chain hardening with CycloneDX SBOM generation, SHA256 checksums, CodeQL, GitHub artifact attestations, and npm trusted publishing workflow support
+- **Quality**: Release gate now enforces tests, build, dependency audit, and documented release verification steps
+
+### Changed
+
+- **Payloads**: `terminal_read`, `terminal_read_until`, `terminal_tail`, screenshots, and session listings now default to much smaller token-aware responses
+- **Safety**: Session cwd is restricted to `process.cwd()` by default unless explicitly widened with `MCP_TERMINAL_ALLOWED_CWD_ROOTS`
+- **Observability**: Diagnostics/export responses now emphasize compact summaries instead of raw verbose dumps
+- **Docs**: Release, benchmarks, compatibility, and agent guidance were aligned with the current MCP surface and evidence bar
+
+### Fixed
+
+- **Determinism**: Non-interactive screenshot guidance no longer oscillates based only on elapsed time
+- **Supply chain**: Release workflow no longer depends on legacy npm tokens and now validates checksum generation/verification paths
+- **Dependencies**: Added overrides to keep transient audit findings green, including the `qs` advisory introduced by SBOM tooling
+
+### Testing
+
+- **405 tests** passing
+- **Coverage**: 91.1% statements / 81.1% branches / 92.7% lines
+- Release validation now includes dry-run packaging, SBOM generation, checksum verification, trusted-publishing-ready release workflow checks, and Sonar quality gate verification
+
 ## [0.4.0] — 2026-05-20
 
 ### Added
