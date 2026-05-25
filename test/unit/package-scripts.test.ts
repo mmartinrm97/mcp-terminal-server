@@ -24,6 +24,12 @@ describe("package.json test scripts", () => {
 
     expect(scripts["test:int"]).toContain("--maxWorkers=1");
     expect(scripts["test:int"]).toContain("--no-file-parallelism");
+    expect(scripts["test:int:windows"]).toContain("test/integration/ci-smoke.int.test.ts");
+    expect(scripts["test:int:windows"]).toContain("test/integration/pty-session.int.test.ts");
+    expect(scripts["test:int:windows"]).toContain("test/integration/executables.int.test.ts");
+    expect(scripts["test:int:windows"]).toContain("test/integration/mcp-server.int.test.ts");
+    expect(scripts["test:int:windows"]).toContain("--maxWorkers=1");
+    expect(scripts["test:int:windows"]).toContain("--no-file-parallelism");
     expect(scripts["test:smoke"]).toContain("--maxWorkers=1");
     expect(scripts["test:smoke"]).toContain("--no-file-parallelism");
   });

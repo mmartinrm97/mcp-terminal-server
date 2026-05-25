@@ -43,6 +43,7 @@
     "test:cov": "vitest run --coverage",
     "test:unit": "pnpm vitest run test/unit --maxWorkers=100%",
     "test:int": "vitest run test/integration --maxWorkers=1 --no-file-parallelism",
+    "test:int:windows": "vitest run test/integration/ci-smoke.int.test.ts test/integration/pty-session.int.test.ts test/integration/executables.int.test.ts test/integration/mcp-server.int.test.ts --maxWorkers=1 --no-file-parallelism",
     "test:smoke": "vitest run test/integration/ci-smoke.int.test.ts --maxWorkers=1 --no-file-parallelism",
     "test:watch": "vitest",
     "lint": "oxlint",

@@ -34,4 +34,12 @@ describe("CI dependency hygiene", () => {
     expect(workflow).toContain("actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444");
     expect(workflow).toContain("corepack prepare pnpm@10.33.2 --activate");
   });
+
+  it("should run targeted Windows integration coverage beyond smoke", () => {
+    const workflow = readCiWorkflow();
+
+    expect(workflow).toContain("integration-windows-targeted:");
+    expect(workflow).toContain("runs-on: windows-latest");
+    expect(workflow).toContain("pnpm test:int:windows");
+  });
 });
