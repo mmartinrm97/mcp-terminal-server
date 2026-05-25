@@ -40,6 +40,21 @@ describe("renderScreen", () => {
     expect(result.rows[0]).toBe("AC");
   });
 
+  it("should restore cursor position with DEC save/restore", () => {
+    const result = renderScreen("abc\x1b7\x1b[2;1HXYZ\x1b8!", 80, 24);
+    expect(result.rows[0]).toBe("abc!");
+    expect(result.rows[1]).toBe("XYZ");
+    expect(result.cursorCol).toBe(5);
+  });
+
+  it("should restore cursor position with CSI save/restore", () => {
+    const result = renderScreen("hello\x1b[s\x1b[2;1Hworld\x1b[u!", 80, 24);
+    expect(result.rows[0]).toBe("hello!");
+    expect(result.rows[1]).toBe("world");
+    expect(result.cursorRow).toBe(1);
+    expect(result.cursorCol).toBe(7);
+  });
+
   it("should handle erase in line (K)", () => {
     // Write "hello", move to col 0, erase to end, write "hi"
     const result = renderScreen("hello\x1b[0G\x1b[Khi", 80, 24);
@@ -203,6 +218,22 @@ describe("analyzeScreen", () => {
     const rows = ["Select an option:", "  1) React", "  2) Vue"];
     const result = analyzeScreen(rows);
     expect(result.prompt_detected).toBe("Select an option:");
+    expect(result.prompt_category).toBe("choice");
+    expect(result.should_ask_user).toBe(true);
+    expect(result.ask_user_reason).toBe("ambiguous_choice");
+    expect(result.recommended_next_action).toBe("ask_user");
+  });
+
+  it("should detect numbered choice menus without explicit select wording", () => {
+    const rows = [
+      "Pick a package manager",
+      "  1) pnpm",
+      "  2) npm",
+      "  3) yarn",
+      "Enter choice [1-3]:",
+    ];
+    const result = analyzeScreen(rows);
+    expect(result.prompt_detected).toBe("Enter choice [1-3]:");
     expect(result.prompt_category).toBe("choice");
     expect(result.should_ask_user).toBe(true);
     expect(result.ask_user_reason).toBe("ambiguous_choice");

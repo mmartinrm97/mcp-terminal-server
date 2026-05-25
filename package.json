@@ -62,7 +62,8 @@
     "verify:checksums": "node scripts/verify-checksums.mjs",
     "bench:workflow": "node scripts/benchmark-workflows.mjs",
     "bench:cost": "node scripts/estimate-provider-costs.mjs",
-    "bench:latency": "pnpm build && node scripts/benchmark-latency.mjs"
+    "bench:latency": "pnpm build && node scripts/benchmark-latency.mjs",
+    "profile:buffer": "pnpm build && node scripts/profile-output-buffer.mjs"
   },
   "dependencies": {
     "@clack/prompts": "^1.3.0",

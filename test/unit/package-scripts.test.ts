@@ -53,12 +53,13 @@ describe("package.json test scripts", () => {
     expect(scripts.prepublishOnly).toBe("pnpm release:check");
   });
 
-  it("should expose benchmark scripts for payload, workflow, latency, and cost", () => {
+  it("should expose benchmark and profiling scripts", () => {
     const scripts = readPackageJson().scripts ?? {};
 
     expect(scripts["bench:payload"]).toBe("node scripts/benchmark-payloads.mjs");
     expect(scripts["bench:workflow"]).toBe("node scripts/benchmark-workflows.mjs");
     expect(scripts["bench:latency"]).toBe("pnpm build && node scripts/benchmark-latency.mjs");
     expect(scripts["bench:cost"]).toBe("node scripts/estimate-provider-costs.mjs");
+    expect(scripts["profile:buffer"]).toBe("pnpm build && node scripts/profile-output-buffer.mjs");
   });
 });

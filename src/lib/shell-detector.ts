@@ -1,4 +1,5 @@
 import { platform } from "node:os";
+import { execFileSync } from "node:child_process";
 
 /**
  * Information about a detected or specified shell.
@@ -102,9 +103,11 @@ function findExecutable(name: string): string | null {
   if (platform() !== "win32") return name;
 
   try {
-    // Use which/where to find the executable - but since require('child_process').execSync
-    // is heavy for a simple lookup, fall back to assuming it's on PATH
-    return name;
+    const output = execFileSync("where.exe", [name], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+    return output.length > 0 ? name : null;
   } catch {
     return null;
   }

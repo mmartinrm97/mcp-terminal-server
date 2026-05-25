@@ -62,6 +62,13 @@ export interface ScreenState {
   text: string;
 }
 
+interface CursorState {
+  row: number;
+  col: number;
+  savedRow: number | null;
+  savedCol: number | null;
+}
+
 /**
  * Parse raw terminal output and render it into a screen model.
  *
@@ -78,15 +85,18 @@ export function renderScreen(
   const screen: string[][] = Array.from({ length: terminalRows }, () =>
     Array.from({ length: terminalCols }, () => " "),
   );
-  let row = 0; // 1-indexed in ANSI, we use 0-indexed internally
-  let col = 0;
+  let state: CursorState = {
+    row: 0, // 1-indexed in ANSI, we use 0-indexed internally
+    col: 0,
+    savedRow: null,
+    savedCol: null,
+  };
 
   let i = 0;
   while (i < raw.length) {
-    const result = processRawChar(raw, i, screen, terminalCols, terminalRows, row, col);
+    const result = processRawChar(raw, i, screen, terminalCols, terminalRows, state);
     i = result.i;
-    row = result.row;
-    col = result.col;
+    state = result.state;
   }
 
   // Build clean output: trim trailing spaces from each row
@@ -101,8 +111,8 @@ export function renderScreen(
 
   return {
     rows,
-    cursorRow: row + 1,
-    cursorCol: col + 1,
+    cursorRow: state.row + 1,
+    cursorCol: state.col + 1,
     cols: terminalCols,
     rowsCount: terminalRows,
     text,
@@ -116,19 +126,18 @@ function processRawChar(
   screen: string[][],
   terminalCols: number,
   terminalRows: number,
-  row: number,
-  col: number,
-): { i: number; row: number; col: number } {
+  state: CursorState,
+): { i: number; state: CursorState } {
   const ch = raw[i];
 
-  if (ch === "\r") return { i: i + 1, row, col: 0 };
-  if (ch === "\n") return processNewline(i, screen, terminalCols, terminalRows, row);
-  if (ch === "\b") return processBackspace(i, row, col);
-  if (ch === "\t") return processTab(i, terminalCols, col, row);
-  if (ch === "\x1b") return processEscape(raw, i, screen, terminalCols, terminalRows, row, col);
+  if (ch === "\r") return { i: i + 1, state: { ...state, col: 0 } };
+  if (ch === "\n") return processNewline(i, screen, terminalCols, terminalRows, state);
+  if (ch === "\b") return processBackspace(i, state);
+  if (ch === "\t") return processTab(i, terminalCols, state);
+  if (ch === "\x1b") return processEscape(raw, i, screen, terminalCols, terminalRows, state);
 
   // Regular character
-  return writeChar(ch, i, screen, terminalCols, terminalRows, row, col);
+  return writeChar(ch, i, screen, terminalCols, terminalRows, state);
 }
 
 /** Handle a newline (\n): advance row, scroll if needed. */
@@ -137,34 +146,32 @@ function processNewline(
   screen: string[][],
   terminalCols: number,
   terminalRows: number,
-  row: number,
-): { i: number; row: number; col: number } {
-  const newRow = row + 1;
+  state: CursorState,
+): { i: number; state: CursorState } {
+  const newRow = state.row + 1;
   if (newRow >= terminalRows) {
-    return { i: i + 1, row: scrollUp(screen, terminalCols, terminalRows), col: 0 };
+    return {
+      i: i + 1,
+      state: { ...state, row: scrollUp(screen, terminalCols, terminalRows), col: 0 },
+    };
   }
-  return { i: i + 1, row: newRow, col: 0 };
+  return { i: i + 1, state: { ...state, row: newRow, col: 0 } };
 }
 
 /** Handle backspace (\b). */
-function processBackspace(
-  i: number,
-  row: number,
-  col: number,
-): { i: number; row: number; col: number } {
-  return { i: i + 1, row, col: col > 0 ? col - 1 : 0 };
+function processBackspace(i: number, state: CursorState): { i: number; state: CursorState } {
+  return { i: i + 1, state: { ...state, col: state.col > 0 ? state.col - 1 : 0 } };
 }
 
 /** Handle tab (\t): advance to next 8-column boundary. */
 function processTab(
   i: number,
   terminalCols: number,
-  col: number,
-  row: number,
-): { i: number; row: number; col: number } {
-  let newCol = (col + 8) & ~7;
+  state: CursorState,
+): { i: number; state: CursorState } {
+  let newCol = (state.col + 8) & ~7;
   if (newCol >= terminalCols) newCol = terminalCols - 1;
-  return { i: i + 1, row, col: newCol };
+  return { i: i + 1, state: { ...state, col: newCol } };
 }
 
 /** Write a regular character to the screen, wrapping/scroll if needed. */
@@ -174,14 +181,13 @@ function writeChar(
   screen: string[][],
   terminalCols: number,
   terminalRows: number,
-  row: number,
-  col: number,
-): { i: number; row: number; col: number } {
-  if (col < terminalCols && row < terminalRows) {
-    screen[row][col] = ch;
+  state: CursorState,
+): { i: number; state: CursorState } {
+  if (state.col < terminalCols && state.row < terminalRows) {
+    screen[state.row][state.col] = ch;
   }
-  let newCol = col + 1;
-  let newRow = row;
+  let newCol = state.col + 1;
+  let newRow = state.row;
   if (newCol >= terminalCols) {
     newCol = 0;
     newRow++;
@@ -189,7 +195,7 @@ function writeChar(
       newRow = scrollUp(screen, terminalCols, terminalRows);
     }
   }
-  return { i: i + 1, row: newRow, col: newCol };
+  return { i: i + 1, state: { ...state, row: newRow, col: newCol } };
 }
 
 /** Scroll screen up one row: shift all rows up, clear bottom row. Returns new cursor row. */
@@ -211,22 +217,35 @@ function processEscape(
   screen: string[][],
   terminalCols: number,
   terminalRows: number,
-  row: number,
-  col: number,
-): { i: number; row: number; col: number } {
+  state: CursorState,
+): { i: number; state: CursorState } {
   let i = startI + 1; // Skip ESC
-  if (i >= raw.length) return { i, row, col };
+  if (i >= raw.length) return { i, state };
 
   if (raw[i] === "[") {
-    return processCsi(raw, i, screen, terminalCols, terminalRows, row, col);
+    return processCsi(raw, i, screen, terminalCols, terminalRows, state);
   }
 
   if (raw[i] === "]") {
-    return processOsc(raw, i, row, col);
+    return processOsc(raw, i, state);
+  }
+
+  if (raw[i] === "7") {
+    return {
+      i: i + 1,
+      state: { ...state, savedRow: state.row, savedCol: state.col },
+    };
+  }
+
+  if (raw[i] === "8") {
+    return {
+      i: i + 1,
+      state: restoreCursor(state),
+    };
   }
 
   // Single-character escape — skip
-  return { i: i + 1, row, col };
+  return { i: i + 1, state };
 }
 
 /** Process a CSI sequence (ESC [ params... finalByte). */
@@ -236,27 +255,47 @@ function processCsi(
   screen: string[][],
   terminalCols: number,
   terminalRows: number,
-  row: number,
-  col: number,
-): { i: number; row: number; col: number } {
+  state: CursorState,
+): { i: number; state: CursorState } {
   let i = startI + 1; // Skip '['
   const seqStart = i;
   while (i < raw.length && isCsiParam(raw[i])) i++;
-  if (i >= raw.length) return { i: startI, row, col };
+  if (i >= raw.length) return { i: startI, state };
   const params = raw.slice(seqStart, i);
   const finalByte = raw[i];
   i++;
 
+  if (finalByte === "s") {
+    return {
+      i,
+      state: { ...state, savedRow: state.row, savedCol: state.col },
+    };
+  }
+
+  if (finalByte === "u") {
+    return {
+      i,
+      state: restoreCursor(state),
+    };
+  }
+
   // Cursor positioning commands (A, B, C, D, G, H, f)
-  const cursorResult = applyCursorMovement(finalByte, params, row, col, terminalCols, terminalRows);
+  const cursorResult = applyCursorMovement(
+    finalByte,
+    params,
+    state.row,
+    state.col,
+    terminalCols,
+    terminalRows,
+  );
   if (cursorResult) {
-    return { i, row: cursorResult.row, col: cursorResult.col };
+    return { i, state: { ...state, row: cursorResult.row, col: cursorResult.col } };
   }
 
   // Erase commands (J, K)
-  applyErase(finalByte, params, screen, row, col, terminalCols, terminalRows);
+  applyErase(finalByte, params, screen, state.row, state.col, terminalCols, terminalRows);
 
-  return { i, row, col };
+  return { i, state };
 }
 
 /** Apply cursor movement/positioning if finalByte is a cursor command. */
@@ -319,16 +358,27 @@ function applyErase(
 function processOsc(
   raw: string,
   startI: number,
-  row: number,
-  col: number,
-): { i: number; row: number; col: number } {
+  state: CursorState,
+): { i: number; state: CursorState } {
   let i = startI + 1; // Skip ']'
   while (i < raw.length && raw[i] !== "\x07" && !(raw[i] === "\x1b" && raw[i + 1] === "\\")) {
     i++;
   }
   if (i < raw.length && raw[i] === "\x07") i++;
   else if (i < raw.length && raw[i] === "\x1b") i += 2; // skip ESC + \
-  return { i, row, col };
+  return { i, state };
+}
+
+function restoreCursor(state: CursorState): CursorState {
+  if (state.savedRow === null || state.savedCol === null) {
+    return state;
+  }
+
+  return {
+    ...state,
+    row: state.savedRow,
+    col: state.savedCol,
+  };
 }
 
 /** Apply Erase in Display (CSI J). */
@@ -757,6 +807,15 @@ function classifyPrompt(prompt: string | null): {
   }
 
   if (/(select|choose|pick|which|option)/i.test(prompt)) {
+    return {
+      category: "choice",
+      shouldAskUser: true,
+      askUserReason: "ambiguous_choice",
+      canAcceptDefault: false,
+    };
+  }
+
+  if (/\b(choice|selection)\b/i.test(prompt) || /\[\d+\s*-\s*\d+\]/.test(prompt)) {
     return {
       category: "choice",
       shouldAskUser: true,

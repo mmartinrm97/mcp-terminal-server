@@ -172,6 +172,16 @@ Performance and payload-size evidence lives in [docs/BENCHMARKS.md](./docs/BENCH
 | `MCP_TERMINAL_COMMAND_ALLOW_PATTERNS`  | empty             | Optional `;;`-separated regex allowlist for writes |
 | `MCP_TERMINAL_COMMAND_DENY_PATTERNS`   | empty             | Optional `;;`-separated regex denylist for writes  |
 
+## Public API Contract
+
+terminalize now publishes an explicit MCP compatibility contract:
+
+- **Core tools** are the long-term agent integration surface.
+- **Advanced tools** are stable too, but focused on diagnostics and operator workflows.
+- breaking renames/removals require a **major version**
+
+Full contract: [./docs/API-CONTRACT.md](./docs/API-CONTRACT.md)
+
 ## MCP Tools
 
 ### 1. `terminal_create_session`
@@ -691,6 +701,8 @@ If you test on any of these combinations, open an issue or PR with your results.
 8. **Secret scanning**: CI runs `gitleaks` on pushes and pull requests to catch leaked credentials before release.
 9. **Supply-chain review**: pull requests run GitHub's dependency review action, and the release workflow publishes with npm provenance.
 10. **Static analysis**: CI also runs CodeQL for JavaScript/TypeScript security scanning on `main`, pull requests, and a weekly schedule.
+
+Threat model and deployment guidance: [./docs/THREAT-MODEL.md](./docs/THREAT-MODEL.md)
 
 ### Safety policy examples
 

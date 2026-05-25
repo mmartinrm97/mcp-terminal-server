@@ -2,7 +2,11 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // Mock node:os module for cross-platform testing
 vi.mock("node:os");
+vi.mock("node:child_process", () => ({
+  execFileSync: vi.fn(),
+}));
 import { platform } from "node:os";
+import { execFileSync } from "node:child_process";
 import { detectShell } from "../../src/lib/shell-detector.js";
 
 // ---------------------------------------------------------------------------
@@ -14,6 +18,8 @@ const IS_WINDOWS = process.platform === "win32";
 describe("detectShell", () => {
   beforeEach(() => {
     vi.mocked(platform).mockReturnValue(process.platform as "win32" | "linux" | "darwin");
+    vi.mocked(execFileSync).mockReset();
+    vi.mocked(execFileSync).mockReturnValue("C:\\Program Files\\PowerShell\\7\\pwsh.exe\r\n");
   });
 
   it("should return bash when explicitly specified", () => {
@@ -113,5 +119,17 @@ describe("detectShell", () => {
     const info = detectShell("auto");
     expect(info.shell).toBe("pwsh.exe");
     expect(info.shellName).toBe("pwsh");
+  });
+
+  it("should fall back to cmd.exe on Windows when pwsh is unavailable", () => {
+    vi.mocked(platform).mockReturnValue("win32");
+    vi.mocked(execFileSync).mockImplementation(() => {
+      throw new Error("pwsh not found");
+    });
+
+    const info = detectShell("auto");
+    expect(info.shell).toBe("cmd.exe");
+    expect(info.shellName).toBe("cmd");
+    expect(info.args).toEqual([]);
   });
 });

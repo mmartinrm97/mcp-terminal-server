@@ -5,6 +5,7 @@ These benchmarks cover three different questions:
 1. **Payload size** — how big are the default MCP responses?
 2. **Round-trips** — how many MCP calls does a workflow need?
 3. **Approximate provider cost** — what do those payload changes mean under a pricing snapshot?
+4. **Sustained-session retention** — how much output remains resident after long-running output streams?
 
 ## Run locally
 
@@ -13,6 +14,7 @@ pnpm bench:payload
 pnpm bench:workflow
 pnpm bench:latency
 pnpm bench:cost
+pnpm profile:buffer
 ```
 
 ## Payload baseline
@@ -96,6 +98,16 @@ Run `pnpm bench:cost` locally to see the current table.
 - Converts serialized payload bytes into approximate tokens using a simple heuristic.
 - Multiplies by official input-token pricing snapshots from provider docs.
 - This is a planning tool, **not** a billing oracle.
+
+### Sustained-session buffer profile
+
+- Simulates a long-running PTY session pushing ~8 MiB of output through `OutputBuffer`.
+- Compares the default retention behavior against a consumer that periodically `readAll()` + `compact()`.
+- Reports retained bytes, retained percentage, rough RSS delta, and loop duration.
+
+Use it when you want to answer the operational question:
+
+> “If an agent leaves a noisy session alive for a while, how much output are we actually keeping in memory?”
 
 ## What these benchmarks prove
 

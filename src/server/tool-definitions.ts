@@ -1,6 +1,29 @@
-export const TOOL_DEFINITIONS = [
+export type ToolSupportTier = "core" | "advanced";
+
+export interface TerminalToolDefinition {
+  name: string;
+  description: string;
+  inputSchema: {
+    type: "object";
+    properties: Record<string, unknown>;
+    required?: string[];
+  };
+  supportTier: ToolSupportTier;
+  stability: "stable";
+}
+
+/**
+ * Public MCP tool contract for terminalize.
+ *
+ * `core` tools are the long-term integration surface agents should build upon.
+ * `advanced` tools are supported and stable, but optimized for diagnostics,
+ * observability, and deeper operator workflows rather than the happy path.
+ */
+export const TOOL_DEFINITIONS: TerminalToolDefinition[] = [
   {
     name: "terminal_create_session",
+    supportTier: "core",
+    stability: "stable",
     description:
       "Create a new interactive terminal session. Auto-detects shell by platform. " +
       "Returns session info including ID for subsequent calls.",
@@ -39,6 +62,8 @@ export const TOOL_DEFINITIONS = [
   },
   {
     name: "terminal_write",
+    supportTier: "core",
+    stability: "stable",
     description: String.raw`Write text/keystrokes to the terminal session. Supports control sequences: \n (Enter), \x03 (Ctrl+C/SIGINT), \x1b (Escape), \t (Tab).`,
     inputSchema: {
       type: "object" as const,
@@ -51,6 +76,8 @@ export const TOOL_DEFINITIONS = [
   },
   {
     name: "terminal_execute",
+    supportTier: "core",
+    stability: "stable",
     description:
       "Write text/keystrokes to the terminal and optionally wait for a regex pattern in the same call. " +
       "Use this to reduce MCP round-trips for the common write + read_until workflow.",
@@ -92,6 +119,8 @@ export const TOOL_DEFINITIONS = [
   },
   {
     name: "terminal_read",
+    supportTier: "core",
+    stability: "stable",
     description:
       "Read the current terminal buffer contents. Non-blocking — returns whatever output " +
       "has accumulated. Use flush=true to clear the buffer after reading. " +
@@ -126,6 +155,8 @@ export const TOOL_DEFINITIONS = [
   },
   {
     name: "terminal_read_until",
+    supportTier: "core",
+    stability: "stable",
     description:
       "Read the terminal buffer until a regex pattern matches or timeout is reached. " +
       "THE KEY TOOL for interactive flows — wait for a prompt or question before responding.",
@@ -166,6 +197,8 @@ export const TOOL_DEFINITIONS = [
   },
   {
     name: "terminal_resize",
+    supportTier: "core",
+    stability: "stable",
     description: "Resize the terminal dimensions for a session.",
     inputSchema: {
       type: "object" as const,
@@ -179,6 +212,8 @@ export const TOOL_DEFINITIONS = [
   },
   {
     name: "terminal_tail",
+    supportTier: "core",
+    stability: "stable",
     description:
       "Read the last N lines of the terminal buffer (like `tail -n N`). " +
       "Token-efficient: returns only recent output, not the full accumulated history. " +
@@ -207,6 +242,8 @@ export const TOOL_DEFINITIONS = [
   },
   {
     name: "terminal_send_signal",
+    supportTier: "core",
+    stability: "stable",
     description:
       "Send a signal to the foreground process in the terminal. Use this INSTEAD of " +
       "terminal_write with control characters for SIGINT/Ctrl+C, SIGTSTP/Ctrl+Z, etc. " +
@@ -225,17 +262,9 @@ export const TOOL_DEFINITIONS = [
     },
   },
   {
-    name: "terminal_ping",
-    description:
-      "Health check for the terminal server. Returns server status, active session count, " +
-      "and uptime. Use this to verify the server is alive before starting work.",
-    inputSchema: {
-      type: "object" as const,
-      properties: {},
-    },
-  },
-  {
     name: "terminal_screenshot",
+    supportTier: "core",
+    stability: "stable",
     description:
       "Take a screenshot of the current terminal screen. Returns clean, rendered text rows " +
       "without raw ANSI codes. The HIGH-LEVEL alternative to terminal_read " +
@@ -258,6 +287,8 @@ export const TOOL_DEFINITIONS = [
   },
   {
     name: "terminal_list_sessions",
+    supportTier: "core",
+    stability: "stable",
     description:
       "List all active terminal sessions. Use verbose=true to include last activity timestamps.",
     inputSchema: {
@@ -271,7 +302,39 @@ export const TOOL_DEFINITIONS = [
     },
   },
   {
+    name: "terminal_close_session",
+    supportTier: "core",
+    stability: "stable",
+    description:
+      "Close a terminal session and free its resources. Use force=true for immediate SIGKILL.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        id: { type: "string", description: "Session ID." },
+        force: {
+          type: "boolean",
+          description: "If true, sends SIGKILL immediately. Default: false (graceful SIGHUP).",
+        },
+      },
+      required: ["id"],
+    },
+  },
+  {
+    name: "terminal_ping",
+    supportTier: "advanced",
+    stability: "stable",
+    description:
+      "Health check for the terminal server. Returns server status, active session count, " +
+      "and uptime. Use this to verify the server is alive before starting work.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {},
+    },
+  },
+  {
     name: "terminal_session_diagnostics",
+    supportTier: "advanced",
+    stability: "stable",
     description:
       "Return structured diagnostics for a session: session metadata, recent event timeline, " +
       "and a fresh semantic screenshot. Use this to debug interactive failures and reconstruct " +
@@ -301,6 +364,8 @@ export const TOOL_DEFINITIONS = [
   },
   {
     name: "terminal_session_export",
+    supportTier: "advanced",
+    stability: "stable",
     description:
       "Return a structured export for one session: metadata, recent events, last screenshot, " +
       "and a replay-friendly transcript for issue reports and bug reproduction.",
@@ -327,20 +392,12 @@ export const TOOL_DEFINITIONS = [
       required: ["id"],
     },
   },
-  {
-    name: "terminal_close_session",
-    description:
-      "Close a terminal session and free its resources. Use force=true for immediate SIGKILL.",
-    inputSchema: {
-      type: "object" as const,
-      properties: {
-        id: { type: "string", description: "Session ID." },
-        force: {
-          type: "boolean",
-          description: "If true, sends SIGKILL immediately. Default: false (graceful SIGHUP).",
-        },
-      },
-      required: ["id"],
-    },
-  },
 ];
+
+export const CORE_TOOL_NAMES = TOOL_DEFINITIONS.filter((tool) => tool.supportTier === "core").map(
+  (tool) => tool.name,
+);
+
+export const ADVANCED_TOOL_NAMES = TOOL_DEFINITIONS.filter(
+  (tool) => tool.supportTier === "advanced",
+).map((tool) => tool.name);
