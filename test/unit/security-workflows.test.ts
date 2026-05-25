@@ -32,6 +32,7 @@ describe("security workflows", () => {
     expect(workflow).toContain("npm install -g npm@11.15.0");
     expect(workflow).toContain('npm publish "./${{ steps.meta.outputs.tarball }}" --provenance');
     expect(workflow).toContain("Resolve release metadata");
+    expect(workflow).toContain("Check npm publication state");
     expect(workflow).toContain("id-token: write");
     expect(workflow).not.toContain("NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}");
     expect(workflow).toContain("attestations: write");
