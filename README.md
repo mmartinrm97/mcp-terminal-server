@@ -1,7 +1,7 @@
 # terminalize
 
 <p align="center">
-  <img src="https://img.shields.io/badge/terminalize-v0.5.0-6C5CE7?style=for-the-badge&logo=window-terminal&logoColor=white" alt="terminalize" />
+  <img src="https://img.shields.io/badge/terminalize-v0.5.1-6C5CE7?style=for-the-badge&logo=window-terminal&logoColor=white" alt="terminalize" />
 </p>
 
 <p align="center">
@@ -96,17 +96,18 @@ Read:
 
 ## What to read next
 
-| I want to...                      | Read                                             |
-| --------------------------------- | ------------------------------------------------ |
-| integrate against the MCP surface | [docs/API-CONTRACT.md](./docs/API-CONTRACT.md)   |
-| see every tool and usage pattern  | [docs/MCP-TOOLS.md](./docs/MCP-TOOLS.md)         |
-| follow interactive examples       | [docs/COOKBOOK.md](./docs/COOKBOOK.md)           |
-| verify client support             | [docs/COMPATIBILITY.md](./docs/COMPATIBILITY.md) |
-| understand testing/CI coverage    | [docs/TESTING.md](./docs/TESTING.md)             |
-| review performance and profiling  | [docs/BENCHMARKS.md](./docs/BENCHMARKS.md)       |
-| understand security boundaries    | [docs/THREAT-MODEL.md](./docs/THREAT-MODEL.md)   |
-| publish a release                 | [docs/RELEASE.md](./docs/RELEASE.md)             |
-| browse the docs hub               | [docs/README.md](./docs/README.md)               |
+| I want to...                         | Read                                             |
+| ------------------------------------ | ------------------------------------------------ |
+| understand the internal architecture | [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)   |
+| integrate against the MCP surface    | [docs/API-CONTRACT.md](./docs/API-CONTRACT.md)   |
+| see every tool and usage pattern     | [docs/MCP-TOOLS.md](./docs/MCP-TOOLS.md)         |
+| follow interactive examples          | [docs/COOKBOOK.md](./docs/COOKBOOK.md)           |
+| verify client support                | [docs/COMPATIBILITY.md](./docs/COMPATIBILITY.md) |
+| understand testing/CI coverage       | [docs/TESTING.md](./docs/TESTING.md)             |
+| review performance and profiling     | [docs/BENCHMARKS.md](./docs/BENCHMARKS.md)       |
+| understand security boundaries       | [docs/THREAT-MODEL.md](./docs/THREAT-MODEL.md)   |
+| publish a release                    | [docs/RELEASE.md](./docs/RELEASE.md)             |
+| browse the docs hub                  | [docs/README.md](./docs/README.md)               |
 
 ## Prerequisites
 

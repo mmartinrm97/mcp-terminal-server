@@ -69,7 +69,7 @@ pnpm verify:checksums artifacts/SHASUMS256.txt
 GitHub attestation verification:
 
 ```bash
-gh attestation verify terminalize-0.5.0.tgz --repo mmartinrm97/terminalize
+gh attestation verify "terminalize-<version>.tgz" --repo mmartinrm97/terminalize
 ```
 
 ## Next step
@@ -79,8 +79,8 @@ After the checklist is green, either:
 ### Preferred: tag-driven GitHub Actions release
 
 ```bash
-git tag v0.5.0
-git push origin v0.5.0
+git tag v<version>
+git push origin v<version>
 ```
 
 This runs `.github/workflows/release.yml`, re-checks `pnpm release:check`, generates SBOM/checksums/attestations, and publishes via npm trusted publishing.

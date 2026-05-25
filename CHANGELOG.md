@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.1] — 2026-05-25
+
+### Added
+
+- **CI**: Dedicated `integration-windows-targeted` GitHub Actions job for a meaningful Windows-safe integration subset
+- **Docs**: New docs hub (`docs/README.md`), dedicated MCP tool reference (`docs/MCP-TOOLS.md`), and dedicated testing/CI guide (`docs/TESTING.md`)
+
+### Changed
+
+- **Docs**: Rewrote `docs/ARCHITECTURE.md` to reflect the current codebase, current MCP surface, and current cross-platform/testing posture
+- **Docs**: Slimmed the root `README.md` into a faster overview that links to focused docs instead of duplicating everything
+- **Release**: Made release verification examples generic in `docs/RELEASE.md` so they do not drift on every patch version
+
+### Fixed
+
+- **Windows**: Promoted a locally verified Windows integration subset into an explicit script/CI contract (`pnpm test:int:windows`)
+- **Changelog**: Corrected stale historical names for session max duration/output cap and session export terminology
+
+### Testing
+
+- Local validation included `pnpm test:int:windows`, `pnpm build`, and targeted CI/package-script unit checks
+- Windows-targeted integration subset currently passes locally with 47 tests on this machine
+
 ## [0.5.0] — 2026-05-22
 
 ### Added
@@ -38,9 +61,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Safety**: Maximum session duration limit (`MCP_TERMINAL_SESSION_DURATION_MS`) and output size cap (`outputBufferMaxBytes`) to prevent runaway sessions
+- **Safety**: Maximum session duration limit (`MCP_TERMINAL_SESSION_MAX_DURATION_MS`) and output size cap (`MCP_TERMINAL_OUTPUT_BUFFER_MAX_BYTES`) to prevent runaway sessions
 - **Safety**: CWD and command policy guards — configurable allowlist/denylist for working directories and blocked commands
-- **Observability**: Session transcript export — `terminal_export_transcript` tool exports the full session output as structured JSON
+- **Observability**: Session export tooling — `terminal_session_export` returns structured session output for debugging and replay
 - **Agent guidance**: Prompt heuristic detection — `session.screenshot()` surfaces UI states (menus, confirm prompts, pager indicators) so AI agents know when to send input
 - **CI**: Cross-platform smoke matrix (Windows + Ubuntu + macOS) runs on every PR
 - **CI**: Unix integration test matrix (Ubuntu + macOS) with real PTY sessions
