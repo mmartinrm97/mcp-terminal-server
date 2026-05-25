@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   publish:
@@ -35,6 +35,22 @@ jobs:
         run: |
           mkdir -p artifacts
           pnpm pack --pack-destination artifacts
+      - name: Resolve release metadata
+        id: meta
+        shell: bash
+        run: |
+          VERSION="$(node -p "require('./package.json').version")"
+          TAG="v${VERSION}"
+          TARBALL="$(find artifacts -maxdepth 1 -name "terminalize-${VERSION}.tgz" | head -n 1)"
+
+          if [ -z "$TARBALL" ]; then
+            echo "Expected tarball for ${TAG} was not found under artifacts/" >&2
+            exit 1
+          fi
+
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "tarball=${TARBALL}" >> "$GITHUB_OUTPUT"
       - name: Generate CycloneDX SBOM
         run: pnpm sbom:generate
       - name: Generate checksums
@@ -45,14 +61,23 @@ jobs:
         with:
           name: terminalize-release-artifacts
           path: |
-            artifacts/*.tgz
+            ${{ steps.meta.outputs.tarball }}
             artifacts/*.cdx.json
             artifacts/SHASUMS256.txt
       - uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4.1.0
         with:
-          subject-path: artifacts/*.tgz
+          subject-path: ${{ steps.meta.outputs.tarball }}
       - uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4.1.0
         with:
-          subject-path: artifacts/*.tgz
+          subject-path: ${{ steps.meta.outputs.tarball }}
           sbom-path: artifacts/terminalize.cdx.json
-      - run: npm publish artifacts/*.tgz
+      - run: npm publish "./${{ steps.meta.outputs.tarball }}" --provenance
+      - name: Create or update GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "${{ steps.meta.outputs.tag }}" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            gh release upload "${{ steps.meta.outputs.tag }}" "./${{ steps.meta.outputs.tarball }}" artifacts/terminalize.cdx.json artifacts/SHASUMS256.txt --repo "${{ github.repository }}" --clobber
+          else
+            gh release create "${{ steps.meta.outputs.tag }}" "./${{ steps.meta.outputs.tarball }}" artifacts/terminalize.cdx.json artifacts/SHASUMS256.txt --repo "${{ github.repository }}" --title "${{ steps.meta.outputs.tag }}" --generate-notes
+          fi
