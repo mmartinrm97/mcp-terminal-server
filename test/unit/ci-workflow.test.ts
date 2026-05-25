@@ -30,8 +30,8 @@ describe("CI dependency hygiene", () => {
   it("should pin core GitHub actions by commit SHA", () => {
     const workflow = readCiWorkflow();
 
-    expect(workflow).toContain("actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683");
-    expect(workflow).toContain("pnpm/action-setup@9fd676a19091d4595eefd76e4bd31c97133911f1");
-    expect(workflow).toContain("actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020");
+    expect(workflow).toContain("actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd");
+    expect(workflow).toContain("actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444");
+    expect(workflow).toContain("corepack prepare pnpm@10.33.2 --activate");
   });
 });
